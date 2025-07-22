@@ -1,1 +1,14 @@
-"gmail_automation_info.log" 
+# Logs
+*.log
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Credentials (do not commit real tokens)
+client_secret_*.json
+gmail-python-email.json
+
+# Runtime files
+last_run.txt
+processed_email_ids.txt
