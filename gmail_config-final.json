@@ -1,0 +1,384 @@
+{
+    "EMAIL_USER": "wesley.allegre@gmail.com",
+    "EMAIL_PASS": "lskz vwst twpr qczi",
+    "EMAIL_LIST": [
+        "amtrak@e-mail.amtrak.com",
+        "auto-confirm@amazon.com",
+        "awards@mp1.tripadvisor.com",
+        "becu@email-becu.org",
+        "bellbuzz_at_email_tacobell_com_b7xk6m9wz6_ac61bf21@privaterelay.appleid.com",
+        "BestBuy@email.bestbuy.com",
+        "chipotle@email.chipotle.com",
+        "clubrewards@wildhorseresort.com",
+        "Costco@digital.costco.com",
+        "customer-reviews-messages@amazon.com",
+        "CustomerService@aidvantage.com",
+        "CustomerService@navient.com",
+        "customerservice@aidvantage.studentaid.gov",
+        "do-not-reply@uasconnect.com",
+        "donotreplymychart@providence.org",
+        "DoNotReply_US@us.mcdonalds.com",
+        "dsw@em.dsw.com",
+        "ebay@reply.ebay.com",
+        "email@email.applebees.com",
+        "email@email.caesars-marketing.com",
+        "email@email.plazahotelcasino.com",
+        "email@e.fredmeyermail.com",
+        "email@loyalty.redrobin.com",
+        "email@nl.npr.org",
+        "email@noreply.playagua.com",
+        "et-reply@email.gasbuddy.com",
+        "ewsletter@mail.aitoolreport.com",
+        "feedback@e.democrats.org",
+        "hello@drinkhint.com",
+        "hello@duolingo.com",
+        "hello@e.roadtrippers.com",
+        "hello@email.health.amazon.com",
+        "hello@email.pharmacy.amazon.com",
+        "hello@news.hims.com",
+        "help@c-in2.com",
+        "homedepotcustomercare@mg.homedepot.com",
+        "hotwire@e.hotwire.com",
+        "ilanicontactus@ilaniresort.com",
+        "info@boldprogressives.org",
+        "info@contact.joebiden.com",
+        "info@email.wildhorseresort.com",
+        "info@e.snocasinooffers.com",
+        "info@mail.ahead-app.com",
+        "info@mail.mlblists.com",
+        "info@marketing.mlbemail.com",
+        "info@mensunderwearstore.com",
+        "info@pr.1800contacts.com",
+        "marketplace-messages@amazon.com",
+        "marketing@pechanga.info",
+        "marketing@udio.com",
+        "MLBShop@fanshop.mlblists.com",
+        "MyClub@e.visit-eqc.com",
+        "MyHealthLegacy@lhs.org",
+        "mywendys@em.wendys.com",
+        "navigator@dollarflightclub.com",
+        "news-letter@bowling.com",
+        "news@info.gohealthuc.com",
+        "news@subs.subway.com",
+        "newsdigest@insideapple.apple.com",
+        "newsletter@aosom.com",
+        "newsletter_at_leafly_com_wpsnt9xhfc_f44fccd0@privaterelay.appleid.com",
+        "newsletters@audible.com",
+        "no-reply@amazon.com",
+        "no-reply@business.amazon.com",
+        "no-reply@duolingo.com",
+        "no-reply@myslice.papamurphys.com",
+        "no-reply@noreply.gopuff.com",
+        "no-reply@sg.newsletter.agoda-emails.com",
+        "Noreply.info@luckyeagle.com",
+        "NoReply@questdiagnostics.com",
+        "noreply@e.ilaniresort.com",
+        "noreply@mailer.23andme.com",
+        "noreply@qcareplus.com",
+        "noreply@studentaid.gov",
+        "noreply@uber.com",
+        "noreply_at_info_tacobell_com_b7xk6m9wz6_4e5cfbc8@privaterelay.appleid.com",
+        "oldnavy@email.oldnavy.com",
+        "order-update@amazon.com",
+        "orders@instacart.com",
+        "ORHA@public.govdelivery.com",
+        "pandaexpress@email.pandaexpress.com",
+        "phil@keymate.ai",
+        "Promotions@my.pizzahut.com",
+        "reply@e.zoomcare.com",
+        "return@amazon.com",
+        "safeway@p.safeway.com",
+        "sayhello@mail2.warbyparker.com",
+        "service@paypal.com",
+        "shipment-tracking@amazon.com",
+        "shopjockey@email.jockeycomfort.com",
+        "silver.sevens@aplayclub.net",
+        "spiritmountain@mail.eplayrewards.com",
+        "store-news@amazon.com",
+        "super-support@duolingo.com",
+        "support@bowlingball.com",
+        "support@dailyjocks.com",
+        "support@e.usa.experian.com",
+        "support@moonwlkr.com",
+        "support@tripit.com",
+        "targetnews@em.target.com",
+        "TurboTax@em1.turbotax.intuit.com",
+        "uber@uber.com",
+        "USPSInformeddelivery@email.informeddelivery.usps.com",
+        "venmo@venmo.com",
+        "vfe-campaign-response@amazon.com",
+        "Viking@em.viking.com",
+        "weekly@console.dev"
+    ],
+    "KEYWORDS_TO_LABELS": {
+        "trip with Uber": [
+            "Personal Finance/Receipts",
+            false
+        ],
+        "ride with": [
+            "Personal Finance/Receipts",
+            false
+        ],
+        "View your e-receipt and fuel savings summary": [
+            "Travel/Fuel_Receipts",
+            false
+        ],
+        "WESLEY, thanks for ordering from Taco Bell.": [
+            "Personal Finance/Receipts",
+            false
+        ],
+        "Folio": [
+            "Personal Finance/Receipts",
+            false
+        ],
+        "Your Instacart order receipt": [
+            "Personal Finance/Receipts",
+            false
+        ],
+        "ilani reservation confirmation": [
+            "Travel/Trip",
+            false
+        ]
+    },
+    "SENDER_TO_LABELS": {
+        "Amazon": [
+            {
+                "read_status": "true",
+                "delete_after_days": 3600,
+                "emails": [
+                    "customer-reviews-messages@amazon.com",
+                    "hello@email.health.amazon.com",
+                    "hello@email.pharmacy.amazon.com",
+                    "marketplace-messages@amazon.com",
+                    "no-reply@business.amazon.com",
+                    "store-news@amazon.com",
+                    "vfe-campaign-response@amazon.com"
+                ]
+            },
+            {
+                "read_status": "false",
+                "delete_after_days": null,
+                "emails": [
+                    "auto-confirm@amazon.com",
+                    "no-reply@amazon.com",
+                    "order-update@amazon.com",
+                    "return@amazon.com",
+                    "shipment-tracking@amazon.com"
+                ]
+            }
+        ],
+        "Health": [
+            {
+                "read_status": "true",
+                "delete_after_days": 1800,
+                "emails": [
+                    "hello@news.hims.com",
+                    "info@mail.ahead-app.com",
+                    "news@info.gohealthuc.com",
+                    "noreply@mailer.23andme.com",
+                    "ORHA@public.govdelivery.com",
+                    "reply@e.zoomcare.com"
+                ]
+            },
+            {
+                "read_status": "false",
+                "delete_after_days": null,
+                "emails": [
+                    "donotreplymychart@providence.org",
+                    "MyHealthLegacy@lhs.org",
+                    "noreply@qcareplus.com",
+                    "NoReply@questdiagnostics.com"
+                ]
+            }
+        ],
+        "Informed_Delivery": [
+            {
+                "read_status": "true",
+                "delete_after_days": 360,
+                "emails": [
+                    "USPSInformeddelivery@email.informeddelivery.usps.com"
+                ]
+            }
+        ],
+        "MLB": [
+            {
+                "read_status": "true",
+                "delete_after_days": 900,
+                "emails": [
+                    "info@mail.mlblists.com",
+                    "info@marketing.mlbemail.com",
+                    "MLBShop@fanshop.mlblists.com"
+                ]
+            }
+        ],
+        "News_Politics": [
+            {
+                "read_status": "true",
+                "delete_after_days": 900,
+                "emails": [
+                    "email@nl.npr.org",
+                    "feedback@e.democrats.org",
+                    "info@boldprogressives.org",
+                    "info@contact.joebiden.com",
+                    "newsdigest@insideapple.apple.com"
+                ]
+            }
+        ],
+        "Offers": [
+            {
+                "read_status": "true",
+                "delete_after_days": 900,
+                "emails": [
+                    "BestBuy@email.bestbuy.com",
+                    "bellbuzz_at_email_tacobell_com_b7xk6m9wz6_ac61bf21@privaterelay.appleid.com",
+                    "chipotle@email.chipotle.com",
+                    "Costco@digital.costco.com",
+                    "dsw@em.dsw.com",
+                    "ebay@reply.ebay.com",
+                    "email@e.fredmeyermail.com",
+                    "email@email.applebees.com",
+                    "email@loyalty.redrobin.com",
+                    "hello@drinkhint.com",
+                    "homedepotcustomercare@mg.homedepot.com",
+                    "info@mensunderwearstore.com",
+                    "info@pr.1800contacts.com",
+                    "mywendys@em.wendys.com",
+                    "newsletter@aosom.com",
+                    "newsletter_at_leafly_com_wpsnt9xhfc_f44fccd0@privaterelay.appleid.com",
+                    "news-letter@bowling.com",
+                    "news@subs.subway.com",
+                    "no-reply@myslice.papamurphys.com",
+                    "no-reply@noreply.gopuff.com",
+                    "noreply_at_info_tacobell_com_b7xk6m9wz6_4e5cfbc8@privaterelay.appleid.com",
+                    "pandaexpress@email.pandaexpress.com",
+                    "Promotions@my.pizzahut.com",
+                    "safeway@p.safeway.com",
+                    "sayhello@mail2.warbyparker.com",
+                    "shopjockey@email.jockeycomfort.com",
+                    "support@bowlingball.com",
+                    "support@dailyjocks.com",
+                    "support@moonwlkr.com",
+                    "targetnews@em.target.com",
+                    "uber@uber.com"
+                ]
+            }
+        ],
+        "Offers/LLM_Coding": [
+            {
+                "read_status": "true",
+                "delete_after_days": 1800,
+                "emails": [
+                    "ewsletter@mail.aitoolreport.com",
+                    "marketing@udio.com",
+                    "phil@keymate.ai",
+                    "weekly@console.dev"
+                ]
+            }
+        ],
+        "Offers/Online Subscriptions": [
+            {
+                "read_status": "true",
+                "delete_after_days": 1800,
+                "emails": [
+                    "hello@duolingo.com",
+                    "newsletters@audible.com",
+                    "no-reply@duolingo.com",
+                    "super-support@duolingo.com"
+                ]
+            }
+        ],
+        "Personal Finance": [
+            {
+                "read_status": "true",
+                "delete_after_days": 3600,
+                "emails": [
+                    "becu@email-becu.org",
+                    "support@e.usa.experian.com",
+                    "TurboTax@em1.turbotax.intuit.com"
+                ]
+            }
+        ],
+        "Personal Finance/PayPal_Venmo": [
+            {
+                "read_status": "false",
+                "delete_after_days": null,
+                "emails": [
+                    "venmo@venmo.com ",
+                    "service@paypal.com"
+                ]
+            }
+        ],
+        "Personal Finance/Receipts": [
+            {
+                "read_status": "false",
+                "delete_after_days": 1800,
+                "emails": [
+                    "DoNotReply_US@us.mcdonalds.com",
+                    "noreply@uber.com"
+                ]
+            }
+        ],
+        "Personal Finance/Student Loans": [
+            {
+                "read_status": "false",
+                "delete_after_days": null,
+                "emails": [
+                    "CustomerService@aidvantage.com",
+                    "CustomerService@navient.com",
+                    "customerservice@aidvantage.studentaid.gov",
+                    "do-not-reply@uasconnect.com",
+                    "noreply@studentaid.gov"
+                ]
+            }
+        ],
+        
+        "Travel": [
+            {
+                "read_status": "true",
+                "delete_after_days": 180,
+                "emails": [
+                    "amtrak@e-mail.amtrak.com",
+                    "awards@mp1.tripadvisor.com",
+                    "et-reply@email.gasbuddy.com",
+                    "hello@e.roadtrippers.com",
+                    "Hotwire@e.hotwire.com",
+                    "navigator@dollarflightclub.com",
+                    "no-reply@sg.newsletter.agoda-emails.com",
+                    "noreply@uber.com",
+                    "Viking@em.viking.com"
+                ]
+            }
+        ],
+        "Travel/Casinos": [
+            {
+                "read_status": "true",
+                "delete_after_days": 180,
+                "emails": [
+                    "email@email.caesars-marketing.com",
+                    "email@email.plazahotelcasino.com",
+                    "email@noreply.playagua.com",
+                    "ilanicontactus@ilaniresort.com",
+                    "info@email.wildhorseresort.com",
+                    "info@e.snocasinooffers.com",
+                    "marketing@pechanga.info",
+                    "MyClub@e.visit-eqc.com",
+                    "noreply@e.ilaniresort.com",
+                    "Noreply.info@luckyeagle.com",
+                    "silver.sevens@aplayclub.net",
+                    "spiritmountain@mail.eplayrewards.com",
+                    "clubrewards@wildhorseresort.com"
+                ]
+            }
+        ],
+        "Travel/Trip": [
+            {
+                "read_status": "false",
+                "delete_after_days": null,
+                "emails": [
+                    "support@tripit.com"
+                ]
+            }
+        ]
+        
+    }
+}
