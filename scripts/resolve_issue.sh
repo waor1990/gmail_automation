@@ -20,7 +20,8 @@ fi
 # Determine issue number and associated file
 if [[ "$INPUT" =~ ^[0-9]+$ ]]; then
     ISSUE_NUMBER="$INPUT"
-    MATCH_FILE=$(find "$ISSUES_DIR" -maxdepth 1 -type f \( -name "${ISSUE_NUMBER}_*.md" -o -name "${ISSUE_NUMBER}_*.txt" \) | head -n 1)
+    PADDED_NUM=$(printf "%03d" "$ISSUE_NUMBER")
+    MATCH_FILE=$(find "$ISSUES_DIR" -maxdepth 1 -type f \( -name "${PADDED_NUM}_*.md" -o -name "${PADDED_NUM}_*.txt" -o -name "${ISSUE_NUMBER}_*.md" -o -name "${ISSUE_NUMBER}_*.txt" \) | head -n 1)
 else
     MATCH_FILE="$ISSUES_DIR/$INPUT"
     if [[ ! -f "$MATCH_FILE" ]]; then
