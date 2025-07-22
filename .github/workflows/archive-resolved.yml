@@ -1,0 +1,39 @@
+name: Archive resolved issues
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+
+      - name: Move resolved issue file
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          ISSUE_NUM=$(printf "%03d" "$ISSUE_NUMBER")
+          FILE=$(ls issues 2>/dev/null | grep -E "^${ISSUE_NUM}_" | head -n1 || true)
+          if [ -z "$FILE" ]; then
+            FILE=$(grep -irl "$ISSUE_TITLE" issues | head -n1 || true)
+          fi
+          if [ -z "$FILE" ]; then
+            echo "No matching file found" && exit 0
+          fi
+          mkdir -p issues/solved
+          git mv "issues/$FILE" issues/solved/
+          git commit -m "Archive resolved issue #$ISSUE_NUMBER"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@v0.8.0
+        with:
+          github_token: ${{ secrets.PAT }}
