@@ -14,6 +14,13 @@ Install dependencies with:
 pip install -r requirements.txt
 ```
 
+You can also run the setup script which creates a Python virtual environment
+and installs the dependencies automatically:
+
+```bash
+./scripts/setup.sh
+```
+
 ## Configuration
 
 1. Obtain a client secret JSON file from Google Cloud and place it in the project directory.
