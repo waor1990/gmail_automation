@@ -117,18 +117,35 @@ def remove_old_logs_debug(log_file_path):
                 file.write(line)    
 
 def validate_and_normalize_config(config):
-    #Validate and ensures all configuration fields are correctly set
+    """Validate and normalize configuration values.
+
+    Converts string boolean values in ``SENDER_TO_LABELS`` to real booleans and
+    ensures ``delete_after_days`` is an integer (``float('inf')`` when omitted or
+    ``None``).
+    """
+
     for category, rules in config.get('SENDER_TO_LABELS', {}).items():
         for rule in rules:
-            if 'delete_after_dats' not in rule or rule['delete_after_days'] is None:
+            # Normalize read_status which may be provided as "true"/"false" strings
+            if isinstance(rule.get('read_status'), str):
+                value = rule['read_status'].strip().lower()
+                if value == 'true':
+                    rule['read_status'] = True
+                elif value == 'false':
+                    rule['read_status'] = False
+
+            # Normalize delete_after_days
+            if 'delete_after_days' not in rule or rule['delete_after_days'] is None:
                 rule['delete_after_days'] = float('inf')
             else:
                 try:
                     rule['delete_after_days'] = int(rule['delete_after_days'])
-                except ValueError:
-                    logging.warning(f"Invalid delete_after_days for {category}: {rule}")
+                except (ValueError, TypeError):
+                    logging.warning(
+                        f"Invalid delete_after_days for {category}: {rule}")
                     rule['delete_after_days'] = float('inf')
-        return config
+
+    return config
 
 def load_configuration():
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -171,7 +188,7 @@ def parse_email_date(date_str):
     try:
         date = parser.parse(date_str)
         if date.tzinfo is None:
-            date = date.replace(tzinfo=ZoneInfo('US/Pacific'))
+            date = date.replace(tzinfo=ZoneInfo('America/Los_Angeles'))
         return date
     except Exception as e:
         logging.error(f"Error parsing date string '{date_str}': {e}")
@@ -181,7 +198,7 @@ def parse_email_date(date_str):
 def unix_to_readable(unix_timestamp):
     #Convert Unix timestamp to datetime object
     unix_timestamp = int(unix_timestamp)
-    PDT = ZoneInfo('US/Pacific')
+    PDT = ZoneInfo('America/Los_Angeles')
     dt = datetime.fromtimestamp(unix_timestamp, tz=PDT)
     #Format the datetime into a readable string
     return dt.strftime('%m/%d/%Y, %I:%M %p %Z')
@@ -352,7 +369,7 @@ def get_last_run_time():
     try:
         with open(LAST_RUN_FILE, 'r', encoding='utf-8') as f:
             last_run_time_str = f.read().strip()
-            last_run_time = parser.isoparse(last_run_time_str).astimezone(ZoneInfo('US/Pacific'))
+            last_run_time = parser.isoparse(last_run_time_str).astimezone(ZoneInfo('America/Los_Angeles'))
             last_run_timestamp = last_run_time.timestamp()
             logging.info(f'Got last run time: {unix_to_readable(last_run_timestamp)}')
             return last_run_timestamp
@@ -361,11 +378,11 @@ def get_last_run_time():
         return default_time
     
 def update_last_run_time(current_time):
-    PDT = ZoneInfo('US/Pacific')
+    PDT = ZoneInfo('America/Los_Angeles')
     _, LAST_RUN_FILE = check_files_existence()
     last_run_time = datetime.fromtimestamp(current_time, tz=PDT).isoformat()
     with open(LAST_RUN_FILE, 'w', encoding='utf-8') as f:
-        f.write(datetime.fromtimestamp(current_time, tz=ZoneInfo('US/Pacific')).isoformat())
+        f.write(datetime.fromtimestamp(current_time, tz=ZoneInfo('America/Los_Angeles')).isoformat())
     readable_time = unix_to_readable(current_time)
     
 def batch_fetch_messages(service, userId, msg_ids):
@@ -471,9 +488,9 @@ def process_email(service, userId, msg_id, subject, date, sender, is_unread, lab
             #Parse the email's date and make it timezone-aware if it isn't already
             email_date = parse_email_date(date)
             if email_date.tzinfo is None: #If date is naive, set to Pacific time
-                email_date = email_date.replace(tzinfo=ZoneInfo('US/Pacific'))
+                email_date = email_date.replace(tzinfo=ZoneInfo('America/Los_Angeles'))
             #Set current_time to the same timezone
-            current_time = datetime.now(ZoneInfo('US/Pacific'))
+            current_time = datetime.now(ZoneInfo('America/Los_Angeles'))
             days_diff = (current_time - email_date).days
         
             if days_diff >= delete_after_days:
@@ -638,7 +655,7 @@ def main():
         config = load_configuration()
         CLIENT_SECRET_FILE, LAST_RUN_FILE = check_files_existence()
         
-        PDT = ZoneInfo('US/Pacific')
+        PDT = ZoneInfo('America/Los_Angeles')
         current_time = datetime.now(PDT).timestamp()
         logging.info(f"Current Time: {unix_to_readable(current_time)}")
         
