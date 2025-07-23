@@ -6,6 +6,8 @@ on:
 
 jobs:
   archive:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -37,4 +39,4 @@ jobs:
       - name: Push changes
         uses: ad-m/github-push-action@v0.8.0
         with:
-          github_token: ${{ secrets.PAT }}
+          github_token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
