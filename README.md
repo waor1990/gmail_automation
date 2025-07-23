@@ -24,7 +24,7 @@ and installs the dependencies automatically:
 ## Configuration
 
 1. Obtain a client secret JSON file from Google Cloud and place it in the project directory.
-2. Create `gmail_config-final.json` with your label rules. See the existing file for an example structure.
+2. Copy `gmail_config.sample.json` to `gmail_config-final.json` and edit it with your label rules.
 3. On first run, OAuth credentials will be stored in `gmail-python-email.json`.
 
 ## Running
