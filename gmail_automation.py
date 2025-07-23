@@ -122,7 +122,7 @@ def validate_and_normalize_config(config):
     #Validate and ensures all configuration fields are correctly set
     for category, rules in config.get('SENDER_TO_LABELS', {}).items():
         for rule in rules:
-            if 'delete_after_dats' not in rule or rule['delete_after_days'] is None:
+            if 'delete_after_days' not in rule or rule['delete_after_days'] is None:
                 rule['delete_after_days'] = float('inf')
             else:
                 try:
@@ -130,7 +130,7 @@ def validate_and_normalize_config(config):
                 except ValueError:
                     logging.warning(f"Invalid delete_after_days for {category}: {rule}")
                     rule['delete_after_days'] = float('inf')
-        return config
+    return config
 
 def load_configuration():
     script_dir = os.path.dirname(os.path.abspath(__file__))
