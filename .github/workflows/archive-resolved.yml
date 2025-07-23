@@ -25,6 +25,7 @@ jobs:
           FILE=$(ls issues 2>/dev/null | grep -E "^${ISSUE_NUM}_" | head -n1 || true)
           if [ -z "$FILE" ]; then
             FILE=$(grep -irl "$ISSUE_TITLE" issues | head -n1 || true)
+            FILE="${FILE#issues/}"
           fi
           if [ -z "$FILE" ]; then
             echo "No matching file found" && exit 0
