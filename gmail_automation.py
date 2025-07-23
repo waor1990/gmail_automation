@@ -9,13 +9,11 @@ from datetime import datetime, timedelta
 from dateutil import parser
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from time import time
 from oauth2client import client, file, tools
 from zoneinfo import ZoneInfo
 
 SCOPES = 'https://www.googleapis.com/auth/gmail.modify'
 APPLICATION_NAME = 'Email Automation'
-CACHE_TTL = 3600
 #Add cache dictionary
 message_details_cache = {}
 processed_queries = set()
