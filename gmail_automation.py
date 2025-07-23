@@ -119,18 +119,35 @@ def remove_old_logs_debug(log_file_path):
                 file.write(line)    
 
 def validate_and_normalize_config(config):
-    #Validate and ensures all configuration fields are correctly set
+    """Validate and normalize configuration values.
+
+    Converts string boolean values in ``SENDER_TO_LABELS`` to real booleans and
+    ensures ``delete_after_days`` is an integer (``float('inf')`` when omitted or
+    ``None``).
+    """
+
     for category, rules in config.get('SENDER_TO_LABELS', {}).items():
         for rule in rules:
-            if 'delete_after_dats' not in rule or rule['delete_after_days'] is None:
+            # Normalize read_status which may be provided as "true"/"false" strings
+            if isinstance(rule.get('read_status'), str):
+                value = rule['read_status'].strip().lower()
+                if value == 'true':
+                    rule['read_status'] = True
+                elif value == 'false':
+                    rule['read_status'] = False
+
+            # Normalize delete_after_days
+            if 'delete_after_days' not in rule or rule['delete_after_days'] is None:
                 rule['delete_after_days'] = float('inf')
             else:
                 try:
                     rule['delete_after_days'] = int(rule['delete_after_days'])
-                except ValueError:
-                    logging.warning(f"Invalid delete_after_days for {category}: {rule}")
+                except (ValueError, TypeError):
+                    logging.warning(
+                        f"Invalid delete_after_days for {category}: {rule}")
                     rule['delete_after_days'] = float('inf')
-        return config
+
+    return config
 
 def load_configuration():
     script_dir = os.path.dirname(os.path.abspath(__file__))
