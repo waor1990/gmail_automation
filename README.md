@@ -30,6 +30,18 @@ and installs the dependencies automatically:
    script will also accept the strings `"true"` and `"false"` and convert them
    automatically.
 
+## Token Management
+
+The Gmail API uses OAuth 2.0 tokens for authentication. When you run the script
+for the first time, a browser window will prompt you to grant access to your
+Google account. After authorization, the resulting credentials are saved in
+`gmail-python-email.json`.
+
+The script automatically refreshes expired access tokens using the stored
+refresh token. If refreshing fails (for example, if you revoke the app's
+permissions), delete `gmail-python-email.json` and rerun the script to perform
+the OAuth flow again. Keep this file private and out of version control.
+
 ## Running
 
 ```bash
