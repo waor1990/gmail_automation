@@ -12,3 +12,4 @@ gmail-python-email.json
 # Runtime files
 last_run.txt
 processed_email_ids.txt
+.venv/
