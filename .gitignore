@@ -1,13 +1,19 @@
 # Logs
 *.log
+gmail_automation_debug*.log
+gmail_automation_info.log
+
+# OAuth tokens and credentials (do not commit real tokens)
+client_secret_*.json
+gmail-python-email.json
+*_token.json
+
+# Virtual environments and generated folders
+.venv/
 
 # Python cache
 __pycache__/
 *.py[cod]
-
-# Credentials (do not commit real tokens)
-client_secret_*.json
-gmail-python-email.json
 
 # Runtime files
 last_run.txt
