@@ -26,17 +26,25 @@ jobs:
           ISSUE_NUM=$(printf "%03d" "$ISSUE_NUMBER")
           FILE=$(ls issues 2>/dev/null | grep -E "^${ISSUE_NUM}_" | head -n1 || true)
           if [ -z "$FILE" ]; then
-            FILE=$(grep -irl "$ISSUE_TITLE" issues | head -n1 || true)
+            FILE=$(grep -irl "$ISSUE_TITLE" issues | sed 's|issues/||' | head -n1 || true)
             FILE="${FILE#issues/}"
           fi
           if [ -z "$FILE" ]; then
             echo "No matching file found" && exit 0
           fi
+          FILE="${FILE##*/}"
           mkdir -p issues/solved
           git mv "issues/$FILE" issues/solved/
           git commit -m "Archive resolved issue #$ISSUE_NUMBER"
+
+      - name: Pull latest changes
+        run: |
+          git config --global user.email "wesley.allegre@gmail.com"
+          git config --global user.name "GitHub Actions"
+          git pull origin main --rebase
 
       - name: Push changes
         uses: ad-m/github-push-action@v0.8.0
         with:
           github_token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          branch: main
