@@ -45,7 +45,7 @@ the OAuth flow again. Keep this file private and out of version control.
 ## Running
 
 ```bash
-python gmail_automation.py
+python -m gmail_automation
 ```
 
 The script logs activity to `gmail_automation_info.log` and `gmail_automation_debug.log`.
