@@ -8,6 +8,13 @@ log(){
     echo "$(date -Iseconds) $1" | tee -a "$LOG_FILE"
 }
 
+# check if an open GitHub issue with the given title already exists
+issue_exists(){
+    local title="$1"
+    gh issue list --state open --json title --limit 1000 |
+        jq -r '.[].title' | grep -Fxq "$title"
+}
+
 if ! gh auth status >/dev/null 2>&1; then
     log "gh CLI is not authenticated. Run 'gh auth login' first."
     exit 1
@@ -26,6 +33,11 @@ for file in "$ISSUE_DIR"/*.md "$ISSUE_DIR"/*.txt; do
 
     if [[ -z "$title" || -z "$body" ]]; then
         log "Skipping $file: missing title or body"
+        continue
+    fi
+
+    if issue_exists "$title"; then
+        log "Skipping $file: issue with title '$title' already exists"
         continue
     fi
 
