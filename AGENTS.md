@@ -4,3 +4,6 @@
 - Do not commit real credential or log files.
 - Keep dependency information in `requirements.txt`.
 - Add new labels or configuration entries to `gmail_config-final.json` only if necessary.
+
+- Keep `.github/copilot-instructions.md` in sync with these guidelines.
+
