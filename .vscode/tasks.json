@@ -22,6 +22,7 @@
             "type": "shell",
             "command": "bash",
             "args": [
+                "-c",
                 "scripts/create_issues.sh"
             ],
             "group": "build",
@@ -32,20 +33,18 @@
                 "panel": "new"
             },
             "options": {
-                "cwd": "${workspaceFolder}",
-                "shell": {
-                    "executable": "bash",
-                    "args": [
-                        "-c"
-                    ]
-                }
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": []
         },
         {
             "label": "Create GitHub Issues (Git Bash)",
             "type": "shell",
-            "command": "bash scripts/create_issues.sh",
+            "command": "C:\\Program Files\\Git\\bin\\bash.exe",
+            "args": [
+                "-c",
+                "scripts/create_issues.sh"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -54,19 +53,17 @@
                 "panel": "new"
             },
             "options": {
-                "cwd": "${workspaceFolder}",
-                "shell": {
-                    "executable": "C:\\Program Files\\Git\\bin\\bash.exe"
-                }
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": []
         },
         {
-            "label": "Create GitHub Issues (CMD)",
+            "label": "Create GitHub Issues (PowerShell)",
             "type": "shell",
-            "command": "\"C:\\Program Files\\Git\\bin\\bash.exe\"",
+            "command": "powershell.exe",
             "args": [
-                "scripts/create_issues.sh"
+                "-Command",
+                "& 'C:\\Program Files\\Git\\bin\\bash.exe' -c 'scripts/create_issues.sh'"
             ],
             "group": "build",
             "presentation": {
