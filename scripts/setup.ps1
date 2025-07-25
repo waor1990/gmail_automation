@@ -28,17 +28,19 @@ if (Test-Path $ActivateScript) {
     
     # Compile the main script to ensure it's valid
     Write-Host "🔍 Validating gmail_automation.py..." -ForegroundColor Yellow
-    python -m py_compile gmail_automation.py
-    if ($LASTEXITCODE -eq 0) {
+    $process = Start-Process -FilePath "python" -ArgumentList "-m", "py_compile", "gmail_automation.py" -Wait -PassThru -NoNewWindow
+    if ($process.ExitCode -eq 0) {
         Write-Host "✅ gmail_automation.py compiles successfully" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "❌ gmail_automation.py has compilation errors" -ForegroundColor Red
         exit 1
     }
     
     Write-Host "✅ Setup complete!" -ForegroundColor Green
     Write-Host "To activate the environment in the future, run: $VenvDir\Scripts\Activate.ps1" -ForegroundColor Cyan
-} else {
+}
+else {
     Write-Host "❌ Failed to find activation script" -ForegroundColor Red
     exit 1
 }
