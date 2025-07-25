@@ -41,8 +41,15 @@ for file in "$ISSUE_DIR"/*.md "$ISSUE_DIR"/*.txt; do
         continue
     fi
 
-    if gh issue create --title "$title" --body "$body"; then
-        log "Created issue from $file"
+    issue_number=$(gh issue create --title "$title" --body "$body" --json number --jq '.number' || true)
+    if [[ -n "$issue_number" ]]; then
+        log "Created issue #$issue_number from $file"
+        padded=$(printf "%03d" "$issue_number")
+        base=$(basename "$file")
+        rest=$(echo "$base" | sed 's/^[0-9]\+_//')
+        new_file="$ISSUE_DIR/${padded}_${rest}"
+        mv "$file" "$new_file"
+        log "Renamed $file to $new_file"
     else
         log "Failed to create issue from $file"
     fi
