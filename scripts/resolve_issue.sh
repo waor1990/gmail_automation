@@ -11,6 +11,15 @@ SOLVED_DIR="$ISSUES_DIR/solved"
 # Create solved directory with cross-platform compatibility
 mkdir -p "$SOLVED_DIR"
 
+# Check if argument is provided
+if [[ $# -eq 0 ]]; then
+    echo "Usage: $0 <issue-number | issue-file>"
+    echo "Examples:"
+    echo "  $0 123"
+    echo "  $0 001_some_issue.md"
+    exit 1
+fi
+
 INPUT="$1"
 
 if [[ -z "$INPUT" ]]; then
