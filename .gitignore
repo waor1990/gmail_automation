@@ -19,3 +19,8 @@ __pycache__/
 last_run.txt
 processed_email_ids.txt
 .venv/
+
+# Binary executables
+jq.exe
+
+.fake

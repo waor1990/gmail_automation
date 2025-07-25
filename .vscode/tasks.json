@@ -58,24 +58,20 @@
             "problemMatcher": []
         },
         {
-            "label": "Create GitHub Issues (PowerShell)",
+            "label": "Run create_issues.ps1",
             "type": "shell",
             "command": "powershell.exe",
             "args": [
-                "-Command",
-                "& 'C:\\Program Files\\Git\\bin\\bash.exe' -c 'scripts/create_issues.sh'"
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/run_create_issues.ps1"
             ],
             "group": "build",
             "presentation": {
-                "echo": true,
                 "reveal": "always",
-                "focus": false,
                 "panel": "new"
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
+            }
         },
         {
             "label": "Setup Environment (PowerShell)",
