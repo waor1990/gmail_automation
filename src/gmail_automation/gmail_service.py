@@ -20,7 +20,8 @@ processed_queries = set()
 def get_credentials():
     """Get valid user credentials from storage or OAuth flow."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    credential_path = os.path.join(script_dir, "..", "gmail-python-email.json")
+    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
+    credential_path = os.path.join(root_dir, "data", "gmail-python-email.json")
     credential_path = os.path.abspath(credential_path)
 
     client_secret, _ = check_files_existence()

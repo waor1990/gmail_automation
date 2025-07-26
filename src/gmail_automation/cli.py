@@ -30,10 +30,13 @@ processed_queries = set()
 def setup_logging():
     logging.debug("Setting up logging")
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
 
-    info_log_file_path = os.path.join(script_dir, "gmail_automation_info.log")
+    logs_dir = os.path.join(root_dir, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    info_log_file_path = os.path.join(logs_dir, "gmail_automation_info.log")
     remove_old_logs(info_log_file_path)
-    debug_log_file_path = os.path.join(script_dir, "gmail_automation_debug.log")
+    debug_log_file_path = os.path.join(logs_dir, "gmail_automation_debug.log")
     remove_old_logs_debug(debug_log_file_path)
 
     info_file_handler = logging.FileHandler(info_log_file_path, encoding="utf-8")
@@ -312,7 +315,10 @@ def process_emails_by_criteria(
 
 def process_emails_for_labeling(service, user_id, existing_labels, config, last_run_time):
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    processed_ids_file = os.path.join(script_dir, "processed_email_ids.txt")
+    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
+    data_dir = os.path.join(root_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    processed_ids_file = os.path.join(data_dir, "processed_email_ids.txt")
     processed_email_ids = load_processed_email_ids(processed_ids_file)
     current_run_processed_ids = set()
     expected_labels = {}
