@@ -30,7 +30,8 @@ def validate_and_normalize_config(config):
 
 def load_configuration():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(script_dir, "..", "gmail_config-final.json")
+    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
+    config_path = os.path.join(root_dir, "config", "gmail_config-final.json")
     config_path = os.path.abspath(config_path)
     logging.debug(f"Attempting to load configuration from: {config_path}")
     if os.path.exists(config_path):
@@ -44,9 +45,14 @@ def load_configuration():
 
 def check_files_existence():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    root_dir = os.path.abspath(os.path.join(script_dir, ".."))
-    client_secret = os.path.join(root_dir, "client_secret_717954459613-8f8k3mc7diq2h6rtkujvrjc2cbq6plh7.apps.googleusercontent.com.json")
-    last_run = os.path.join(root_dir, "last_run.txt")
+    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
+    config_dir = os.path.join(root_dir, "config")
+    data_dir = os.path.join(root_dir, "data")
+    client_secret = os.path.join(
+        config_dir,
+        "client_secret_717954459613-8f8k3mc7diq2h6rtkujvrjc2cbq6plh7.apps.googleusercontent.com.json",
+    )
+    last_run = os.path.join(data_dir, "last_run.txt")
 
     client_secret_exists = os.path.exists(client_secret)
     last_run_exists = os.path.exists(last_run)
