@@ -1,6 +1,6 @@
 # Issue: Document Gmail API token management
 
-## Problsem
+## Problem
 
 The process for obtaining and refreshing Gmail API tokens is unclear, making it difficult for new users to authenticate.
 
