@@ -1,6 +1,6 @@
 # Configuration Examples
 
-The `gmail_config-final.json` file maps senders or keywords to Gmail labels.
+The `config/gmail_config-final.json` file maps senders or keywords to Gmail labels.
 Below is a simple example:
 
 ```json
