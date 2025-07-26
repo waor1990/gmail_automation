@@ -53,3 +53,10 @@ The script logs activity to `gmail_automation_info.log` and `gmail_automation_de
 ## Security Note
 
 Credentials and log files should not be committed to version control. Update `.gitignore` accordingly and keep sensitive files private.
+
+## Documentation
+
+Additional guides are available in the [docs](docs/) directory:
+
+- [Setup Guide](docs/setup.md)
+- [Configuration Examples](docs/configuration_examples.md)
