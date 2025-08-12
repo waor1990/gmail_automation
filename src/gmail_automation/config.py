@@ -63,17 +63,23 @@ def check_files_existence():
         logging.debug(f"Found client secret file: '{client_secret}'.")
 
     if not last_run_exists:
-        logging.debug(f"Last run file: '{last_run}' does not exist. Will use default time.")
+        logging.debug(
+            f"Last run file: '{last_run}' does not exist. Will use default time."
+        )
     else:
         logging.debug(f"Found last run file: '{last_run}'.")
     return client_secret, last_run
 
 
 def unix_to_readable(unix_timestamp):
-    unix_timestamp = int(unix_timestamp)
-    pdt = ZoneInfo("America/Los_Angeles")
-    dt = datetime.fromtimestamp(unix_timestamp, tz=pdt)
-    return dt.strftime("%m/%d/%Y, %I:%M %p %Z")
+    try:
+        unix_timestamp = int(unix_timestamp)
+        pdt = ZoneInfo("America/Los_Angeles")
+        dt = datetime.fromtimestamp(unix_timestamp, tz=pdt)
+        return dt.strftime("%m/%d/%Y, %I:%M %p %Z")
+    except (ValueError, TypeError, OSError) as e:
+        logging.error(f"Error converting timestamp {unix_timestamp}: {e}")
+        return "Invalid timestamp"
 
 
 def get_last_run_time():
@@ -81,24 +87,33 @@ def get_last_run_time():
     _, last_run_file = check_files_existence()
 
     if not os.path.exists(last_run_file):
-        logging.info(f"No last run file found. Using default last run time: {unix_to_readable(default_time)}")
+        logging.info(
+            f"No last run file found. Using default last run time: {unix_to_readable(default_time)}"
+        )
         return default_time
 
     try:
         with open(last_run_file, "r", encoding="utf-8") as f:
             last_run_time_str = f.read().strip()
-            last_run_time = parser.isoparse(last_run_time_str).astimezone(ZoneInfo("America/Los_Angeles"))
+            last_run_time = parser.isoparse(last_run_time_str).astimezone(
+                ZoneInfo("America/Los_Angeles")
+            )
             last_run_timestamp = last_run_time.timestamp()
             logging.info(f"Got last run time: {unix_to_readable(last_run_timestamp)}")
             return last_run_timestamp
     except (ValueError, TypeError) as e:
-        logging.error(f"Error parsing last run time: {e}. Using default last run time instead.")
+        logging.error(
+            f"Error parsing last run time: {e}. Using default last run time instead."
+        )
         return default_time
 
 
 def update_last_run_time(current_time):
     _, last_run_file = check_files_existence()
     with open(last_run_file, "w", encoding="utf-8") as f:
-        f.write(datetime.fromtimestamp(current_time, tz=ZoneInfo("America/Los_Angeles")).isoformat())
+        f.write(
+            datetime.fromtimestamp(
+                current_time, tz=ZoneInfo("America/Los_Angeles")
+            ).isoformat()
+        )
     logging.debug(f"Updated last run time: {unix_to_readable(current_time)}")
-
