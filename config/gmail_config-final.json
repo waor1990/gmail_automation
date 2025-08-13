@@ -1,0 +1,19 @@
+{
+    "EMAIL_USER": "you@example.com",
+    "EMAIL_PASS": "app-specific-password",
+    "EMAIL_LIST": [
+        "sender@example.com"
+    ],
+    "KEYWORDS_TO_LABELS": {},
+    "SENDER_TO_LABELS": {
+        "Example_Label": [
+            {
+                "read_status": "true",
+                "delete_after_days": 30,
+                "emails": [
+                    "sender@example.com"
+                ]
+            }
+        ]
+    }
+}

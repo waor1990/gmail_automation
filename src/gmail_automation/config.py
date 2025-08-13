@@ -28,54 +28,69 @@ def validate_and_normalize_config(config):
     return config
 
 
-def load_configuration():
+def load_configuration(config_path: str | None = None):
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
-    config_path = os.path.join(root_dir, "config", "gmail_config-final.json")
+    root_dir = os.path.dirname(os.path.dirname(script_dir))
+    if config_path is None:
+        config_path = f"{root_dir}/config/gmail_config-final.json"
     config_path = os.path.abspath(config_path)
     logging.debug(f"Attempting to load configuration from: {config_path}")
-    if os.path.exists(config_path):
-        with open(config_path, encoding="utf-8") as f:
-            config = json.load(f)
-            logging.debug("Configuration loaded successfully.")
-            return validate_and_normalize_config(config)
-    logging.error(f"Configuration file: '{config_path}' does not exist.")
-    return {}
+    if not os.path.exists(config_path):
+        logging.error(f"Configuration file: '{config_path}' does not exist.")
+        return {}
+    with open(config_path, encoding="utf-8") as f:
+        config = json.load(f)
+    required_keys = ["SENDER_TO_LABELS"]
+    missing = [key for key in required_keys if key not in config]
+    if missing:
+        logging.error(
+            f"Missing required configuration keys: {', '.join(missing)} in {config_path}"
+        )
+        return {}
+    config.setdefault("KEYWORDS_TO_LABELS", {})
+    logging.debug("Configuration loaded successfully.")
+    return validate_and_normalize_config(config)
 
 
-def check_files_existence():
+def check_files_existence(client_secret_file: str | None = None):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
     config_dir = os.path.join(root_dir, "config")
     data_dir = os.path.join(root_dir, "data")
-    client_secret = os.path.join(
-        config_dir,
-        "client_secret_717954459613-8f8k3mc7diq2h6rtkujvrjc2cbq6plh7.apps.googleusercontent.com.json",
-    )
+    os.makedirs(config_dir, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True)
+
+    if client_secret_file is None:
+        client_secret_file = next(
+            (
+                os.path.join(config_dir, f)
+                for f in os.listdir(config_dir)
+                if f.startswith("client_secret") and f.endswith(".json")
+            ),
+            os.path.join(config_dir, "client_secret.json"),
+        )
     last_run = os.path.join(data_dir, "last_run.txt")
 
-    client_secret_exists = os.path.exists(client_secret)
-    last_run_exists = os.path.exists(last_run)
-
-    if not client_secret_exists:
-        logging.error(f"Client secret file: '{client_secret}' does not exist.")
+    if not os.path.exists(client_secret_file):
+        logging.error(
+            f"Client secret file: '{client_secret_file}' does not exist."
+        )
     else:
-        logging.debug(f"Found client secret file: '{client_secret}'.")
+        logging.debug(f"Found client secret file: '{client_secret_file}'.")
 
-    if not last_run_exists:
+    if not os.path.exists(last_run):
         logging.debug(
             f"Last run file: '{last_run}' does not exist. Will use default time."
         )
     else:
         logging.debug(f"Found last run file: '{last_run}'.")
-    return client_secret, last_run
+    return client_secret_file, last_run
 
 
 def unix_to_readable(unix_timestamp):
     try:
-        unix_timestamp = int(unix_timestamp)
-        pdt = ZoneInfo("America/Los_Angeles")
-        dt = datetime.fromtimestamp(unix_timestamp, tz=pdt)
+        unix_timestamp = float(unix_timestamp)
+        dt = datetime.fromtimestamp(unix_timestamp, tz=ZoneInfo("UTC"))
         return dt.strftime("%m/%d/%Y, %I:%M %p %Z")
     except (ValueError, TypeError, OSError) as e:
         logging.error(f"Error converting timestamp {unix_timestamp}: {e}")
@@ -83,8 +98,12 @@ def unix_to_readable(unix_timestamp):
 
 
 def get_last_run_time():
-    default_time = datetime(2000, 1, 1, tzinfo=ZoneInfo("UTC")).timestamp()
-    _, last_run_file = check_files_existence()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
+    data_dir = os.path.join(root_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    last_run_file = os.path.join(data_dir, "last_run.txt")
+    default_time = 0.0
 
     if not os.path.exists(last_run_file):
         logging.info(
@@ -95,10 +114,10 @@ def get_last_run_time():
     try:
         with open(last_run_file, "r", encoding="utf-8") as f:
             last_run_time_str = f.read().strip()
-            last_run_time = parser.isoparse(last_run_time_str).astimezone(
-                ZoneInfo("America/Los_Angeles")
-            )
-            last_run_timestamp = last_run_time.timestamp()
+            try:
+                last_run_timestamp = float(last_run_time_str)
+            except ValueError:
+                last_run_timestamp = parser.isoparse(last_run_time_str).timestamp()
             logging.info(f"Got last run time: {unix_to_readable(last_run_timestamp)}")
             return last_run_timestamp
     except (ValueError, TypeError) as e:
@@ -109,11 +128,11 @@ def get_last_run_time():
 
 
 def update_last_run_time(current_time):
-    _, last_run_file = check_files_existence()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
+    data_dir = os.path.join(root_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    last_run_file = os.path.join(data_dir, "last_run.txt")
     with open(last_run_file, "w", encoding="utf-8") as f:
-        f.write(
-            datetime.fromtimestamp(
-                current_time, tz=ZoneInfo("America/Los_Angeles")
-            ).isoformat()
-        )
+        f.write(str(current_time))
     logging.debug(f"Updated last run time: {unix_to_readable(current_time)}")

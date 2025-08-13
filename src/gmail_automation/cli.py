@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 import sys
@@ -6,6 +7,8 @@ from datetime import datetime, timedelta
 from dateutil import parser
 from zoneinfo import ZoneInfo
 from googleapiclient.errors import HttpError
+
+from . import __version__
 
 from .config import (
     load_configuration,
@@ -27,7 +30,7 @@ message_details_cache = {}
 processed_queries = set()
 
 
-def setup_logging():
+def setup_logging(verbose: bool = False):
     logging.debug("Setting up logging")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
@@ -50,7 +53,7 @@ def setup_logging():
     debug_file_handler.setFormatter(debug_file_formatter)
 
     stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.INFO)
+    stream_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
     stream_formatter = logging.Formatter("%(message)s")
     stream_handler.setFormatter(stream_formatter)
 
@@ -105,6 +108,33 @@ def remove_old_logs_debug(log_file_path):
                     file.write(line)
             except (ValueError, IndexError):
                 file.write(line)
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="Gmail automation script")
+    parser.add_argument(
+        "--config",
+        "-c",
+        help="Path to configuration file",
+        default=None,
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run without modifying messages",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"gmail_automation {__version__}",
+    )
+    return parser.parse_args(argv)
 
 
 def parse_email_date(date_str):
@@ -202,6 +232,7 @@ def process_email(
     processed_email_ids,
     expected_labels,
     config,
+    dry_run=False,
 ):
     subject, date, sender, is_unread = get_message_details_cached(service, user_id, msg_id)
     if not subject or not date or not sender:
@@ -217,11 +248,18 @@ def process_email(
 
     label_id_to_add = existing_labels.get(label)
     if label_id_to_add not in current_labels:
-        modify_message(service, user_id, msg_id, [label_id_to_add], ["INBOX"], mark_read)
-        processed_email_ids.add(msg_id)
-        logging.info(
-            f'Email from: "{sender}" dated: "{date}", and with subject: "{subject}" was modified with label "{label}", marked as read: "{mark_read}" and removed from Inbox.'
-        )
+        if dry_run:
+            logging.info(
+                f"Dry run: would modify email from '{sender}' with label '{label}'"
+            )
+        else:
+            modify_message(
+                service, user_id, msg_id, [label_id_to_add], ["INBOX"], mark_read
+            )
+            processed_email_ids.add(msg_id)
+            logging.info(
+                f'Email from: "{sender}" dated: "{date}", and with subject: "{subject}" was modified with label "{label}", marked as read: "{mark_read}" and removed from Inbox.'
+            )
 
     if delete_after_days is not None:
         logging.debug(f"Attempting to parse date: '{date}' for message ID: {msg_id}")
@@ -235,7 +273,10 @@ def process_email(
                 logging.info(
                     f"Deleting email from: '{sender}' with subject: '{subject}' as it is older than {delete_after_days} days."
                 )
-                service.users().messages().delete(userId=user_id, id=msg_id).execute()
+                if dry_run:
+                    logging.info("Dry run enabled; email not deleted.")
+                else:
+                    service.users().messages().delete(userId=user_id, id=msg_id).execute()
                 return True
         except Exception as e:
             logging.error(f"Error parsing date for message ID {msg_id}: {e}")
@@ -255,6 +296,7 @@ def process_emails_by_criteria(
     processed_email_ids,
     expected_labels,
     config,
+    dry_run=False,
     criterion_type="keyword",
     criterion_value="",
 ):
@@ -301,6 +343,7 @@ def process_emails_by_criteria(
             processed_email_ids,
             expected_labels,
             config,
+            dry_run=dry_run,
         ):
             modified_emails_count += 1
             any_emails_processed = True
@@ -313,7 +356,9 @@ def process_emails_by_criteria(
     return any_emails_processed
 
 
-def process_emails_for_labeling(service, user_id, existing_labels, config, last_run_time):
+def process_emails_for_labeling(
+    service, user_id, existing_labels, config, last_run_time, dry_run=False
+):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
     data_dir = os.path.join(root_dir, "data")
@@ -326,7 +371,7 @@ def process_emails_for_labeling(service, user_id, existing_labels, config, last_
     any_emails_processed = False
 
     logging.info("Processing keywords to labels:")
-    for keyword, label_info in config["KEYWORDS_TO_LABELS"].items():
+    for keyword, label_info in config.get("KEYWORDS_TO_LABELS", {}).items():
         label, mark_read = label_info
         if label not in existing_labels:
             logging.warning(
@@ -346,6 +391,7 @@ def process_emails_for_labeling(service, user_id, existing_labels, config, last_
             processed_email_ids,
             expected_labels,
             config,
+            dry_run=dry_run,
             criterion_type="keyword",
             criterion_value=keyword,
         )
@@ -353,7 +399,7 @@ def process_emails_for_labeling(service, user_id, existing_labels, config, last_
             any_emails_processed = True
 
     logging.info("Processing sender categories:")
-    for sender_category, sender_info in config["SENDER_TO_LABELS"].items():
+    for sender_category, sender_info in config.get("SENDER_TO_LABELS", {}).items():
         if sender_category not in existing_labels:
             logging.warning(
                 f"The label '{sender_category}' does not exist. Existing labels: {list(existing_labels.keys())}"
@@ -377,6 +423,7 @@ def process_emails_for_labeling(service, user_id, existing_labels, config, last_
                     processed_email_ids,
                     expected_labels,
                     config,
+                    dry_run=dry_run,
                     criterion_type="sender",
                     criterion_value=email,
                 )
@@ -387,15 +434,19 @@ def process_emails_for_labeling(service, user_id, existing_labels, config, last_
     return any_emails_processed
 
 
-def main():
+def main(argv=None):
+    args = parse_args(argv)
     try:
-        setup_logging()
+        setup_logging(verbose=args.verbose)
         logging.info("-" * 72)
         logging.debug("Script started")
         logging.info("Starting Gmail_Automation.")
 
-        config = load_configuration()
+        config = load_configuration(args.config)
         check_files_existence()
+        if not config:
+            logging.error("Configuration could not be loaded. Exiting.")
+            return
 
         current_time = datetime.now(ZoneInfo("America/Los_Angeles")).timestamp()
         logging.info(f"Current Time: {unix_to_readable(current_time)}")
@@ -409,12 +460,14 @@ def main():
         existing_labels = get_existing_labels_cached(service)
 
         emails_processed = process_emails_for_labeling(
-            service, user_id, existing_labels, config, last_run_time
+            service, user_id, existing_labels, config, last_run_time, dry_run=args.dry_run
         )
 
-        if emails_processed:
+        if emails_processed and not args.dry_run:
             update_last_run_time(current_time)
             logging.info(f"Last run time updated: {unix_to_readable(current_time)}")
+        elif emails_processed:
+            logging.info("Dry run enabled; last run time not updated.")
         else:
             logging.info("No emails processed, skipping last run time update.")
 
