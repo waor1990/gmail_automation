@@ -4,3 +4,7 @@
 - Do not commit real credential or log files.
 - Keep dependency information in `requirements.txt`.
 - Add new labels or configuration entries to `gmail_config-final.json` only if necessary.
+- Keep the repository free of temporary or redundant files.
+- Keep `.github/copilot-instructions.md` in sync with `docs/copilot-guidelines.md`.
+- Development scripts are located in `scripts/` directory.
+- Binary tools are located in `tools/` directory.

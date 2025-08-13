@@ -19,11 +19,12 @@ if (-not (Test-Path -Path $bashScriptPath)) {
     exit 1
 }
 
-# Add workspace root to PATH so jq.exe can be found
-$env:PATH = "$workspaceRoot;$env:PATH"
+# Add tools directory to PATH so jq.exe can be found
+$toolsPath = Join-Path $workspaceRoot "tools"
+$env:PATH = "$toolsPath;$env:PATH"
 
 # Execute the script
 Write-Host "Executing '$bashScriptPath' with Git Bash..."
-& $gitBashPath -c "cd '$workspaceRoot' && PATH='$workspaceRoot':`$PATH scripts/create_issues.sh"
+& $gitBashPath -c "cd '$workspaceRoot' && PATH='$toolsPath':`$PATH scripts/create_issues.sh"
 
 Write-Host "Script execution finished."

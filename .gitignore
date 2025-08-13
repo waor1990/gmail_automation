@@ -21,6 +21,6 @@ data/last_run.txt
 data/processed_email_ids.txt
 
 # Binary executables
-jq.exe
+tools/jq.exe
 
 .fake
