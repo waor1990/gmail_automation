@@ -23,12 +23,10 @@ and installs the dependencies automatically:
 
 ## Configuration
 
-1. Obtain a client secret JSON file from Google Cloud and place it in the `config/` directory.
-1. Copy `config/gmail_config.sample.json` to `config/gmail_config-final.json` and edit it with your label rules.
-1. On first run, OAuth credentials will be stored in `data/gmail-python-email.json`.
-1. The `read_status` value within `SENDER_TO_LABELS` should be a boolean. The
-   script will also accept the strings `"true"` and `"false"` and convert them
-   automatically.
+1. Obtain a client secret JSON file from Google Cloud and place it in the `config/` directory. The file should be named like `client_secret*.json`.
+2. Copy `config/gmail_config.sample.json` to `config/gmail_config-final.json` and edit it with your label rules. You can also supply a different configuration file at runtime with `--config path/to/file.json`.
+3. On first run, OAuth credentials will be stored in `data/gmail-python-email.json`.
+4. The `read_status` value within `SENDER_TO_LABELS` should be a boolean. The script will also accept the strings `"true"` and `"false"` and convert them automatically.
 
 ## Token Management
 
@@ -45,10 +43,21 @@ the OAuth flow again. Keep this file private and out of version control.
 ## Running
 
 ```bash
-python -m gmail_automation
+python gmail_automation.py --help
 ```
 
-The script logs activity to `logs/gmail_automation_info.log` and `logs/gmail_automation_debug.log`.
+The script supports several command line options:
+
+```bash
+python gmail_automation.py --config config/gmail_config-final.json --dry-run --verbose
+```
+
+- `--config` – path to configuration file (defaults to `config/gmail_config-final.json`)
+- `--dry-run` – process emails without making changes
+- `--verbose` – enable debug logging to the console
+- `--version` – display version information
+
+Logs are written to `logs/gmail_automation_info.log` and `logs/gmail_automation_debug.log`.
 
 ## Security Note
 
@@ -60,3 +69,9 @@ Additional guides are available in the [docs](docs/) directory:
 
 - [Setup Guide](docs/setup.md)
 - [Configuration Examples](docs/configuration_examples.md)
+
+## Troubleshooting
+
+- **Missing configuration file**: ensure `gmail_config-final.json` exists or pass its path with `--config`.
+- **Missing OAuth client secret**: download the OAuth client secrets JSON from Google Cloud and place it in the `config/` directory.
+- **Permission errors**: delete `data/gmail-python-email.json` and re-run the script to re-authorize.

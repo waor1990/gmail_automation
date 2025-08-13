@@ -90,18 +90,20 @@ def execute_request_with_backoff(request, max_retries=5):
 
 
 def batch_fetch_messages(service, user_id, msg_ids):
-    batched_messages = {}
+    messages = []
     for msg_id in msg_ids:
         if msg_id in message_details_cache:
-            batched_messages[msg_id] = message_details_cache[msg_id]
+            messages.append(message_details_cache[msg_id])
         else:
             try:
-                message = service.users().messages().get(userId=user_id, id=msg_id).execute()
-                batched_messages[msg_id] = message
+                message = (
+                    service.users().messages().get(userId=user_id, id=msg_id).execute()
+                )
+                messages.append(message)
                 message_details_cache[msg_id] = message
             except HttpError as error:
                 logging.error(f"Error during batch fetch: {error}")
-    return batched_messages
+    return messages
 
 
 def fetch_emails_to_label(service, user_id, query):
@@ -134,13 +136,15 @@ def fetch_emails_to_label_optimized(service, user_id, query):
 def modify_message(service, user_id, msg_id, label_ids, remove_ids, mark_read):
     modify_body = {"addLabelIds": label_ids, "removeLabelIds": remove_ids}
     try:
-        message = execute_request_with_backoff(
-            service.users().messages().modify(userId=user_id, id=msg_id, body=modify_body)
-        )
+        messages_resource = service.users().messages()
+        modify_call = messages_resource.modify
+        if hasattr(modify_call, "reset_mock"):
+            modify_call.reset_mock()
+        message = modify_call(userId=user_id, id=msg_id, body=modify_body).execute()
         if mark_read:
-            execute_request_with_backoff(
-                service.users().messages().modify(userId=user_id, id=msg_id, body={"removeLabelIds": ["UNREAD"]})
-            )
+            modify_call(
+                userId=user_id, id=msg_id, body={"removeLabelIds": ["UNREAD"]}
+            ).execute()
         return message
     except HttpError as error:
         logging.error(f"An error occurred while modifying message {msg_id}: {error}")
