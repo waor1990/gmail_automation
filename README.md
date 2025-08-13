@@ -70,6 +70,15 @@ Additional guides are available in the [docs](docs/) directory:
 - [Setup Guide](docs/setup.md)
 - [Configuration Examples](docs/configuration_examples.md)
 
+## Development
+
+Convenience scripts are provided for running tests and code quality checks:
+
+```bash
+dev.bat all     # Windows Command Prompt
+./dev.ps1 all   # PowerShell
+```
+
 ## Troubleshooting
 
 - **Missing configuration file**: ensure `gmail_config-final.json` exists or pass its path with `--config`.

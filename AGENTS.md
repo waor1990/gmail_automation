@@ -8,4 +8,6 @@
 
 - Add new labels or configuration entries to `gmail_config-final.json` only if necessary.
 
+- Keep the repository free of temporary or redundant files.
+
 - Keep `.github/copilot-instructions.md` in sync with these guidelines.
