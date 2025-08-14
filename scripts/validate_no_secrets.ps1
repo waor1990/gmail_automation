@@ -4,14 +4,18 @@
 Write-Host "🔍 Validating repository for sensitive files..." -ForegroundColor Cyan
 Write-Host ""
 
-# Define sensitive file patterns
-$sensitivePatterns = @(
+# Define critical sensitive file patterns that should block commits
+$criticalPatterns = @(
     "client_secret_*.json",
     "*token*.json",
     "gmail_config-final.json", 
-    "*.log",
     "last_run.txt",
     "processed_email_ids.txt"
+)
+
+# Define patterns that are OK in working directory if gitignored
+$warningPatterns = @(
+    "*.log"
 )
 
 # Check working directory for sensitive files
