@@ -15,26 +15,39 @@ NC='\033[0m' # No Color
 echo -e "${CYAN}🔍 Validating repository for sensitive files...${NC}"
 echo ""
 
-# Define sensitive file patterns
-SENSITIVE_PATTERNS=(
+# Define sensitive file patterns that should block commits
+CRITICAL_PATTERNS=(
     "client_secret_*.json"
     "*token*.json" 
     "gmail_config-final.json"
-    "*.log"
     "last_run.txt"
     "processed_email_ids.txt"
 )
 
-# Check working directory for sensitive files
+# Define patterns that are OK in working directory if gitignored
+WARNING_PATTERNS=(
+    "*.log"
+)
+
+# Check working directory for critical sensitive files
 echo -e "${CYAN}📁 Checking working directory...${NC}"
 found_sensitive=false
 
-for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+for pattern in "${CRITICAL_PATTERNS[@]}"; do
     files=$(find . -name "$pattern" -not -path "./.git/*" 2>/dev/null || true)
     if [[ -n "$files" ]]; then
         echo -e "${RED}❌ Found sensitive files matching pattern '$pattern':${NC}"
         echo "$files" | sed 's/^/  /'
         found_sensitive=true
+    fi
+done
+
+# Check for warning patterns (show but don't block)
+for pattern in "${WARNING_PATTERNS[@]}"; do
+    files=$(find . -name "$pattern" -not -path "./.git/*" 2>/dev/null || true)
+    if [[ -n "$files" ]]; then
+        echo -e "${YELLOW}⚠️  Found files matching pattern '$pattern' (OK if gitignored):${NC}"
+        echo "$files" | sed 's/^/  /'
     fi
 done
 
@@ -50,11 +63,21 @@ staged_files=$(git diff --cached --name-only 2>/dev/null || true)
 if [[ -n "$staged_files" ]]; then
     staged_sensitive=false
     while IFS= read -r file; do
-        for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+        for pattern in "${CRITICAL_PATTERNS[@]}"; do
             # Convert shell glob to regex for matching
             regex_pattern=$(echo "$pattern" | sed 's/\*/\.*/g')
             if [[ "$file" =~ $regex_pattern ]]; then
                 echo -e "${RED}❌ Staged file matches sensitive pattern '$pattern': $file${NC}"
+                staged_sensitive=true
+                found_sensitive=true
+            fi
+        done
+        
+        # Check warning patterns too for staging (these should block)
+        for pattern in "${WARNING_PATTERNS[@]}"; do
+            regex_pattern=$(echo "$pattern" | sed 's/\*/\.*/g')
+            if [[ "$file" =~ $regex_pattern ]]; then
+                echo -e "${RED}❌ Staged file matches pattern '$pattern': $file${NC}"
                 staged_sensitive=true
                 found_sensitive=true
             fi
@@ -76,7 +99,8 @@ history_files=$(git log --name-only --pretty=format: -10 | sort -u | grep -v "^$
 if [[ -n "$history_files" ]]; then
     history_sensitive=false
     while IFS= read -r file; do
-        for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+        # Only check critical patterns for history (logs in history are bad, but logs in working dir are OK)
+        for pattern in "${CRITICAL_PATTERNS[@]}" "${WARNING_PATTERNS[@]}"; do
             regex_pattern=$(echo "$pattern" | sed 's/\*/\.*/g')
             if [[ "$file" =~ $regex_pattern ]]; then
                 echo -e "${RED}❌ Recent history contains sensitive file: $file${NC}"

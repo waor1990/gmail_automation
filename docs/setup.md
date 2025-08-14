@@ -8,11 +8,8 @@ This document explains how to configure and run the Gmail Automation script.
    ```bash
    pip install -r requirements.txt
    ```
-<<<<<<< Updated upstream
-   You can also run `scripts/setup.sh` to create a virtual environment automatically.
-=======
 
->>>>>>> Stashed changes
+   You can also run `scripts/setup.sh` to create a virtual environment automatically.
 1. Create `config/gmail_config-final.json` from the provided sample and edit it with
    your label rules.
 1. Obtain a client secret JSON file from Google Cloud and place it in the
