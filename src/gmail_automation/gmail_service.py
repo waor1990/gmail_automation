@@ -33,7 +33,15 @@ def get_credentials():
         logging.warning("No valid credentials, initiating OAuth flow.")
         flow = client.flow_from_clientsecrets(client_secret, SCOPES)
         flow.user_agent = APPLICATION_NAME
-        credentials = tools.run_flow(flow, store)
+        # Pass empty flags to avoid conflict with CLI argument parser
+        import argparse
+
+        flags = argparse.Namespace()
+        flags.auth_host_name = "localhost"
+        flags.noauth_local_webserver = False
+        flags.auth_host_port = [8080, 8090]
+        flags.logging_level = "ERROR"
+        credentials = tools.run_flow(flow, store, flags)
         logging.info("New credentials obtained via OAuth flow.")
     else:
         try:
@@ -43,7 +51,15 @@ def get_credentials():
             logging.error(f"Failed to refresh token: {e}. Re-initiating OAuth flow.")
             flow = client.flow_from_clientsecrets(client_secret, SCOPES)
             flow.user_agent = APPLICATION_NAME
-            credentials = tools.run_flow(flow, store)
+            # Pass empty flags to avoid conflict with CLI argument parser
+            import argparse
+
+            flags = argparse.Namespace()
+            flags.auth_host_name = "localhost"
+            flags.noauth_local_webserver = False
+            flags.auth_host_port = [8080, 8090]
+            flags.logging_level = "ERROR"
+            credentials = tools.run_flow(flow, store, flags)
             logging.info("New credentials obtained after refresh failure.")
     logging.debug(f"Final Credentials Status: Invalid = {credentials.invalid}")
     return credentials
@@ -76,10 +92,14 @@ def execute_request_with_backoff(request, max_retries=5):
             return request.execute()
         except HttpError as error:
             if error.resp.status in [429, 403]:
-                wait_time = min((2 ** retry) + random.uniform(0, 1), 64)
-                logging.warning(f"Rate limit exceeded. Retrying in {wait_time:.2f} seconds...")
+                wait_time = min((2**retry) + random.uniform(0, 1), 64)
+                logging.warning(
+                    f"Rate limit exceeded. Retrying in {wait_time:.2f} seconds..."
+                )
                 time.sleep(wait_time)
-            elif error.resp.status == 400 and error._get_reason() == "failedPrecondition":
+            elif (
+                error.resp.status == 400 and error._get_reason() == "failedPrecondition"
+            ):
                 logging.error(f"Precondition check failed: {error}")
                 return None
             else:
@@ -90,16 +110,16 @@ def execute_request_with_backoff(request, max_retries=5):
 
 
 def batch_fetch_messages(service, user_id, msg_ids):
-    messages = []
+    messages = {}
     for msg_id in msg_ids:
         if msg_id in message_details_cache:
-            messages.append(message_details_cache[msg_id])
+            messages[msg_id] = message_details_cache[msg_id]
         else:
             try:
                 message = (
                     service.users().messages().get(userId=user_id, id=msg_id).execute()
                 )
-                messages.append(message)
+                messages[msg_id] = message
                 message_details_cache[msg_id] = message
             except HttpError as error:
                 logging.error(f"Error during batch fetch: {error}")
@@ -115,7 +135,12 @@ def fetch_emails_to_label(service, user_id, query):
             messages.extend(response["messages"])
         while "nextPageToken" in response:
             page_token = response["nextPageToken"]
-            response = service.users().messages().list(userId=user_id, q=query, pageToken=page_token).execute()
+            response = (
+                service.users()
+                .messages()
+                .list(userId=user_id, q=query, pageToken=page_token)
+                .execute()
+            )
             logging.debug(f"API Response for next page: {response}")
             if "messages" in response:
                 messages.extend(response["messages"])
@@ -149,4 +174,3 @@ def modify_message(service, user_id, msg_id, label_ids, remove_ids, mark_read):
     except HttpError as error:
         logging.error(f"An error occurred while modifying message {msg_id}: {error}")
         return None
-

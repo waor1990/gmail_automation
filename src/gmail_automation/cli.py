@@ -30,7 +30,7 @@ message_details_cache = {}
 processed_queries = set()
 
 
-def setup_logging(verbose: bool = False):
+def setup_logging(verbose: bool = False, log_level: str = "INFO"):
     logging.debug("Setting up logging")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
@@ -49,11 +49,19 @@ def setup_logging(verbose: bool = False):
 
     debug_file_handler = logging.FileHandler(debug_log_file_path, encoding="utf-8")
     debug_file_handler.setLevel(logging.DEBUG)
-    debug_file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    debug_file_formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s"
+    )
     debug_file_handler.setFormatter(debug_file_formatter)
 
+    # Determine console logging level: verbose flag overrides log_level
+    if verbose:
+        console_level = logging.DEBUG
+    else:
+        console_level = getattr(logging, log_level.upper(), logging.INFO)
+
     stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
+    stream_handler.setLevel(console_level)
     stream_formatter = logging.Formatter("%(message)s")
     stream_handler.setFormatter(stream_formatter)
 
@@ -127,7 +135,13 @@ def parse_args(argv=None):
         "-v",
         "--verbose",
         action="store_true",
-        help="Enable verbose logging",
+        help="Enable verbose logging (equivalent to --log-level DEBUG)",
+    )
+    parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Set the logging level (default: INFO)",
     )
     parser.add_argument(
         "--version",
@@ -150,21 +164,35 @@ def parse_email_date(date_str):
 
 def parse_header(headers, header_name):
     return next(
-        (header["value"] for header in headers if header["name"].lower() == header_name.lower()),
+        (
+            header["value"]
+            for header in headers
+            if header["name"].lower() == header_name.lower()
+        ),
         None,
     )
 
 
 def validate_details(details, expected_keys):
-    missing_details = [key for key in expected_keys if key not in details or details[key] is None]
-    available_details = {key: value for key, value in details.items() if key in expected_keys and value is not None}
+    missing_details = [
+        key for key in expected_keys if key not in details or details[key] is None
+    ]
+    available_details = {
+        key: value
+        for key, value in details.items()
+        if key in expected_keys and value is not None
+    }
     return {"missing_details": missing_details, "available_details": available_details}
 
 
 def get_message_details(service, user_id, msg_id):
     try:
         message = service.users().messages().get(userId=user_id, id=msg_id).execute()
-        if not message or "payload" not in message or "headers" not in message["payload"]:
+        if (
+            not message
+            or "payload" not in message
+            or "headers" not in message["payload"]
+        ):
             logging.error(f"Invalid message structure for ID {msg_id}: {message}")
             return None, None, None, None
         headers = message["payload"]["headers"]
@@ -175,8 +203,12 @@ def get_message_details(service, user_id, msg_id):
         details = {"subject": subject, "date": date_str, "sender": sender}
         validation = validate_details(details, ["subject", "date", "sender"])
         if validation["missing_details"]:
-            logging.error(f"Missing details for message ID {msg_id}: {validation['missing_details']}")
-            logging.info(f"Available details for message ID {msg_id}: {validation['available_details']}")
+            logging.error(
+                f"Missing details for message ID {msg_id}: {validation['missing_details']}"
+            )
+            logging.info(
+                f"Available details for message ID {msg_id}: {validation['available_details']}"
+            )
             return None, None, None, None
         date = parse_email_date(date_str)
         formatted_date = date.strftime("%m/%d/%Y, %I:%M %p %Z") if date else None
@@ -234,13 +266,19 @@ def process_email(
     config,
     dry_run=False,
 ):
-    subject, date, sender, is_unread = get_message_details_cached(service, user_id, msg_id)
+    subject, date, sender, is_unread = get_message_details_cached(
+        service, user_id, msg_id
+    )
     if not subject or not date or not sender:
         logging.debug(f"Missing details for message ID: {msg_id}. Skipping")
         return False
 
     current_labels = (
-        service.users().messages().get(userId=user_id, id=msg_id).execute().get("labelIds", [])
+        service.users()
+        .messages()
+        .get(userId=user_id, id=msg_id)
+        .execute()
+        .get("labelIds", [])
     )
     if msg_id in current_run_processed_ids:
         logging.debug(f"Email ID {msg_id} already processed in this run. Skipping.")
@@ -265,18 +303,21 @@ def process_email(
         logging.debug(f"Attempting to parse date: '{date}' for message ID: {msg_id}")
         try:
             email_date = parse_email_date(date)
-            if email_date.tzinfo is None:
-                email_date = email_date.replace(tzinfo=ZoneInfo("America/Los_Angeles"))
-            current_time = datetime.now(ZoneInfo("America/Los_Angeles"))
-            days_diff = (current_time - email_date).days
-            if days_diff >= delete_after_days:
-                logging.info(
-                    f"Deleting email from: '{sender}' with subject: '{subject}' as it is older than {delete_after_days} days."
-                )
+            if email_date is not None:
+                if email_date.tzinfo is None:
+                    email_date = email_date.replace(tzinfo=ZoneInfo("America/Los_Angeles"))
+                current_time = datetime.now(ZoneInfo("America/Los_Angeles"))
+                days_diff = (current_time - email_date).days
+                if days_diff >= delete_after_days:
+                    logging.info(
+                        f"Deleting email from: '{sender}' with subject: '{subject}' as it is older than {delete_after_days} days."
+                    )
                 if dry_run:
                     logging.info("Dry run enabled; email not deleted.")
                 else:
-                    service.users().messages().delete(userId=user_id, id=msg_id).execute()
+                    service.users().messages().delete(
+                        userId=user_id, id=msg_id
+                    ).execute()
                 return True
         except Exception as e:
             logging.error(f"Error parsing date for message ID {msg_id}: {e}")
@@ -306,7 +347,9 @@ def process_emails_by_criteria(
     any_emails_processed = False
 
     if not messages:
-        logging.info(f'No emails found for {criterion_type}: "{criterion_value}" for label: "{label}".')
+        logging.info(
+            f'No emails found for {criterion_type}: "{criterion_value}" for label: "{label}".'
+        )
         return False
 
     msg_ids = [msg["id"] for msg in messages]
@@ -318,7 +361,9 @@ def process_emails_by_criteria(
             logging.error(f"Message ID {msg_id} not found in batch fetch.")
             skipped_emails_count += 1
             continue
-        subject, date, sender, is_unread = get_message_details_cached(service, user_id, msg_id)
+        subject, date, sender, is_unread = get_message_details_cached(
+            service, user_id, msg_id
+        )
         if not subject or not date or not sender:
             logging.debug(f"Missing details for message ID: {msg_id}. Skipping.")
             skipped_emails_count += 1
@@ -437,7 +482,7 @@ def process_emails_for_labeling(
 def main(argv=None):
     args = parse_args(argv)
     try:
-        setup_logging(verbose=args.verbose)
+        setup_logging(verbose=args.verbose, log_level=args.log_level)
         logging.info("-" * 72)
         logging.debug("Script started")
         logging.info("Starting Gmail_Automation.")
@@ -460,7 +505,12 @@ def main(argv=None):
         existing_labels = get_existing_labels_cached(service)
 
         emails_processed = process_emails_for_labeling(
-            service, user_id, existing_labels, config, last_run_time, dry_run=args.dry_run
+            service,
+            user_id,
+            existing_labels,
+            config,
+            last_run_time,
+            dry_run=args.dry_run,
         )
 
         if emails_processed and not args.dry_run:

@@ -54,8 +54,26 @@ python gmail_automation.py --config config/gmail_config-final.json --dry-run --v
 
 - `--config` – path to configuration file (defaults to `config/gmail_config-final.json`)
 - `--dry-run` – process emails without making changes
-- `--verbose` – enable debug logging to the console
+- `--verbose` or `-v` – enable debug logging to the console (equivalent to `--log-level DEBUG`)
+- `--log-level` – set the console logging level (choices: DEBUG, INFO, WARNING, ERROR, CRITICAL; default: INFO)
 - `--version` – display version information
+
+**Logging Examples:**
+
+```bash
+# Standard info logging (default)
+python gmail_automation.py
+
+# Verbose debug logging 
+python gmail_automation.py --verbose
+python gmail_automation.py --log-level DEBUG
+
+# Only show warnings and errors
+python gmail_automation.py --log-level WARNING
+
+# Only show errors
+python gmail_automation.py --log-level ERROR
+```
 
 Logs are written to `logs/gmail_automation_info.log` and `logs/gmail_automation_debug.log`.
 

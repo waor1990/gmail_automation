@@ -61,20 +61,24 @@ def check_files_existence(client_secret_file: str | None = None):
     os.makedirs(data_dir, exist_ok=True)
 
     if client_secret_file is None:
+        # Find client secret files and prioritize ones with actual credentials
+        client_secret_files = [
+            f
+            for f in os.listdir(config_dir)
+            if f.startswith("client_secret") and f.endswith(".json")
+        ]
+
+        # Sort to put specific named files (with actual client IDs) first
+        client_secret_files.sort(key=lambda x: (x == "client_secret.json", x))
+
         client_secret_file = next(
-            (
-                os.path.join(config_dir, f)
-                for f in os.listdir(config_dir)
-                if f.startswith("client_secret") and f.endswith(".json")
-            ),
+            (os.path.join(config_dir, f) for f in client_secret_files),
             os.path.join(config_dir, "client_secret.json"),
         )
     last_run = os.path.join(data_dir, "last_run.txt")
 
     if not os.path.exists(client_secret_file):
-        logging.error(
-            f"Client secret file: '{client_secret_file}' does not exist."
-        )
+        logging.error(f"Client secret file: '{client_secret_file}' does not exist.")
     else:
         logging.debug(f"Found client secret file: '{client_secret_file}'.")
 
