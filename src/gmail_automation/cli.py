@@ -305,7 +305,9 @@ def process_email(
             email_date = parse_email_date(date)
             if email_date is not None:
                 if email_date.tzinfo is None:
-                    email_date = email_date.replace(tzinfo=ZoneInfo("America/Los_Angeles"))
+                    email_date = email_date.replace(
+                        tzinfo=ZoneInfo("America/Los_Angeles")
+                    )
                 current_time = datetime.now(ZoneInfo("America/Los_Angeles"))
                 days_diff = (current_time - email_date).days
                 if days_diff >= delete_after_days:
@@ -328,7 +330,9 @@ def process_email(
                                 "To enable deletion, re-authorize with broader Gmail permissions."
                             )
                         else:
-                            logging.error(f"Failed to delete email {msg_id}: {delete_error}")
+                            logging.error(
+                                f"Failed to delete email {msg_id}: {delete_error}"
+                            )
                 return True
         except Exception as e:
             logging.error(f"Error parsing date for message ID {msg_id}: {e}")
@@ -425,34 +429,6 @@ def process_emails_for_labeling(
     expected_labels = {}
 
     any_emails_processed = False
-
-    logging.info("Processing keywords to labels:")
-    for keyword, label_info in config.get("KEYWORDS_TO_LABELS", {}).items():
-        label, mark_read = label_info
-        if label not in existing_labels:
-            logging.warning(
-                f"The label '{label}' does not exist. Existing labels: {list(existing_labels.keys())}"
-            )
-            continue
-        query = f'subject:"{keyword}" label:inbox after:{int(last_run_time)}'
-        emails_processed = process_emails_by_criteria(
-            service,
-            user_id,
-            query,
-            label,
-            mark_read,
-            None,
-            existing_labels,
-            current_run_processed_ids,
-            processed_email_ids,
-            expected_labels,
-            config,
-            dry_run=dry_run,
-            criterion_type="keyword",
-            criterion_value=keyword,
-        )
-        if emails_processed:
-            any_emails_processed = True
 
     logging.info("Processing sender categories:")
     for sender_category, sender_info in config.get("SENDER_TO_LABELS", {}).items():

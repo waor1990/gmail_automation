@@ -47,7 +47,6 @@ def load_configuration(config_path: str | None = None):
             f"Missing required configuration keys: {', '.join(missing)} in {config_path}"
         )
         return {}
-    config.setdefault("KEYWORDS_TO_LABELS", {})
     logging.debug("Configuration loaded successfully.")
     return validate_and_normalize_config(config)
 
