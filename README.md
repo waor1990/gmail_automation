@@ -102,3 +102,4 @@ dev.bat all     # Windows Command Prompt
 - **Missing configuration file**: ensure `gmail_config-final.json` exists or pass its path with `--config`.
 - **Missing OAuth client secret**: download the OAuth client secrets JSON from Google Cloud and place it in the `config/` directory.
 - **Permission errors**: delete `data/gmail-python-email.json` and re-run the script to re-authorize.
+"# Test comment" 
