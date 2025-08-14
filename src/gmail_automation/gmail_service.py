@@ -9,7 +9,7 @@ from oauth2client import client, file, tools
 
 from .config import check_files_existence
 
-SCOPES = "https://www.googleapis.com/auth/gmail.modify"
+SCOPES = "https://www.googleapis.com/auth/gmail"
 APPLICATION_NAME = "Email Automation"
 
 # Cache dictionaries
