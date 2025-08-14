@@ -314,25 +314,29 @@ def process_email(
                     logging.info(
                         f"Deleting email from: '{sender}' with subject: '{subject}' as it is older than {delete_after_days} days."
                     )
-                if dry_run:
-                    logging.info("Dry run enabled; email not deleted.")
+                    if dry_run:
+                        logging.info("Dry run enabled; email not deleted.")
+                    else:
+                        try:
+                            service.users().messages().delete(
+                                userId=user_id, id=msg_id
+                            ).execute()
+                            logging.info(f"Email deleted successfully: {msg_id}")
+                        except HttpError as delete_error:
+                            if delete_error.resp.status == 403:
+                                logging.warning(
+                                    f"Insufficient permissions to delete email {msg_id}. "
+                                    "Email was labeled but not deleted. "
+                                    "To enable deletion, re-authorize with broader Gmail permissions."
+                                )
+                            else:
+                                logging.error(
+                                    f"Failed to delete email {msg_id}: {delete_error}"
+                                )
                 else:
-                    try:
-                        service.users().messages().delete(
-                            userId=user_id, id=msg_id
-                        ).execute()
-                        logging.info(f"Email deleted successfully: {msg_id}")
-                    except HttpError as delete_error:
-                        if delete_error.resp.status == 403:
-                            logging.warning(
-                                f"Insufficient permissions to delete email {msg_id}. "
-                                "Email was labeled but not deleted. "
-                                "To enable deletion, re-authorize with broader Gmail permissions."
-                            )
-                        else:
-                            logging.error(
-                                f"Failed to delete email {msg_id}: {delete_error}"
-                            )
+                    logging.debug(
+                        f"Email from '{sender}' is only {days_diff} days old, not deleting (threshold: {delete_after_days} days)"
+                    )
                 return True
         except Exception as e:
             logging.error(f"Error parsing date for message ID {msg_id}: {e}")
