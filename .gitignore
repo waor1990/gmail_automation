@@ -6,6 +6,7 @@ gmail_automation_info.log
 
 # OAuth tokens and credentials (do not commit real tokens)
 config/client_secret_*.json
+config/gmail_config-final.json
 data/gmail-python-email.json
 *_token.json
 
