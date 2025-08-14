@@ -10,11 +10,13 @@ if ($logFiles) {
         $result = & git check-ignore $file 2>$null
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  ✅ $file (properly gitignored)" -ForegroundColor Green
-        } else {
+        }
+        else {
             Write-Host "  ❌ $file (NOT gitignored)" -ForegroundColor Red
         }
     }
-} else {
+}
+else {
     Write-Host "No log files found" -ForegroundColor Green
 }
 

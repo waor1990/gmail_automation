@@ -18,21 +18,54 @@ $warningPatterns = @(
     "*.log"
 )
 
-# Check working directory for sensitive files
+# Check working directory for critical sensitive files that are NOT gitignored
 Write-Host "📁 Checking working directory..." -ForegroundColor Cyan
 $foundSensitive = $false
 
-foreach ($pattern in $sensitivePatterns) {
+foreach ($pattern in $criticalPatterns) {
     $files = Get-ChildItem -Path . -Name $pattern -Recurse -ErrorAction SilentlyContinue | Where-Object { $_ -notlike ".git*" }
     if ($files) {
-        Write-Host "❌ Found sensitive files matching pattern '$pattern':" -ForegroundColor Red
-        $files | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
-        $foundSensitive = $true
+        # Check if these files are actually ignored by git
+        $unignoredFiles = @()
+        foreach ($file in $files) {
+            $relativePath = $file -replace '^\.\\', './'
+            $checkResult = & git check-ignore $relativePath 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                $unignoredFiles += $file
+            }
+        }
+        
+        if ($unignoredFiles.Count -gt 0) {
+            Write-Host "❌ Found untracked sensitive files matching pattern '$pattern':" -ForegroundColor Red
+            $unignoredFiles | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+            $foundSensitive = $true
+        }
     }
 }
 
-if (-not $foundSensitive) {
-    Write-Host "✅ No sensitive files found in working directory" -ForegroundColor Green
+# Check for warning patterns and show if they exist (but verify they're gitignored)
+foreach ($pattern in $warningPatterns) {
+    $files = Get-ChildItem -Path . -Name $pattern -Recurse -ErrorAction SilentlyContinue | Where-Object { $_ -notlike ".git*" }
+    if ($files) {
+        # Check if any are NOT gitignored
+        $unignoredFiles = @()
+        foreach ($file in $files) {
+            $relativePath = $file -replace '^\.\\', './'
+            $checkResult = & git check-ignore $relativePath 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                $unignoredFiles += $file
+            }
+        }
+        
+        if ($unignoredFiles.Count -gt 0) {
+            Write-Host "❌ Found untracked files matching pattern '$pattern':" -ForegroundColor Red
+            $unignoredFiles | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+            $foundSensitive = $true
+        }
+        else {
+            Write-Host "✅ Found files matching pattern '$pattern' but they are properly gitignored" -ForegroundColor Green
+        }
+    }
 }
 
 # Check staged files
