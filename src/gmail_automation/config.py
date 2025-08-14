@@ -107,7 +107,10 @@ def get_last_run_time():
     data_dir = os.path.join(root_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
     last_run_file = os.path.join(data_dir, "last_run.txt")
-    default_time = 0.0
+    # Use 1 year ago as default instead of Unix epoch 0
+    import time
+
+    default_time = time.time() - (365 * 24 * 60 * 60)  # 1 year ago
 
     if not os.path.exists(last_run_file):
         logging.info(
@@ -128,6 +131,10 @@ def get_last_run_time():
         logging.error(
             f"Error parsing last run time: {e}. Using default last run time instead."
         )
+        # Use 1 year ago as default instead of Unix epoch 0
+        import time
+
+        default_time = time.time() - (365 * 24 * 60 * 60)  # 1 year ago
         return default_time
 
 
