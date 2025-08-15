@@ -174,3 +174,148 @@ def modify_message(service, user_id, msg_id, label_ids, remove_ids, mark_read):
     except HttpError as error:
         logging.error(f"An error occurred while modifying message {msg_id}: {error}")
         return None
+
+
+def extract_labels_to_config(service, user_id="me", output_file=None, batch_size=5):
+    """
+    Extract Gmail labels and associated email addresses to generate configuration.
+
+    This function replicates the functionality of the Google Apps Script but uses
+    the Gmail API directly through Python.
+
+    Args:
+        service: Gmail API service object
+        user_id: Gmail user ID (default: 'me')
+        output_file: Path to save the configuration file (default: config/gmail_labels_data.json)
+        batch_size: Number of labels to process in each batch (default: 5)
+
+    Returns:
+        dict: Configuration data in the format expected by the Gmail automation
+    """
+    import json
+    import re
+    from collections import defaultdict
+
+    if output_file is None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
+        output_file = os.path.join(root_dir, "config", "gmail_labels_data.json")
+
+    logging.info("Starting Gmail labels extraction...")
+
+    try:
+        # Get all user labels (excluding system labels)
+        labels_result = service.users().labels().list(userId=user_id).execute()
+        labels = labels_result.get("labels", [])
+
+        # Filter out system labels (those that start with CATEGORY_, CHAT, INBOX, etc.)
+        user_labels = [
+            label
+            for label in labels
+            if label["type"] == "user"
+            and not label["name"].startswith(("CATEGORY_", "CHAT"))
+        ]
+
+        logging.info(f"Found {len(user_labels)} user labels to process")
+
+        # Initialize the configuration structure
+        config_data = {"SENDER_TO_LABELS": {}}
+
+        # Process labels in batches
+        for i in range(0, len(user_labels), batch_size):
+            batch = user_labels[i : i + batch_size]
+            logging.info(
+                f"Processing batch {i//batch_size + 1}/{(len(user_labels) + batch_size - 1)//batch_size}"
+            )
+
+            for label in batch:
+                label_name = label["name"]
+                label_id = label["id"]
+
+                logging.info(f"Processing label: {label_name}")
+
+                # Get all threads with this label
+                threads_result = (
+                    service.users()
+                    .threads()
+                    .list(
+                        userId=user_id,
+                        labelIds=[label_id],
+                        maxResults=500,  # Adjust as needed
+                    )
+                    .execute()
+                )
+
+                threads = threads_result.get("threads", [])
+                email_addresses = set()
+
+                # Process threads to extract sender email addresses
+                for thread in threads:
+                    # Get thread details
+                    thread_detail = (
+                        service.users()
+                        .threads()
+                        .get(userId=user_id, id=thread["id"])
+                        .execute()
+                    )
+
+                    # Extract email addresses from each message in the thread
+                    for message in thread_detail.get("messages", []):
+                        headers = message.get("payload", {}).get("headers", [])
+
+                        # Find the 'From' header
+                        for header in headers:
+                            if header["name"].lower() == "from":
+                                from_value = header["value"]
+
+                                # Extract email address from "Name <email>" format
+                                email_match = re.search(r"<([^>]+)>", from_value)
+                                if email_match:
+                                    email_address = email_match.group(1)
+                                else:
+                                    # Handle case where email is just "email@domain.com"
+                                    email_address = from_value.strip()
+
+                                if email_address and "@" in email_address:
+                                    email_addresses.add(email_address)
+                                break
+
+                # Only add labels that have associated emails
+                if email_addresses:
+                    config_data["SENDER_TO_LABELS"][label_name] = [
+                        {
+                            "read_status": False,  # Default to False (unread)
+                            "delete_after_days": 30,  # Default to 30 days
+                            "emails": sorted(
+                                list(email_addresses)
+                            ),  # Sort for consistency
+                        }
+                    ]
+                    logging.info(
+                        f"Label '{label_name}': found {len(email_addresses)} unique email addresses"
+                    )
+                else:
+                    logging.info(f"Label '{label_name}': no emails found")
+
+            # Add a small delay between batches to be nice to the API
+            if i + batch_size < len(user_labels):
+                time.sleep(1)
+
+        # Save the configuration to file
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(config_data, f, indent=2, ensure_ascii=False)
+
+        logging.info(f"Configuration saved to: {output_file}")
+        logging.info(
+            f"Total labels with emails: {len(config_data['SENDER_TO_LABELS'])}"
+        )
+
+        return config_data
+
+    except HttpError as error:
+        logging.error(f"An error occurred while extracting labels: {error}")
+        return None
+    except Exception as error:
+        logging.error(f"Unexpected error during label extraction: {error}")
+        return None
