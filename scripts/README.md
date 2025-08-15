@@ -110,7 +110,7 @@ bash scripts/resolve_issue.sh 123
 ## Requirements
 
 - Python 3.x with virtual environment (`.venv`)
-- Gmail API credentials (configured via `config/client_secret.json`)
+- Gmail API credentials (configured via `config/client_secret*.json` files)
 - GitHub CLI (`gh`) - for issue management scripts
 - `jq` (for JSON parsing in create_issues.sh)
 - Git Bash (on Windows, for running bash scripts)

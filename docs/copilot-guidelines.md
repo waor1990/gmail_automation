@@ -2,6 +2,8 @@
 
 - Run `python -m py_compile gmail_automation.py` before committing changes to ensure the script compiles.
 - Do not commit real credential or log files.
+- Sample configuration files are stored in `config/config-sample/` directory.
+- All config files except samples and README.md are ignored by git for security.
 - Keep dependency information in `requirements.txt`.
 - Add new labels or configuration entries to `gmail_config-final.json` only if necessary.
 - Keep the repository free of temporary or redundant files.
