@@ -5,11 +5,14 @@ gmail_automation_debug*.log
 gmail_automation_info.log
 
 # OAuth tokens and credentials (do not commit real tokens)
-config/client_secret_*.json
-config/gmail_config-final.json
-config/gmail_labels_data.json
 data/gmail-python-email.json
 *_token.json
+
+# Config directory - exclude all files except samples and README
+config/*
+!config/config-sample/
+!config/config-sample/*
+!config/README.md
 
 # Virtual environments and generated folders
 .venv/
