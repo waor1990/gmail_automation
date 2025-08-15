@@ -273,31 +273,9 @@ def process_email(
         logging.debug(f"Missing details for message ID: {msg_id}. Skipping")
         return False
 
-    current_labels = (
-        service.users()
-        .messages()
-        .get(userId=user_id, id=msg_id)
-        .execute()
-        .get("labelIds", [])
-    )
     if msg_id in current_run_processed_ids:
         logging.debug(f"Email ID {msg_id} already processed in this run. Skipping.")
         return False
-
-    label_id_to_add = existing_labels.get(label)
-    if label_id_to_add not in current_labels:
-        if dry_run:
-            logging.info(
-                f"Dry run: would modify email from '{sender}' with label '{label}'"
-            )
-        else:
-            modify_message(
-                service, user_id, msg_id, [label_id_to_add], ["INBOX"], mark_read
-            )
-            processed_email_ids.add(msg_id)
-            logging.info(
-                f'Email from: "{sender}" dated: "{date}", and with subject: "{subject}" was modified with label "{label}", marked as read: "{mark_read}" and removed from Inbox.'
-            )
 
     if delete_after_days is not None:
         logging.debug(f"Attempting to parse date: '{date}' for message ID: {msg_id}")
@@ -333,14 +311,38 @@ def process_email(
                                 logging.error(
                                     f"Failed to delete email {msg_id}: {delete_error}"
                                 )
+                    return True
                 else:
                     logging.debug(
                         f"Email from '{sender}' is only {days_diff} days old, not deleting (threshold: {delete_after_days} days)"
                     )
-                return True
         except Exception as e:
             logging.error(f"Error parsing date for message ID {msg_id}: {e}")
             return False
+
+    current_labels = (
+        service.users()
+        .messages()
+        .get(userId=user_id, id=msg_id)
+        .execute()
+        .get("labelIds", [])
+    )
+
+    label_id_to_add = existing_labels.get(label)
+    if label_id_to_add not in current_labels:
+        if dry_run:
+            logging.info(
+                f"Dry run: would modify email from '{sender}' with label '{label}'"
+            )
+        else:
+            modify_message(
+                service, user_id, msg_id, [label_id_to_add], ["INBOX"], mark_read
+            )
+            processed_email_ids.add(msg_id)
+            logging.info(
+                f'Email from: "{sender}" dated: "{date}", and with subject: "{subject}" was modified with label "{label}", marked as read: "{mark_read}" and removed from Inbox.'
+            )
+
     return True
 
 
