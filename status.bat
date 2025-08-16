@@ -1,5 +1,5 @@
 @echo off
-REM Batch file to show gmail_automation.py help and setup instructions
+REM Batch file to show main.py help and setup instructions
 
 echo ==========================================
 echo Gmail Automation - Help and Setup Guide
@@ -40,8 +40,8 @@ echo    - Copy config\gmail_config.sample.json to config\gmail_config-final.json
 echo    - Edit gmail_config-final.json with your preferences
 echo.
 echo 4. FIRST RUN:
-echo    - Run: python gmail_automation.py --help (to see all options)
-echo    - Run: python gmail_automation.py (to start automation)
+echo    - Run: python main.py --help (to see all options)
+echo    - Run: python main.py (to start automation)
 echo.
 
 echo CHECKING CURRENT ENVIRONMENT:
@@ -86,9 +86,9 @@ if exist "config\gmail_config-final.json" (
 echo.
 echo HELP MENU FOR GMAIL AUTOMATION:
 echo ==========================================
-python gmail_automation.py --help 2>nul
+python main.py --help 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo ERROR: Cannot run gmail_automation.py - check setup requirements above
+    echo ERROR: Cannot run main.py - check setup requirements above
     echo Try running the setup steps first, then run this script again.
 )
 

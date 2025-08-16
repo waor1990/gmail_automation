@@ -27,13 +27,13 @@ if (Test-Path $ActivateScript) {
     pip install -r requirements.txt
     
     # Compile the main script to ensure it's valid
-    Write-Host "🔍 Validating gmail_automation.py..." -ForegroundColor Yellow
-    $process = Start-Process -FilePath "python" -ArgumentList "-m", "py_compile", "gmail_automation.py" -Wait -PassThru -NoNewWindow
+    Write-Host "🔍 Validating main.py..." -ForegroundColor Yellow
+    $process = Start-Process -FilePath "python" -ArgumentList "-m", "py_compile", "main.py" -Wait -PassThru -NoNewWindow
     if ($process.ExitCode -eq 0) {
-        Write-Host "✅ gmail_automation.py compiles successfully" -ForegroundColor Green
+        Write-Host "✅ main.py compiles successfully" -ForegroundColor Green
     }
     else {
-        Write-Host "❌ gmail_automation.py has compilation errors" -ForegroundColor Red
+        Write-Host "❌ main.py has compilation errors" -ForegroundColor Red
         exit 1
     }
     

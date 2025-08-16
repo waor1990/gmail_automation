@@ -11,7 +11,7 @@
                 "--listen",
                 "5678",
                 "--wait-for-client",
-                "gmail_automation.py"
+                "main.py"
             ],
             "group": "test",
             "isBackground": false,

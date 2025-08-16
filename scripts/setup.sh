@@ -39,11 +39,11 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 # Compile the main script to ensure it's valid
-echo "🔍 Validating gmail_automation.py..."
-if python -m py_compile gmail_automation.py; then
-    echo "✅ gmail_automation.py compiles successfully"
+echo "🔍 Validating main.py..."
+if python -m py_compile main.py; then
+    echo "✅ main.py compiles successfully"
 else
-    echo "❌ gmail_automation.py has compilation errors"
+    echo "❌ main.py has compilation errors"
     exit 1
 fi
 
