@@ -2,11 +2,16 @@
 Unit tests for the config module
 """
 
-import unittest
 import os
+import sys
+import unittest
 import tempfile
 import json
 from unittest.mock import patch, mock_open
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from gmail_automation.config import (
     validate_and_normalize_config,
     load_configuration,
@@ -69,19 +74,56 @@ class TestConfig(unittest.TestCase):
     @patch("builtins.open", new_callable=mock_open)
     def test_get_last_run_time_file_exists(self, mock_file, mock_exists):
         """Test getting last run time when file exists"""
-        mock_exists.return_value = True
-        mock_file.return_value.read.return_value = "1672531200"
 
-        result = get_last_run_time()
+        def exists(path):
+            return path.endswith("last_run.txt") or path.endswith("config_snapshot.json")
+
+        mock_exists.side_effect = exists
+
+        current_state = {"labels": [], "emails": []}
+        snapshot_read = mock_open(read_data=json.dumps(current_state)).return_value
+        snapshot_write = mock_open().return_value
+        last_run_read = mock_open(read_data="1672531200").return_value
+        mock_file.side_effect = [snapshot_read, snapshot_write, last_run_read]
+
+        result = get_last_run_time({"SENDER_TO_LABELS": {}})
         self.assertEqual(result, 1672531200.0)
 
+    @patch("builtins.open", new_callable=mock_open)
     @patch("gmail_automation.config.os.path.exists")
-    def test_get_last_run_time_file_not_exists(self, mock_exists):
+    @patch("time.time", return_value=1672531200.0)
+    def test_get_last_run_time_file_not_exists(self, mock_time, mock_exists, mock_file):
         """Test getting last run time when file doesn't exist"""
-        mock_exists.return_value = False
 
-        result = get_last_run_time()
-        self.assertEqual(result, 0.0)
+        mock_exists.return_value = False
+        result = get_last_run_time({"SENDER_TO_LABELS": {}})
+        self.assertEqual(result, 1672531200.0 - (365 * 24 * 60 * 60))
+
+    @patch("gmail_automation.config.os.path.exists")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_get_last_run_time_new_config(self, mock_file, mock_exists):
+        """Using Jan 1, 2000 when new labels or emails are added"""
+
+        def exists(path):
+            return path.endswith("last_run.txt") or path.endswith("config_snapshot.json")
+
+        mock_exists.side_effect = exists
+
+        previous_state = {"labels": ["A"], "emails": ["a@example.com"]}
+        new_config = {
+            "SENDER_TO_LABELS": {
+                "A": [{"emails": ["a@example.com"]}],
+                "B": [{"emails": ["b@example.com"]}],
+            }
+        }
+        snapshot_read = mock_open(read_data=json.dumps(previous_state)).return_value
+        snapshot_write = mock_open().return_value
+        last_run_read = mock_open(read_data="1672531200").return_value
+        mock_file.side_effect = [snapshot_read, snapshot_write, last_run_read]
+
+        result = get_last_run_time(new_config)
+        expected = datetime(2000, 1, 1, tzinfo=ZoneInfo("UTC")).timestamp()
+        self.assertEqual(result, expected)
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("gmail_automation.config.os.makedirs")

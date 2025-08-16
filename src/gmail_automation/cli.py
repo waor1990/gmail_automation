@@ -493,7 +493,7 @@ def main(argv=None):
         service = build_service(credentials)
 
         user_id = "me"
-        last_run_time = get_last_run_time()
+        last_run_time = get_last_run_time(config)
 
         existing_labels = get_existing_labels_cached(service)
 
