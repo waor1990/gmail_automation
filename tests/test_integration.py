@@ -74,7 +74,7 @@ class TestIntegration(unittest.TestCase):
         }
 
         # Test that main function runs without errors
-        with patch("sys.argv", ["gmail_automation.py"]):
+        with patch("sys.argv", ["main.py"]):
             try:
                 main()
                 # If we get here, the function completed without exceptions
@@ -145,7 +145,7 @@ class TestIntegration(unittest.TestCase):
                 mock_get_credentials.side_effect = Exception("Credential error")
 
                 # The system should handle this gracefully
-                with patch("sys.argv", ["gmail_automation.py"]):
+                with patch("sys.argv", ["main.py"]):
                     try:
                         main()
                     except SystemExit:
@@ -219,7 +219,7 @@ class TestEndToEndScenarios(unittest.TestCase):
         }
 
         with patch("gmail_automation.cli.load_configuration", return_value=config):
-            with patch("sys.argv", ["gmail_automation.py"]):
+            with patch("sys.argv", ["main.py"]):
                 try:
                     main()
                     # Verify that the service methods were called

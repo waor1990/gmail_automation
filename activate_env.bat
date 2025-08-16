@@ -10,5 +10,5 @@ if not exist ".venv" (
 
 call .venv\Scripts\activate.bat
 echo SUCCESS: Virtual environment activated!
-echo You can now run: python gmail_automation.py --help
+echo You can now run: python main.py --help
 cmd /k

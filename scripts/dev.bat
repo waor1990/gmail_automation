@@ -51,22 +51,22 @@ goto end
 
 :lint
 echo Running flake8 linting...
-python -m flake8 src/ tests/ gmail_automation.py
+python -m flake8 src/ tests/ main.py
 goto end
 
 :format
 echo Formatting code with black...
-python -m black src/ tests/ gmail_automation.py
+python -m black src/ tests/ main.py
 goto end
 
 :format-check
 echo Checking code formatting...
-python -m black --check --diff src/ tests/ gmail_automation.py
+python -m black --check --diff src/ tests/ main.py
 goto end
 
 :mypy
 echo Running mypy type checking...
-python -m mypy src/ gmail_automation.py
+python -m mypy src/ main.py
 goto end
 
 :all

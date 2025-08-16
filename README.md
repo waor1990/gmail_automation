@@ -43,13 +43,13 @@ the OAuth flow again. Keep this file private and out of version control.
 ## Running
 
 ```bash
-python gmail_automation.py --help
+python main.py --help
 ```
 
 The script supports several command line options:
 
 ```bash
-python gmail_automation.py --config config/gmail_config-final.json --dry-run --verbose
+python main.py --config config/gmail_config-final.json --dry-run --verbose
 ```
 
 - `--config` – path to configuration file (defaults to `config/gmail_config-final.json`)
@@ -62,17 +62,17 @@ python gmail_automation.py --config config/gmail_config-final.json --dry-run --v
 
 ```bash
 # Standard info logging (default)
-python gmail_automation.py
+python main.py
 
 # Verbose debug logging 
-python gmail_automation.py --verbose
-python gmail_automation.py --log-level DEBUG
+python main.py --verbose
+python main.py --log-level DEBUG
 
 # Only show warnings and errors
-python gmail_automation.py --log-level WARNING
+python main.py --log-level WARNING
 
 # Only show errors
-python gmail_automation.py --log-level ERROR
+python main.py --log-level ERROR
 ```
 
 Logs are written to `logs/gmail_automation_info.log` and `logs/gmail_automation_debug.log`.

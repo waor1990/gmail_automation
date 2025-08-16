@@ -39,22 +39,22 @@ function Invoke-TestsWithCoverage {
 
 function Invoke-Lint {
     Write-Host "Running flake8 linting..."
-    python -m flake8 src/ tests/ gmail_automation.py
+    python -m flake8 src/ tests/ main.py
 }
 
 function Format-Code {
     Write-Host "Formatting code with black..."
-    python -m black src/ tests/ gmail_automation.py
+    python -m black src/ tests/ main.py
 }
 
 function Test-CodeFormat {
     Write-Host "Checking code formatting..."
-    python -m black --check --diff src/ tests/ gmail_automation.py
+    python -m black --check --diff src/ tests/ main.py
 }
 
 function Invoke-MyPy {
     Write-Host "Running mypy type checking..."
-    python -m mypy src/ gmail_automation.py
+    python -m mypy src/ main.py
 }
 
 function Invoke-AllChecks {
