@@ -15,6 +15,7 @@ from gmail_automation.cli import (
     remove_old_logs,
     load_processed_email_ids,
     save_processed_email_ids,
+    process_email,
 )
 
 
@@ -200,6 +201,50 @@ class TestCLI(unittest.TestCase):
         write_calls = [call[0][0] for call in mock_file.write.call_args_list]
         self.assertNotIn(log_lines[0], write_calls)
         self.assertIn(log_lines[1], write_calls)
+
+
+class TestProcessEmail(unittest.TestCase):
+    """Tests for the process_email function"""
+
+    @patch("gmail_automation.cli.modify_message")
+    @patch("gmail_automation.cli.get_message_details_cached")
+    def test_delete_skip_modify(self, mock_get_details, mock_modify):
+        """Emails older than the threshold should be deleted without modification"""
+        service = MagicMock()
+        users = service.users.return_value
+        messages = users.messages.return_value
+        messages.delete.return_value.execute.return_value = None
+
+        mock_get_details.return_value = (
+            "Old Subject",
+            "01/01/2000, 12:00 AM PST",
+            "sender@example.com",
+            False,
+        )
+
+        result = process_email(
+            service,
+            "me",
+            "123",
+            None,
+            None,
+            None,
+            None,
+            "Streaming",
+            True,
+            30,
+            {"Streaming": "label_id"},
+            set(),
+            set(),
+            {},
+            {},
+            dry_run=False,
+        )
+
+        self.assertTrue(result)
+        messages.get.assert_not_called()
+        mock_modify.assert_not_called()
+        messages.delete.assert_called_once_with(userId="me", id="123")
 
 
 if __name__ == "__main__":
