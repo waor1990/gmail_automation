@@ -2,12 +2,17 @@
 Unit tests for the Gmail service module
 """
 
+import os
+import sys
 import unittest
 from unittest.mock import patch, Mock, MagicMock
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from gmail_automation.gmail_service import (
     get_existing_labels_cached,
     batch_fetch_messages,
     modify_message,
+    message_details_cache,
 )
 
 
@@ -18,6 +23,7 @@ class TestGmailService(unittest.TestCase):
         """Set up test fixtures"""
         self.mock_service = Mock()
         self.user_id = "test_user@example.com"
+        message_details_cache.clear()
 
     def test_get_existing_labels_cached_first_call(self):
         """Test getting existing labels on first call (no cache)"""
@@ -84,35 +90,33 @@ class TestGmailService(unittest.TestCase):
         result = batch_fetch_messages(self.mock_service, self.user_id, message_ids)
 
         self.assertEqual(len(result), 3)
-        self.assertEqual(result[0]["id"], "msg1")
-        self.assertEqual(result[1]["id"], "msg2")
-        self.assertEqual(result[2]["id"], "msg3")
+        self.assertEqual(set(result.keys()), set(message_ids))
+        self.assertEqual(result["msg1"]["id"], "msg1")
+        self.assertEqual(result["msg2"]["id"], "msg2")
+        self.assertEqual(result["msg3"]["id"], "msg3")
 
     def test_batch_fetch_messages_with_error(self):
         """Test batch fetching messages when some requests fail"""
         message_ids = ["msg1", "msg2", "msg3"]
 
         # Mock responses where one fails
-        def mock_execute():
-            responses = [
-                {"id": "msg1", "payload": {"headers": []}},
-                Exception("API Error"),  # This will cause an error
-                {"id": "msg3", "payload": {"headers": []}},
-            ]
-            for response in responses:
-                if isinstance(response, Exception):
-                    raise response
-                yield response
+        from googleapiclient.errors import HttpError
+        from httplib2 import Response
 
-        mock_gen = mock_execute()
-        self.mock_service.users().messages().get().execute.side_effect = mock_gen
+        error = HttpError(Response({"status": "500"}), b"Error")
+        self.mock_service.users().messages().get().execute.side_effect = [
+            {"id": "msg1", "payload": {"headers": []}},
+            error,
+            {"id": "msg3", "payload": {"headers": []}},
+        ]
 
         # Should handle errors gracefully and continue with other messages
         with patch("logging.error"):  # Suppress error logging for test
             result = batch_fetch_messages(self.mock_service, self.user_id, message_ids)
 
         # Should return available messages, skipping the failed one
-        self.assertIsInstance(result, list)
+        self.assertIsInstance(result, dict)
+        self.assertEqual(set(result.keys()), {"msg1", "msg3"})
 
     def test_modify_message_add_labels(self):
         """Test modifying message to add labels"""

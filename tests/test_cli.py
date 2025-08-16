@@ -2,11 +2,15 @@
 Unit tests for the CLI module
 """
 
+import os
+import sys
 import unittest
 import logging
 from unittest.mock import patch, Mock, MagicMock
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from gmail_automation.cli import (
     parse_email_date,
     parse_header,

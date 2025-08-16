@@ -100,16 +100,52 @@ def unix_to_readable(unix_timestamp):
         return "Invalid timestamp"
 
 
-def get_last_run_time():
+def _extract_config_state(config: dict) -> dict[str, list[str]]:
+    """Return sorted lists of labels and emails from the configuration."""
+    labels = set(config.get("SENDER_TO_LABELS", {}).keys())
+    emails: set[str] = set()
+    for rules in config.get("SENDER_TO_LABELS", {}).values():
+        for rule in rules:
+            emails.update(rule.get("emails", []))
+    return {"labels": sorted(labels), "emails": sorted(emails)}
+
+
+def get_last_run_time(config: dict | None = None):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
     data_dir = os.path.join(root_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
     last_run_file = os.path.join(data_dir, "last_run.txt")
-    # Use 1 year ago as default instead of Unix epoch 0
+    snapshot_file = os.path.join(data_dir, "config_snapshot.json")
+
+    # Default times
     import time
 
     default_time = time.time() - (365 * 24 * 60 * 60)  # 1 year ago
+    jan_1_2000 = datetime(2000, 1, 1, tzinfo=ZoneInfo("UTC")).timestamp()
+
+    current_state = _extract_config_state(config or {})
+    use_epoch_2000 = False
+
+    if os.path.exists(snapshot_file):
+        try:
+            with open(snapshot_file, "r", encoding="utf-8") as f:
+                previous_state = json.load(f)
+            prev_labels = set(previous_state.get("labels", []))
+            prev_emails = set(previous_state.get("emails", []))
+            if not prev_labels.issuperset(current_state["labels"]) or not prev_emails.issuperset(current_state["emails"]):
+                use_epoch_2000 = True
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    with open(snapshot_file, "w", encoding="utf-8") as f:
+        json.dump(current_state, f, indent=2)
+
+    if use_epoch_2000:
+        logging.info(
+            "New labels or emails detected in configuration. Using last run time of Jan 1, 2000."
+        )
+        return jan_1_2000
 
     if not os.path.exists(last_run_file):
         logging.info(
@@ -130,9 +166,6 @@ def get_last_run_time():
         logging.error(
             f"Error parsing last run time: {e}. Using default last run time instead."
         )
-        # Use 1 year ago as default instead of Unix epoch 0
-        import time
-
         default_time = time.time() - (365 * 24 * 60 * 60)  # 1 year ago
         return default_time
 

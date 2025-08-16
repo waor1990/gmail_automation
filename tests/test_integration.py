@@ -2,11 +2,14 @@
 Integration tests for the Gmail automation system
 """
 
+import os
+import sys
 import unittest
 import tempfile
 import json
-import os
 from unittest.mock import patch, Mock, MagicMock
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from gmail_automation.cli import main
 from gmail_automation.config import load_configuration
 
