@@ -115,7 +115,15 @@ def register_callbacks(app):
     )
     def add_stl_row(_n, rows):
         rows = rows or []
-        rows.append({"label": "", "group_index": None, "email": ""})
+        rows.append(
+            {
+                "label": "",
+                "group_index": None,
+                "email": "",
+                "read_status": False,
+                "delete_after_days": None,
+            }
+        )
         return rows
 
     @app.callback(

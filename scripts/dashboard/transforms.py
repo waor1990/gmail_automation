@@ -31,20 +31,25 @@ def _to_nonneg_int(value: Any, default: int = 0) -> int:
     return default
 
 
-def config_to_tables(cfg: Dict[str, Any]) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]]]:
+def config_to_tables(
+    cfg: Dict[str, Any]
+) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]]]:
     """
     Flatten config into two tables:
       - EMAIL_LIST -> [{"email": "..."}]
-      - SENDER_TO_LABELS -> [{"label": str, "group_index": int, "email": str}]
+      - SENDER_TO_LABELS -> [{"label": str, "group_index": int, "email": str,
+         "read_status": Any, "delete_after_days": Any}]
     """
     email_list = cfg.get("EMAIL_LIST") or []
     stl = cfg.get("SENDER_TO_LABELS") or {}
 
-    el_rows: List[Dict[str, str]] = [{"email": _to_clean_email(e)} for e in email_list if _to_clean_email(e)]
+    el_rows: List[Dict[str, str]] = [
+        {"email": _to_clean_email(e)} for e in email_list if _to_clean_email(e)
+    ]
 
     stl_rows: List[Dict[str, Any]] = []
-    # stl is expected: Dict[label:str, List[{"emails": [str, ...]}, ...]]
-    for label, groups in (stl.items() if isinstance(stl, dict) else []):
+    # stl is expected: Dict[label:str, List[{"emails": [str, ...], ...}, ...]]
+    for label, groups in stl.items() if isinstance(stl, dict) else []:
         label_str = _to_clean_email(label)
         if not label_str:
             continue
@@ -54,17 +59,25 @@ def config_to_tables(cfg: Dict[str, Any]) -> Tuple[List[Dict[str, str]], List[Di
         for gi, group in enumerate(groups):
             # group_index is the index position in the list
             group_index = _to_nonneg_int(gi)
+            read_status = None
+            delete_after_days = None
             emails = []
             if isinstance(group, dict):
                 raw_emails = group.get("emails", [])
                 if isinstance(raw_emails, list):
-                    emails = [_to_clean_email(e) for e in raw_emails if _to_clean_email(e)]
+                    emails = [
+                        _to_clean_email(e) for e in raw_emails if _to_clean_email(e)
+                    ]
+                read_status = group.get("read_status")
+                delete_after_days = group.get("delete_after_days")
             for email in emails:
                 stl_rows.append(
                     {
                         "label": label_str,
                         "group_index": group_index,
                         "email": email,
+                        "read_status": read_status,
+                        "delete_after_days": delete_after_days,
                     }
                 )
 
@@ -95,8 +108,10 @@ def tables_to_config(
             email_list.append(email)
 
     # SENDER_TO_LABELS re-aggregate by label, group_index
-    # stl_map[label][group_index] -> List[str]
-    stl_map: Dict[str, Dict[int, List[str]]] = {}
+    # stl_map[label][group_index] -> {
+    #   "emails": [...], "read_status": Any, "delete_after_days": Any
+    # }
+    stl_map: Dict[str, Dict[int, Dict[str, Any]]] = {}
 
     for r in stl_rows or []:
         label = _to_clean_email(r.get("label"))
@@ -106,13 +121,29 @@ def tables_to_config(
         email = _to_clean_email(r.get("email"))
         if not email:
             continue
+        read_status = r.get("read_status")
+        delete_after_days = r.get("delete_after_days")
 
         group_dict = stl_map.setdefault(label, {})
-        group_list = group_dict.setdefault(group_index, [])
-        group_list.append(email)
+        group_data = group_dict.setdefault(
+            group_index,
+            {
+                "emails": [],
+                "read_status": read_status,
+                "delete_after_days": delete_after_days,
+            },
+        )
+        group_data["emails"].append(email)
+        if group_data.get("read_status") is None and read_status is not None:
+            group_data["read_status"] = read_status
+        if (
+            group_data.get("delete_after_days") is None
+            and delete_after_days is not None
+        ):
+            group_data["delete_after_days"] = delete_after_days
 
     # Normalize into the expected list-of-groups form, filling only existing indices
-    stl_out: Dict[str, List[Dict[str, List[str]]]] = {}
+    stl_out: Dict[str, List[Dict[str, Any]]] = {}
 
     for label, groups in stl_map.items():
         # ensure integer keys and non-negative
@@ -120,13 +151,20 @@ def tables_to_config(
         if not safe_keys:
             continue
         max_index = max(safe_keys)
-        out_groups: List[Dict[str, List[str]]] = []
+        out_groups: List[Dict[str, Any]] = []
         for i in range(0, max_index + 1):
-            emails = groups.get(i, [])
+            group_data = groups.get(i, {})
+            emails = group_data.get("emails", [])
             # only emit groups that contain at least one email
             cleaned_emails = [_to_clean_email(e) for e in emails if _to_clean_email(e)]
             if cleaned_emails:
-                out_groups.append({"emails": cleaned_emails})
+                out_groups.append(
+                    {
+                        "read_status": group_data.get("read_status"),
+                        "delete_after_days": group_data.get("delete_after_days"),
+                        "emails": cleaned_emails,
+                    }
+                )
         if out_groups:
             stl_out[label] = out_groups
 
