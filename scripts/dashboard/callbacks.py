@@ -98,6 +98,28 @@ def register_callbacks(app):
 
     @app.callback(
         Output("tbl-email-list", "data", allow_duplicate=True),
+        Input("btn-add-email-row", "n_clicks"),
+        State("tbl-email-list", "data"),
+        prevent_initial_call=True,
+    )
+    def add_email_row(_n, rows):
+        rows = rows or []
+        rows.append({"email": ""})
+        return rows
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Input("btn-add-stl-row", "n_clicks"),
+        State("tbl-stl", "data"),
+        prevent_initial_call=True,
+    )
+    def add_stl_row(_n, rows):
+        rows = rows or []
+        rows.append({"label": "", "group_index": None, "email": ""})
+        return rows
+
+    @app.callback(
+        Output("tbl-email-list", "data", allow_duplicate=True),
         Output("tbl-stl", "data", allow_duplicate=True),
         Output("store-config", "data", allow_duplicate=True),
         Output("store-analysis", "data", allow_duplicate=True),
