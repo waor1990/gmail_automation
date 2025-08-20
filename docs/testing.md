@@ -14,11 +14,8 @@ pip install -r requirements.txt
 ### Run All Checks
 
 ```bash
-# On Windows (Command Prompt)
-dev.bat all
-
-# On Windows (PowerShell)
-.\dev.ps1 all
+# Unified helper
+python -m scripts.dashboard --dev all
 
 # Manual commands
 python -m pytest                    # Run tests
@@ -122,29 +119,18 @@ The project uses GitHub Actions for CI. The workflow:
 
 ## Development Scripts
 
-### Windows Batch Script (dev.bat)
+All development helpers are exposed through the dashboard CLI:
 
-```batch
-dev.bat help         # Show all available commands
-dev.bat test         # Run tests
-dev.bat test-cov     # Run tests with coverage
-dev.bat lint         # Run linting
-dev.bat format       # Format code
-dev.bat format-check # Check formatting
-dev.bat mypy         # Type checking
-dev.bat all          # Run all checks
-dev.bat clean        # Clean cache files
-dev.bat install      # Install dependencies
-```
-
-### PowerShell Script (dev.ps1)
-
-Same commands as batch script but run with PowerShell:
-
-```powershell
-.\dev.ps1 help
-.\dev.ps1 test
-# etc.
+```bash
+python -m scripts.dashboard --dev test         # Run tests
+python -m scripts.dashboard --dev test-cov     # Run tests with coverage
+python -m scripts.dashboard --dev lint         # Run linting
+python -m scripts.dashboard --dev format       # Format code
+python -m scripts.dashboard --dev format-check # Check formatting
+python -m scripts.dashboard --dev mypy         # Type checking
+python -m scripts.dashboard --dev all          # Run all checks
+python -m scripts.dashboard --dev clean        # Clean cache files
+python -m scripts.dashboard --dev install      # Install dependencies
 ```
 
 ## Writing Tests
@@ -198,7 +184,7 @@ class TestConfig(unittest.TestCase):
 
 1. **Import Errors**: Make sure you're running tests from the project root directory
 2. **Missing Dependencies**: Run `pip install -r requirements.txt`
-3. **Cache Issues**: Use `dev.bat clean` or manually delete cache directories
+3. **Cache Issues**: Use `python -m scripts.dashboard --dev clean` or manually delete cache directories
 4. **Path Issues**: Tests use `conftest.py` to add `src/` to Python path
 
 ### Test Failures
@@ -211,7 +197,7 @@ class TestConfig(unittest.TestCase):
 
 Before submitting pull requests:
 
-1. Run all tests: `dev.bat all`
+1. Run all tests: `python -m scripts.dashboard --dev all`
 2. Ensure code coverage doesn't decrease significantly
 3. Add tests for new functionality
 4. Update this documentation if needed

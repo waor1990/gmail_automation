@@ -120,11 +120,11 @@ Additional guides are available in the [docs](docs/) directory:
 
 ## Development
 
-Convenience scripts are provided for running tests and code quality checks:
+Run tests and code quality checks through the dashboard entry point:
 
 ```bash
-dev.bat all     # Windows Command Prompt
-./dev.ps1 all   # PowerShell
+python -m scripts.dashboard --dev all      # lint, type-check, test
+python -m scripts.dashboard --dev format   # auto-format code
 ```
 
 ## Troubleshooting
