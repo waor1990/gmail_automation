@@ -89,7 +89,7 @@ and edit your Gmail configuration. It can also export helpful reports.
 Launch the dashboard or export reports via the unified entry point:
 
 ```bash
-python -m scripts.dashboard [--report {esaq,diff,all}] [--launch] [--refresh]
+python -m scripts.dashboard [--report {ECAQ,diff,all}] [--launch] [--refresh]
 ```
 
 Examples:
@@ -108,7 +108,7 @@ python -m scripts.dashboard --refresh --report diff --launch
 Use the optional `--refresh` flag to run `gmail_automation.py` before other
 actions. The dashboard supports exporting:
 
-- `config/ESAQ_Report.txt` – summary of email structure and quality
+- `config/ECAQ_Report.txt` – summary of email structure and quality
 - `config/email_differences_by_label.json` – missing emails per label
 
 ## Documentation
@@ -120,11 +120,11 @@ Additional guides are available in the [docs](docs/) directory:
 
 ## Development
 
-Convenience scripts are provided for running tests and code quality checks:
+Run tests and code quality checks through the dashboard entry point:
 
 ```bash
-dev.bat all     # Windows Command Prompt
-./dev.ps1 all   # PowerShell
+python -m scripts.dashboard --dev all      # lint, type-check, test
+python -m scripts.dashboard --dev format   # auto-format code
 ```
 
 ## Troubleshooting

@@ -20,7 +20,7 @@ def make_layout():
                         style={"marginLeft": "8px"},
                     ),
                     html.Button("Save Config", id="btn-save", n_clicks=0, style={"background": "#e8ffe8"}),
-                    html.Button("Export ESAQ Report", id="btn-export-report", n_clicks=0),
+                    html.Button("Export ECAQ Report", id="btn-export-report", n_clicks=0),
                     html.Button("Compute Differences", id="btn-diff", n_clicks=0),
                     html.Button("Export Differences JSON", id="btn-export-diff", n_clicks=0),
                     html.Div(id="status", style={"marginLeft": "8px", "whiteSpace": "pre-wrap"}),

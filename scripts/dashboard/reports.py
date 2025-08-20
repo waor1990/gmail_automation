@@ -21,7 +21,7 @@ def generate_report_text(cfg: dict) -> str:
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
         "=" * 70,
-        "EMAIL STRUCTURE AND QUALITY (ESAQ) REPORT",
+        "EMAIL STRUCTURE AND QUALITY (ECAQ) REPORT",
         "=" * 70,
         f"Generated: {ts}",
         "Target: config/gmail_config-final.json",
@@ -94,7 +94,7 @@ def generate_report_text(cfg: dict) -> str:
     return "\n".join(lines)
 
 
-def write_esaq_report():
+def write_ECAQ_report():
     cfg = load_config()
     text = generate_report_text(cfg)
     REPORT_TXT.parent.mkdir(parents=True, exist_ok=True)
@@ -115,11 +115,11 @@ def write_diff_json():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--report", choices=["esaq", "diff", "all"], required=True)
+    ap.add_argument("--report", choices=["ECAQ", "diff", "all"], required=True)
     args = ap.parse_args()
 
-    if args.report in ("esaq", "all"):
-        p = write_esaq_report()
+    if args.report in ("ECAQ", "all"):
+        p = write_ECAQ_report()
         print(f"Report exported: {p}")
     if args.report in ("diff", "all"):
         p = write_diff_json()

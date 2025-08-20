@@ -68,14 +68,14 @@ The script generates a JSON file with this structure:
 Provides a Dash-based web dashboard for inspecting and editing
 `gmail_config-final.json`. The dashboard can also export helpful reports:
 
-- `config/ESAQ_Report.txt` – email structure and quality summary
+- `config/ECAQ_Report.txt` – email structure and quality summary
 - `config/email_differences_by_label.json` – differences between Gmail labels and your configuration
 
-Use the unified entry point to launch the dashboard, export reports, or run the
-main automation script:
+Use the unified entry point to launch the dashboard, export reports, run the
+main automation script, or execute development helpers:
 
 ```bash
-python -m scripts.dashboard [--report {esaq,diff,all}] [--launch] [--refresh]
+python -m scripts.dashboard [--report {ECAQ,diff,all}] [--launch] [--refresh] [--dev ACTION]
 ```
 
 Examples:
@@ -84,6 +84,7 @@ Examples:
 python -m scripts.dashboard                   # start dashboard
 python -m scripts.dashboard --report all      # export both reports
 python -m scripts.dashboard --refresh --launch # run automation then start dashboard
+python -m scripts.dashboard --dev lint        # run flake8 on the codebase
 ```
 
 ### `create_issues.sh`

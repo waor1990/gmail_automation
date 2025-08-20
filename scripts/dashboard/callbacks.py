@@ -244,7 +244,7 @@ def register_callbacks(app):
 
         REPORT_TXT.parent.mkdir(parents=True, exist_ok=True)
         REPORT_TXT.write_text(text, encoding="utf-8")
-        return "Report exported: config/ESAQ_Report.txt"
+        return "Report exported: config/ECAQ_Report.txt"
 
     @app.callback(
         Output("status", "children", allow_duplicate=True),

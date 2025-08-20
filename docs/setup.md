@@ -27,7 +27,7 @@ successful run. Keep this file private.
 1. *(Optional)* Launch the configuration dashboard or export reports:
 
    ```bash
-   python -m scripts.dashboard [--report {esaq,diff,all}] [--launch] [--refresh]
+   python -m scripts.dashboard [--report {ECAQ,diff,all}] [--launch] [--refresh]
    ```
 
    Examples:
@@ -39,10 +39,10 @@ successful run. Keep this file private.
    # Export both reports without starting the dashboard
    python -m scripts.dashboard --report all
 
-   # Refresh data, export ESAQ report, then launch the dashboard
-   python -m scripts.dashboard --refresh --report esaq --launch
+   # Refresh data, export ECAQ report, then launch the dashboard
+   python -m scripts.dashboard --refresh --report ECAQ --launch
    ```
 
    Use the optional `--refresh` flag to run `gmail_automation.py` before other
-   actions. The dashboard can export `config/ESAQ_Report.txt` and
+   actions. The dashboard can export `config/ECAQ_Report.txt` and
    `config/email_differences_by_label.json` for further analysis.
