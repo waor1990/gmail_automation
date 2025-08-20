@@ -27,17 +27,16 @@ echo SETUP INSTRUCTIONS FOR GMAIL AUTOMATION:
 echo ==========================================
 echo.
 echo 1. VIRTUAL ENVIRONMENT SETUP (REQUIRED):
-echo    - Activate: activate_env.bat (if available)
-echo    - If not available, set up environment:
-echo       - Run: python -m venv .venv
-echo       - Activate: .venv\Scripts\activate.bat
+echo    - Run: python -m venv .venv
+echo    - Activate: .venv\Scripts\activate.bat
+echo    - Or use: activate_env.bat (if available)
 echo.
 echo 2. INSTALL DEPENDENCIES:
 echo    - With venv active, run: pip install -r requirements.txt
 echo.
 echo 3. CONFIGURE GMAIL API:
 echo    - Place your Gmail API credentials in config\client_secret.json
-echo    - Copy config\config-sample\gmail_config.sample.json to config\gmail_config-final.json
+echo    - Copy config\gmail_config.sample.json to config\gmail_config-final.json
 echo    - Edit gmail_config-final.json with your preferences
 echo.
 echo 4. FIRST RUN:
@@ -71,25 +70,13 @@ if %ERRORLEVEL% equ 0 (
     echo WARNING: Dependencies not installed - run: pip install -r requirements.txt
 )
 
-REM Check for Gmail API credentials (client_secret_*)
-setlocal enabledelayedexpansion
-set found_cred=false
-for %%f in ("config\client_secret_"*) do (
-    if exist "%%~f" (
-        set found_cred=true
-        goto :CheckDone
-    )
-)
-:CheckDone
-if "!found_cred!"=="true" (
+REM Check if config files exist
+if exist "config\client_secret.json" (
     echo SUCCESS: Gmail API credentials found
 ) else (
     echo WARNING: Gmail API credentials missing - place in config\client_secret.json
 )
 
-endlocal
-
-REM Check if config file exists
 if exist "config\gmail_config-final.json" (
     echo SUCCESS: Configuration file found
 ) else (
