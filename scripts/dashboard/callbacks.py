@@ -4,6 +4,7 @@ from .analysis import (
     analyze_email_consistency,
     check_alphabetization,
     check_case_and_duplicates,
+    load_config,
     normalize_case_and_dups,
     sort_lists,
     compute_label_differences,
@@ -94,6 +95,47 @@ def register_callbacks(app):
         else:
             write_json(cfg, CONFIG_JSON)
             return "Updated: config/gmail_config-final.json (no backup)"
+
+    @app.callback(
+        Output("tbl-email-list", "data", allow_duplicate=True),
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("store-config", "data", allow_duplicate=True),
+        Output("store-analysis", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input("btn-refresh-reports", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def on_refresh(_n):
+        try:
+            cfg = load_config()
+        except FileNotFoundError:
+            return (
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                "Missing config/gmail_config-final.json",
+            )
+        el_rows, stl_rows = config_to_tables(cfg)
+        analysis = {
+            "consistency": analyze_email_consistency(cfg),
+            "sorting": check_alphabetization(cfg),
+            "case_dups": check_case_and_duplicates(cfg),
+        }
+        try:
+            from .reports import write_ECAQ_report, write_diff_json
+
+            write_ECAQ_report()
+            write_diff_json()
+        except Exception:
+            pass
+        return (
+            el_rows,
+            stl_rows,
+            cfg,
+            analysis,
+            "Reports refreshed.",
+        )
 
     @app.callback(
         Output("metrics", "children"),

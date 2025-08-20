@@ -26,6 +26,7 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
             ),
             html.Button("Export ECAQ Report", id="btn-export-report", n_clicks=0),
             html.Button("Export Differences JSON", id="btn-export-diff", n_clicks=0),
+            html.Button("Refresh Reports", id="btn-refresh-reports", n_clicks=0),
         ],
     )
 
