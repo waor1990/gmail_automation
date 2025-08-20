@@ -6,35 +6,14 @@ from .analysis import (
     check_case_and_duplicates,
     normalize_case_and_dups,
     sort_lists,
+    compute_label_differences,
 )
 from .transforms import config_to_tables, tables_to_config
 from .utils_io import write_json, backup_file, read_json
 from .constants import CONFIG_JSON, LABELS_JSON
-from .analysis import compute_label_differences
 
 
 def register_callbacks(app):
-    @app.callback(
-        Output("store-config", "data"),
-        Output("tbl-email-list", "data"),
-        Output("tbl-stl", "data"),
-        Output("store-analysis", "data"),
-        Output("status", "children"),
-        Input("btn-load", "n_clicks"),
-        prevent_initial_call=True,
-    )
-    def on_load(_):
-        from .analysis import load_config
-
-        cfg = load_config()
-        el_rows, stl_rows = config_to_tables(cfg)
-        analysis = {
-            "consistency": analyze_email_consistency(cfg),
-            "sorting": check_alphabetization(cfg),
-            "case_dups": check_case_and_duplicates(cfg),
-        }
-        return cfg, el_rows, stl_rows, analysis, "Loaded config."
-
     @app.callback(
         Output("tbl-email-list", "data", allow_duplicate=True),
         Output("tbl-stl", "data", allow_duplicate=True),
@@ -119,11 +98,13 @@ def register_callbacks(app):
     @app.callback(
         Output("metrics", "children"),
         Output("issues-block", "children"),
+        Output("projected-changes", "children"),
         Input("store-analysis", "data"),
+        State("store-config", "data"),
     )
-    def render_analysis(analysis):
+    def render_analysis(analysis, cfg):
         if not analysis:
-            return "", ""
+            return "", "", ""
 
         cons = analysis["consistency"]
         sorting = analysis["sorting"]
@@ -181,24 +162,31 @@ def register_callbacks(app):
                 dup_div,
             ]
         )
-        return metrics, issues
+
+        proj_cfg, changes = normalize_case_and_dups(cfg)
+        proj_cfg, sort_changes = sort_lists(proj_cfg)
+        changes.extend(sort_changes)
+        proj_list = ul(changes)
+        projected = html.Div(
+            [html.H4("Projected Changes After Fix All"), proj_list]
+        )
+        return metrics, issues, projected
 
     @app.callback(
         Output("diff-summary", "children"),
         Output("tbl-diff", "data"),
         Output("store-diff", "data"),
+        Output("diff-projected", "children"),
         Output("status", "children", allow_duplicate=True),
-        Input("btn-diff", "n_clicks"),
-        State("store-config", "data"),
-        prevent_initial_call=True,
+        Input("store-config", "data"),
     )
-    def on_diff(_n, cfg):
+    def on_diff(cfg):
         from dash import html
 
         if not cfg:
-            return "", [], None, "No config loaded."
+            return "", [], None, "", "No config loaded."
         if not LABELS_JSON.exists():
-            return "", [], None, "Missing config/gmail_labels_data.json"
+            return "", [], None, "", "Missing config/gmail_labels_data.json"
         labels = read_json(LABELS_JSON)
         diff = compute_label_differences(cfg, labels)
         summary = diff["comparison_summary"]
@@ -213,6 +201,21 @@ def register_callbacks(app):
                     "missing_emails": ", ".join(info["missing_emails"]),
                 }
             )
+
+        proj_cfg, changes = normalize_case_and_dups(cfg)
+        proj_cfg, sort_changes = sort_lists(proj_cfg)
+        changes.extend(sort_changes)
+        proj_diff = compute_label_differences(proj_cfg, labels)
+        proj_div = html.Div(
+            [
+                html.H4("Projected Changes After Fix All"),
+                html.Ul([html.Li(c) for c in changes] or [html.Li("None")]),
+                html.Div(
+                    f"Total missing emails after fixes: {proj_diff['comparison_summary']['total_missing_emails']}"
+                ),
+            ]
+        )
+
         return (
             html.Div(
                 [
@@ -225,6 +228,7 @@ def register_callbacks(app):
             ),
             rows,
             diff,
+            proj_div,
             "Differences computed.",
         )
 
