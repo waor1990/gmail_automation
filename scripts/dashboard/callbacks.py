@@ -1,16 +1,19 @@
 from dash import html, no_update, callback_context
 from dash import Input, Output, State
 from .analysis import (
-    analyze_email_consistency, check_alphabetization, check_case_and_duplicates,
-    normalize_case_and_dups, sort_lists
+    analyze_email_consistency,
+    check_alphabetization,
+    check_case_and_duplicates,
+    normalize_case_and_dups,
+    sort_lists,
 )
 from .transforms import config_to_tables, tables_to_config
 from .utils_io import write_json, backup_file, read_json
 from .constants import CONFIG_JSON, LABELS_JSON
 from .analysis import compute_label_differences
 
-def register_callbacks(app):
 
+def register_callbacks(app):
     @app.callback(
         Output("store-config", "data"),
         Output("tbl-email-list", "data"),
@@ -22,6 +25,7 @@ def register_callbacks(app):
     )
     def on_load(_):
         from .analysis import load_config
+
         cfg = load_config()
         el_rows, stl_rows = config_to_tables(cfg)
         analysis = {
@@ -62,7 +66,13 @@ def register_callbacks(app):
             "sorting": check_alphabetization(tmp),
             "case_dups": check_case_and_duplicates(tmp),
         }
-        return el_rows, stl_rows, tmp, analysis, f"Applied: {action.replace('btn-','').replace('-',' ')}"
+        return (
+            el_rows,
+            stl_rows,
+            tmp,
+            analysis,
+            f"Applied: {action.replace('btn-', '').replace('-', ' ')}",
+        )
 
     @app.callback(
         Output("store-config", "data", allow_duplicate=True),
@@ -96,7 +106,9 @@ def register_callbacks(app):
             if CONFIG_JSON.exists():
                 bkp = backup_file(CONFIG_JSON)
                 write_json(cfg, CONFIG_JSON)
-                return f"Backup saved: {bkp.name}\nUpdated: config/gmail_config-final.json"
+                return (
+                    f"Backup saved: {bkp.name}\nUpdated: config/gmail_config-final.json"
+                )
             else:
                 write_json(cfg, CONFIG_JSON)
                 return "Updated: config/gmail_config-final.json"
@@ -119,17 +131,31 @@ def register_callbacks(app):
 
         def ul(items):
             from dash import html
-            return html.Ul([html.Li(x) for x in items]) if items else html.Ul([html.Li("None")])
 
-        metrics = html.Div([
-            html.Div(f"EMAIL_LIST count: {cons['email_list_count']}"),
-            html.Div(f"SENDER_TO_LABELS email set: {cons['sender_labels_count']}"),
-            html.Div(f"Sets identical: {cons['are_identical']}"),
-        ])
+            return (
+                html.Ul([html.Li(x) for x in items])
+                if items
+                else html.Ul([html.Li("None")])
+            )
+
+        metrics = html.Div(
+            [
+                html.Div(f"EMAIL_LIST count: {cons['email_list_count']}"),
+                html.Div(f"SENDER_TO_LABELS email set: {cons['sender_labels_count']}"),
+                html.Div(f"Sets identical: {cons['are_identical']}"),
+            ]
+        )
 
         missing_sender = ul(cons["missing_in_sender"])
-        missing_list = ul([f"{e} (labels: {', '.join(cons['email_to_labels'].get(e, ['Unknown']))})"
-                           for e in cons["missing_in_list"]])
+        missing_list = ul(
+            [
+                (
+                    f"{e} (labels: "
+                    f"{', '.join(cons['email_to_labels'].get(e, ['Unknown']))})"
+                )
+                for e in cons["missing_in_list"]
+            ]
+        )
         sort_list = ul([i["location"] for i in sorting])
         case_list = ul([i["location"] for i in cd["case_issues"]])
 
@@ -141,18 +167,20 @@ def register_callbacks(app):
             dup_blocks.append(html.Div(lines, style={"marginLeft": "12px"}))
         dup_div = html.Div(dup_blocks) if dup_blocks else html.Div("None")
 
-        issues = html.Div([
-            html.H4("Emails in EMAIL_LIST but not in SENDER_TO_LABELS"),
-            missing_sender,
-            html.H4("Emails in SENDER_TO_LABELS but not in EMAIL_LIST"),
-            missing_list,
-            html.H4("Lists not alphabetized"),
-            sort_list,
-            html.H4("Case inconsistencies"),
-            case_list,
-            html.H4("Duplicate issues"),
-            dup_div,
-        ])
+        issues = html.Div(
+            [
+                html.H4("Emails in EMAIL_LIST but not in SENDER_TO_LABELS"),
+                missing_sender,
+                html.H4("Emails in SENDER_TO_LABELS but not in EMAIL_LIST"),
+                missing_list,
+                html.H4("Lists not alphabetized"),
+                sort_list,
+                html.H4("Case inconsistencies"),
+                case_list,
+                html.H4("Duplicate issues"),
+                dup_div,
+            ]
+        )
         return metrics, issues
 
     @app.callback(
@@ -166,6 +194,7 @@ def register_callbacks(app):
     )
     def on_diff(_n, cfg):
         from dash import html
+
         if not cfg:
             return "", [], None, "No config loaded."
         if not LABELS_JSON.exists():
@@ -175,22 +204,28 @@ def register_callbacks(app):
         summary = diff["comparison_summary"]
         rows = []
         for label, info in diff["missing_emails_by_label"].items():
-            rows.append({
-                "label": label,
-                "exists_in_target": info["label_exists_in_target"],
-                "total_in_source": info["total_emails_in_source"],
-                "missing_count": info["missing_emails_count"],
-                "missing_emails": ", ".join(info["missing_emails"]),
-            })
+            rows.append(
+                {
+                    "label": label,
+                    "exists_in_target": info["label_exists_in_target"],
+                    "total_in_source": info["total_emails_in_source"],
+                    "missing_count": info["missing_emails_count"],
+                    "missing_emails": ", ".join(info["missing_emails"]),
+                }
+            )
         return (
-            html.Div([
-                html.Div(f"Source labels: {summary['total_labels_in_source']}"),
-                html.Div(f"Target labels: {summary['total_labels_in_target']}"),
-                html.Div(f"Total missing emails: {summary['total_missing_emails']}"),
-            ]),
+            html.Div(
+                [
+                    html.Div(f"Source labels: {summary['total_labels_in_source']}"),
+                    html.Div(f"Target labels: {summary['total_labels_in_target']}"),
+                    html.Div(
+                        f"Total missing emails: {summary['total_missing_emails']}"
+                    ),
+                ]
+            ),
             rows,
             diff,
-            "Differences computed."
+            "Differences computed.",
         )
 
     @app.callback(
@@ -203,8 +238,10 @@ def register_callbacks(app):
         if not cfg:
             return "No config loaded."
         from .reports import generate_report_text
+
         text = generate_report_text(cfg)
         from .constants import REPORT_TXT
+
         REPORT_TXT.parent.mkdir(parents=True, exist_ok=True)
         REPORT_TXT.write_text(text, encoding="utf-8")
         return "Report exported: config/ESAQ_Report.txt"
@@ -220,5 +257,6 @@ def register_callbacks(app):
             return "No differences computed."
         from .constants import DIFF_JSON
         from .utils_io import write_json
+
         write_json(diff, DIFF_JSON)
         return "Differences JSON exported: config/email_differences_by_label.json"

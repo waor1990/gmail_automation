@@ -64,7 +64,7 @@ python gmail_automation.py --config config/gmail_config-final.json --dry-run --v
 # Standard info logging (default)
 python gmail_automation.py
 
-# Verbose debug logging 
+# Verbose debug logging
 python gmail_automation.py --verbose
 python gmail_automation.py --log-level DEBUG
 
@@ -80,6 +80,25 @@ Logs are written to `logs/gmail_automation_info.log` and `logs/gmail_automation_
 ## Security Note
 
 Credentials and log files should not be committed to version control. Update `.gitignore` accordingly and keep sensitive files private.
+
+## Dashboard and Reports
+
+An interactive [Dash](https://dash.plotly.com/) dashboard is provided to review
+and edit your Gmail configuration. It can also export helpful reports.
+
+Launch the dashboard from the repository root:
+
+```bash
+python -m scripts.dashboard.app
+```
+
+On Windows you can run `run_email_dashboard.bat` for a menu that generates
+reports or starts the dashboard.
+
+The dashboard supports exporting:
+
+- `config/ESAQ_Report.txt` – summary of email structure and quality
+- `config/email_differences_by_label.json` – missing emails per label
 
 ## Documentation
 

@@ -63,6 +63,23 @@ The script generates a JSON file with this structure:
 }
 ```
 
+### `run_email_dashboard.bat` and `scripts/dashboard/`
+
+Provides a Dash-based web dashboard for inspecting and editing
+`gmail_config-final.json`. The dashboard can also export helpful reports:
+
+- `config/ESAQ_Report.txt` – email structure and quality summary
+- `config/email_differences_by_label.json` – differences between Gmail labels and your configuration
+
+Launch the dashboard with:
+
+```bash
+python -m scripts.dashboard.app
+```
+
+On Windows, `run_email_dashboard.bat` offers a menu to generate the reports or
+start the dashboard.
+
 ### `create_issues.sh`
 
 Creates GitHub issues from markdown files in the `issues/` directory.
