@@ -84,7 +84,9 @@ Credentials and log files should not be committed to version control. Update `.g
 ## Dashboard and Reports
 
 An interactive [Dash](https://dash.plotly.com/) dashboard is provided to review
-and edit your Gmail configuration. It can also export helpful reports.
+and edit your Gmail configuration. On launch the dashboard automatically runs
+all available reports, which now include sections summarizing projected changes
+if pending developer fixes were applied.
 
 Launch the dashboard or export reports via the unified entry point:
 

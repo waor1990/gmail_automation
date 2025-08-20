@@ -10,6 +10,8 @@ from .analysis import (
     check_alphabetization,
     check_case_and_duplicates,
     compute_label_differences,
+    normalize_case_and_dups,
+    sort_lists,
 )
 
 
@@ -17,6 +19,11 @@ def generate_report_text(cfg: dict) -> str:
     cons = analyze_email_consistency(cfg)
     sort_issues = check_alphabetization(cfg)
     cd = check_case_and_duplicates(cfg)
+
+    # Projected changes if developer actions (fix all) were applied
+    proj_cfg, proj_changes = normalize_case_and_dups(cfg)
+    proj_cfg, sort_changes = sort_lists(proj_cfg)
+    proj_changes.extend(sort_changes)
 
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
@@ -91,6 +98,14 @@ def generate_report_text(cfg: dict) -> str:
             "to resolve the above issues, then regenerate this report.",
             "",
         ]
+    lines += [
+        "PROJECTED CHANGES IF FIX ACTIONS APPLIED:",
+        "",
+    ]
+    if proj_changes:
+        lines += [f"- {c}" for c in proj_changes]
+    else:
+        lines.append("- None")
     return "\n".join(lines)
 
 
@@ -108,6 +123,16 @@ def write_diff_json():
         raise FileNotFoundError("Missing config/gmail_labels_data.json")
     labels = read_json(LABELS_JSON)
     diff = compute_label_differences(cfg, labels)
+
+    # Compute projected diff after applying developer actions
+    proj_cfg, proj_changes = normalize_case_and_dups(cfg)
+    proj_cfg, sort_changes = sort_lists(proj_cfg)
+    proj_changes.extend(sort_changes)
+    proj_diff = compute_label_differences(proj_cfg, labels)
+    diff["projected_changes"] = {
+        "config_actions": proj_changes,
+        "diff_after_actions": proj_diff,
+    }
     DIFF_JSON.parent.mkdir(parents=True, exist_ok=True)
     write_json(diff, DIFF_JSON)
     return DIFF_JSON
