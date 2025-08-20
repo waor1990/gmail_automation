@@ -9,14 +9,21 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
             html.Button("Fix Case", id="btn-fix-case", n_clicks=0),
             html.Button("Remove Duplicates", id="btn-fix-dups", n_clicks=0),
             html.Button("Alphabetize", id="btn-fix-sort", n_clicks=0),
-            html.Button("Fix All", id="btn-fix-all", n_clicks=0, style={"fontWeight": "bold"}),
+            html.Button(
+                "Fix All", id="btn-fix-all", n_clicks=0, style={"fontWeight": "bold"}
+            ),
             dcc.Checklist(
                 id="chk-backup",
                 options=[{"label": "Create backup on save", "value": "backup"}],
                 value=["backup"],
                 style={"marginLeft": "8px"},
             ),
-            html.Button("Save Config", id="btn-save", n_clicks=0, style={"background": "#e8ffe8"}),
+            html.Button(
+                "Save Config",
+                id="btn-save",
+                n_clicks=0,
+                style={"background": "#e8ffe8"},
+            ),
             html.Button("Export ECAQ Report", id="btn-export-report", n_clicks=0),
             html.Button("Export Differences JSON", id="btn-export-diff", n_clicks=0),
         ],
@@ -32,7 +39,9 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
         children=[
             html.H1("Gmail Email Configuration Dashboard"),
             control_row,
-            html.Div(id="status", style={"marginBottom": "16px", "whiteSpace": "pre-wrap"}),
+            html.Div(
+                id="status", style={"marginBottom": "16px", "whiteSpace": "pre-wrap"}
+            ),
             html.Div(
                 style=section_style,
                 children=[
@@ -57,7 +66,9 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
                         style_table={"maxHeight": "350px", "overflowY": "auto"},
                         style_cell={"fontFamily": "monospace", "fontSize": "12px"},
                     ),
-                    html.Button("Add Row to EMAIL_LIST", id="btn-add-email-row", n_clicks=0),
+                    html.Button(
+                        "Add Row to EMAIL_LIST", id="btn-add-email-row", n_clicks=0
+                    ),
                 ],
             ),
             html.Div(
@@ -122,14 +133,21 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
                                 "type": "numeric",
                             },
                             {
-                                "name": "missing_emails (comma-separated)",
+                                "name": "missing_emails",
                                 "id": "missing_emails",
+                                "presentation": "markdown",
                             },
                         ],
                         data=[],
                         page_size=15,
+                        markdown_options={"html": True},
                         style_table={"maxHeight": "400px", "overflowY": "auto"},
-                        style_cell={"fontFamily": "monospace", "fontSize": "12px"},
+                        style_cell={
+                            "fontFamily": "monospace",
+                            "fontSize": "12px",
+                            "whiteSpace": "normal",
+                            "height": "auto",
+                        },
                     ),
                     html.Div(id="diff-projected", style={"marginTop": "8px"}),
                 ],
@@ -139,4 +157,3 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
             dcc.Store(id="store-diff", data=diff),
         ],
     )
-

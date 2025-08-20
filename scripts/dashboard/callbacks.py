@@ -191,13 +191,22 @@ def register_callbacks(app):
         summary = diff["comparison_summary"]
         rows = []
         for label, info in diff["missing_emails_by_label"].items():
+            missing_items = "".join(
+                f"<li>{email}</li>" for email in info["missing_emails"]
+            )
+            missing_html = (
+                "<details><summary>"
+                f"{info['missing_emails_count']} missing emails"
+                "</summary>"
+                f"<ul>{missing_items}</ul></details>"
+            )
             rows.append(
                 {
                     "label": label,
                     "exists_in_target": info["label_exists_in_target"],
                     "total_in_source": info["total_emails_in_source"],
                     "missing_count": info["missing_emails_count"],
-                    "missing_emails": ", ".join(info["missing_emails"]),
+                    "missing_emails": missing_html,
                 }
             )
 
