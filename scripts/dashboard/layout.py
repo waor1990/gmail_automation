@@ -67,8 +67,20 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
                         style_table={"maxHeight": "350px", "overflowY": "auto"},
                         style_cell={"fontFamily": "monospace", "fontSize": "12px"},
                     ),
-                    html.Button(
-                        "Add Row to EMAIL_LIST", id="btn-add-email-row", n_clicks=0
+                    html.Div(
+                        style={"display": "flex", "alignItems": "center", "gap": "8px"},
+                        children=[
+                            html.Button(
+                                "Add blank row to EMAIL_LIST",
+                                id="btn-add-email-row",
+                                n_clicks=0,
+                                title="Append an empty row for a new email address",
+                            ),
+                            html.Span(
+                                "Appends an empty row to the table for a new email.",
+                                style={"fontSize": "12px", "color": "#555"},
+                            ),
+                        ],
                     ),
                 ],
             ),
@@ -99,17 +111,33 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
                         style={"display": "flex", "gap": "8px"},
                         children=[
                             html.Button(
-                                "Add Row to SENDER_TO_LABELS",
+                                "Add blank row to SENDER_TO_LABELS",
                                 id="btn-add-stl-row",
                                 n_clicks=0,
+                                title=(
+                                    "Append an empty row for a new "
+                                    "label/email mapping"
+                                ),
                             ),
                             html.Button(
-                                "Apply Table Edits",
+                                "Apply table edits to config",
                                 id="btn-apply-edits",
                                 n_clicks=0,
                                 style={"background": "#e8f0ff"},
+                                title=(
+                                    "Sync changes from both tables to the "
+                                    "working config. Use Save Config to "
+                                    "write to file."
+                                ),
                             ),
                         ],
+                    ),
+                    html.Span(
+                        (
+                            "Applies edits from both tables to the working "
+                            "config; remember to Save Config to persist."
+                        ),
+                        style={"fontSize": "12px", "color": "#555"},
                     ),
                 ],
             ),
