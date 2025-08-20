@@ -1,6 +1,15 @@
-google-api-python-client
-oauth2client
-python-dateutil
+# Core Google API stack
+google-api-python-client>=2.130.0
+google-auth>=2.30.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+python-dateutil>=2.9.0.post0
+
+# Dashboard
+dash>=2.16.0
+plotly>=5.22.0
+Flask>=3.0.0
+pandas>=2.2.0
 
 # Development and Testing Dependencies
 pytest>=7.0.0
