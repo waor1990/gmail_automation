@@ -167,9 +167,7 @@ def register_callbacks(app):
         proj_cfg, sort_changes = sort_lists(proj_cfg)
         changes.extend(sort_changes)
         proj_list = ul(changes)
-        projected = html.Div(
-            [html.H4("Projected Changes After Fix All"), proj_list]
-        )
+        projected = html.Div([html.H4("Projected Changes After Fix All"), proj_list])
         return metrics, issues, projected
 
     @app.callback(
@@ -179,6 +177,7 @@ def register_callbacks(app):
         Output("diff-projected", "children"),
         Output("status", "children", allow_duplicate=True),
         Input("store-config", "data"),
+        prevent_initial_call="initial_duplicate",
     )
     def on_diff(cfg):
         from dash import html
@@ -211,7 +210,8 @@ def register_callbacks(app):
                 html.H4("Projected Changes After Fix All"),
                 html.Ul([html.Li(c) for c in changes] or [html.Li("None")]),
                 html.Div(
-                    f"Total missing emails after fixes: {proj_diff['comparison_summary']['total_missing_emails']}"
+                    "Total missing emails after fixes: "
+                    f"{proj_diff['comparison_summary']['total_missing_emails']}"
                 ),
             ]
         )
