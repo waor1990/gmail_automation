@@ -127,6 +127,15 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
                                 ),
                             ),
                             html.Button(
+                                "Show read/delete columns",
+                                id="btn-toggle-stl-cols",
+                                n_clicks=0,
+                                title=(
+                                    "Show or hide read_status and "
+                                    "delete_after_days columns"
+                                ),
+                            ),
+                            html.Button(
                                 "Apply table edits to config",
                                 id="btn-apply-edits",
                                 n_clicks=0,

@@ -127,6 +127,22 @@ def register_callbacks(app):
         return rows
 
     @app.callback(
+        Output("tbl-stl", "hidden_columns"),
+        Output("btn-toggle-stl-cols", "children"),
+        Input("btn-toggle-stl-cols", "n_clicks"),
+        State("tbl-stl", "hidden_columns"),
+        prevent_initial_call=True,
+    )
+    def toggle_stl_columns(_n, hidden):
+        hidden = hidden or []
+        extra = {"read_status", "delete_after_days"}
+        if extra.issubset(hidden):
+            new_hidden = [c for c in hidden if c not in extra]
+            return new_hidden, "Hide read/delete columns"
+        new_hidden = list(extra.union(hidden))
+        return new_hidden, "Show read/delete columns"
+
+    @app.callback(
         Output("tbl-email-list", "data", allow_duplicate=True),
         Output("tbl-stl", "data", allow_duplicate=True),
         Output("store-config", "data", allow_duplicate=True),
