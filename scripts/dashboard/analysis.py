@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple, Set, cast
+from typing import Any, Dict, List, Tuple, Set
 from .utils_io import read_json
 from .constants import CONFIG_JSON
 
@@ -6,7 +6,7 @@ from .constants import CONFIG_JSON
 def load_config() -> Dict[str, Any]:
     if not CONFIG_JSON.exists():
         raise FileNotFoundError("Missing config/gmail_config-final.json")
-    data = cast(Dict[str, Any], read_json(CONFIG_JSON))
+    data: Dict[str, Any] = read_json(CONFIG_JSON)
     data.setdefault("EMAIL_LIST", [])
     data.setdefault("SENDER_TO_LABELS", {})
     return data

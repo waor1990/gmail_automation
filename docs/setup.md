@@ -24,12 +24,25 @@ This document explains how to configure and run the Gmail Automation script.
 OAuth credentials will be stored in `data/gmail-python-email.json` after the first
 successful run. Keep this file private.
 
-1. *(Optional)* Launch the configuration dashboard to review and edit your
-   settings:
+1. *(Optional)* Launch the configuration dashboard or export reports:
 
    ```bash
-   python -m scripts.dashboard.app
+   python -m scripts.dashboard [--report {esaq,diff,all}] [--launch] [--refresh]
    ```
 
-   The dashboard can also export `config/ESAQ_Report.txt` and
+   Examples:
+
+   ```bash
+   # Launch the dashboard
+   python -m scripts.dashboard
+
+   # Export both reports without starting the dashboard
+   python -m scripts.dashboard --report all
+
+   # Refresh data, export ESAQ report, then launch the dashboard
+   python -m scripts.dashboard --refresh --report esaq --launch
+   ```
+
+   Use the optional `--refresh` flag to run `gmail_automation.py` before other
+   actions. The dashboard can export `config/ESAQ_Report.txt` and
    `config/email_differences_by_label.json` for further analysis.

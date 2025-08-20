@@ -86,16 +86,27 @@ Credentials and log files should not be committed to version control. Update `.g
 An interactive [Dash](https://dash.plotly.com/) dashboard is provided to review
 and edit your Gmail configuration. It can also export helpful reports.
 
-Launch the dashboard from the repository root:
+Launch the dashboard or export reports via the unified entry point:
 
 ```bash
-python -m scripts.dashboard.app
+python -m scripts.dashboard [--report {esaq,diff,all}] [--launch] [--refresh]
 ```
 
-On Windows you can run `run_email_dashboard.bat` for a menu that generates
-reports or starts the dashboard.
+Examples:
 
-The dashboard supports exporting:
+```bash
+# Launch the dashboard
+python -m scripts.dashboard
+
+# Export both reports without starting the dashboard
+python -m scripts.dashboard --report all
+
+# Refresh data, export the diff report, then launch the dashboard
+python -m scripts.dashboard --refresh --report diff --launch
+```
+
+Use the optional `--refresh` flag to run `gmail_automation.py` before other
+actions. The dashboard supports exporting:
 
 - `config/ESAQ_Report.txt` – summary of email structure and quality
 - `config/email_differences_by_label.json` – missing emails per label
