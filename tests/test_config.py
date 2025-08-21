@@ -3,9 +3,8 @@ Unit tests for the config module
 """
 
 import unittest
-import os
-import tempfile
 import json
+import time
 from unittest.mock import patch, mock_open
 from gmail_automation.config import (
     validate_and_normalize_config,
@@ -81,7 +80,8 @@ class TestConfig(unittest.TestCase):
         mock_exists.return_value = False
 
         result = get_last_run_time()
-        self.assertEqual(result, 0.0)
+        expected = time.time() - (365 * 24 * 60 * 60)
+        self.assertAlmostEqual(result, expected, delta=5)
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("gmail_automation.config.os.makedirs")

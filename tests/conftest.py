@@ -1,9 +1,11 @@
-"""
-Test configuration for pytest
-"""
+"""Pytest configuration and fixtures for the test suite."""
 
-import os
+from __future__ import annotations
+
 import sys
+from pathlib import Path
 
-# Add the src directory to the Python path so we can import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+# Ensure that the application source directory is importable during tests.
+SRC_PATH = Path(__file__).resolve().parent.parent / "src"
+sys.path.insert(0, str(SRC_PATH))

@@ -10,7 +10,7 @@ Sets up the Python environment and installs dependencies.
 
 - **Bash version**: Cross-platform bash script
 - **PowerShell version**: Windows-optimized PowerShell script
-- Automatically validates `gmail_automation.py` compilation
+- Automatically validates the Gmail automation package
 
 ### `extract_gmail_labels.py` / `extract_gmail_labels.ps1`
 
@@ -153,6 +153,6 @@ bash scripts/resolve_issue.sh 123
 1. **Run extraction**: `python scripts/extract_gmail_labels.py`
 2. **Review generated file**: Check `config/gmail_labels_data.json` for new email addresses
 3. **Update main config**: Manually add relevant emails to `config/gmail_config-final.json`
-4. **Run automation**: Use `python gmail_automation.py` with your updated configuration
+4. **Run automation**: Use `python -m gmail_automation` with your updated configuration
 
 The extraction script serves as a **discovery tool** and does not replace your main automation configuration.

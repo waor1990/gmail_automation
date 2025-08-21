@@ -3,7 +3,7 @@ Unit tests for the Gmail service module
 """
 
 import unittest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock
 from gmail_automation.gmail_service import (
     get_existing_labels_cached,
     batch_fetch_messages,
@@ -84,9 +84,9 @@ class TestGmailService(unittest.TestCase):
         result = batch_fetch_messages(self.mock_service, self.user_id, message_ids)
 
         self.assertEqual(len(result), 3)
-        self.assertEqual(result[0]["id"], "msg1")
-        self.assertEqual(result[1]["id"], "msg2")
-        self.assertEqual(result[2]["id"], "msg3")
+        self.assertEqual(result["msg1"]["id"], "msg1")
+        self.assertEqual(result["msg2"]["id"], "msg2")
+        self.assertEqual(result["msg3"]["id"], "msg3")
 
     def test_batch_fetch_messages_with_error(self):
         """Test batch fetching messages when some requests fail"""
@@ -112,7 +112,7 @@ class TestGmailService(unittest.TestCase):
             result = batch_fetch_messages(self.mock_service, self.user_id, message_ids)
 
         # Should return available messages, skipping the failed one
-        self.assertIsInstance(result, list)
+        self.assertIsInstance(result, dict)
 
     def test_modify_message_add_labels(self):
         """Test modifying message to add labels"""
