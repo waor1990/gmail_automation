@@ -38,12 +38,12 @@ echo "📦 Installing dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Compile the main script to ensure it's valid
-echo "🔍 Validating gmail_automation.py..."
-if python -m py_compile gmail_automation.py; then
-    echo "✅ gmail_automation.py compiles successfully"
+# Compile the CLI to ensure it's valid
+echo "🔍 Validating Gmail automation package..."
+if python -m py_compile src/gmail_automation/cli.py; then
+    echo "✅ Gmail automation package compiles successfully"
 else
-    echo "❌ gmail_automation.py has compilation errors"
+    echo "❌ Gmail automation package has compilation errors"
     exit 1
 fi
 

@@ -43,13 +43,13 @@ the OAuth flow again. Keep this file private and out of version control.
 ## Running
 
 ```bash
-python gmail_automation.py --help
+python -m gmail_automation --help
 ```
 
 The script supports several command line options:
 
 ```bash
-python gmail_automation.py --config config/gmail_config-final.json --dry-run --verbose
+python -m gmail_automation --config config/gmail_config-final.json --dry-run --verbose
 ```
 
 - `--config` – path to configuration file (defaults to `config/gmail_config-final.json`)
@@ -62,17 +62,17 @@ python gmail_automation.py --config config/gmail_config-final.json --dry-run --v
 
 ```bash
 # Standard info logging (default)
-python gmail_automation.py
+python -m gmail_automation
 
 # Verbose debug logging
-python gmail_automation.py --verbose
-python gmail_automation.py --log-level DEBUG
+python -m gmail_automation --verbose
+python -m gmail_automation --log-level DEBUG
 
 # Only show warnings and errors
-python gmail_automation.py --log-level WARNING
+python -m gmail_automation --log-level WARNING
 
 # Only show errors
-python gmail_automation.py --log-level ERROR
+python -m gmail_automation --log-level ERROR
 ```
 
 Logs are written to `logs/gmail_automation_info.log` and `logs/gmail_automation_debug.log`.
@@ -107,7 +107,7 @@ python -m scripts.dashboard --report all
 python -m scripts.dashboard --refresh --report diff --launch
 ```
 
-Use the optional `--refresh` flag to run `gmail_automation.py` before other
+Use the optional `--refresh` flag to run the automation module before other
 actions. The dashboard supports exporting:
 
 - `config/ECAQ_Report.txt` – summary of email structure and quality
