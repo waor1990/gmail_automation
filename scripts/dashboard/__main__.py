@@ -33,7 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--refresh",
         action="store_true",
-        help="Run the Gmail automation module before other actions.",
+        help="Run gmail_automation.py before other actions.",
     )
     parser.add_argument(
         "--dev",
@@ -91,22 +91,40 @@ def run_dev(action: str) -> None:
         return
 
     if action == "lint":
-        subprocess.run([sys.executable, "-m", "flake8", "src/", "tests/"], check=True)
+        subprocess.run(
+            [sys.executable, "-m", "flake8", "src/", "tests/", "gmail_automation.py"],
+            check=True,
+        )
         return
 
     if action == "format":
-        subprocess.run([sys.executable, "-m", "black", "src/", "tests/"], check=True)
+        subprocess.run(
+            [sys.executable, "-m", "black", "src/", "tests/", "gmail_automation.py"],
+            check=True,
+        )
         return
 
     if action == "format-check":
         subprocess.run(
-            [sys.executable, "-m", "black", "--check", "--diff", "src/", "tests/"],
+            [
+                sys.executable,
+                "-m",
+                "black",
+                "--check",
+                "--diff",
+                "src/",
+                "tests/",
+                "gmail_automation.py",
+            ],
             check=True,
         )
         return
 
     if action == "mypy":
-        subprocess.run([sys.executable, "-m", "mypy", "src/"], check=True)
+        subprocess.run(
+            [sys.executable, "-m", "mypy", "src/", "gmail_automation.py"],
+            check=True,
+        )
         return
 
     if action == "all":
@@ -140,7 +158,9 @@ def main() -> None:
         args.launch = True
 
     if args.refresh:
-        subprocess.run([sys.executable, "-m", "gmail_automation"], check=True)
+        root = Path(__file__).resolve().parents[2]
+        script = root / "gmail_automation.py"
+        subprocess.run([sys.executable, str(script)], check=True)
         if not args.report and not args.launch and not args.dev:
             return
 

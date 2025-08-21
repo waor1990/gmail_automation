@@ -43,6 +43,6 @@ successful run. Keep this file private.
    python -m scripts.dashboard --refresh --report ECAQ --launch
    ```
 
-   Use the optional `--refresh` flag to run the Gmail automation module before
-   other actions. The dashboard can export `config/ECAQ_Report.txt` and
+   Use the optional `--refresh` flag to run `gmail_automation.py` before other
+   actions. The dashboard can export `config/ECAQ_Report.txt` and
    `config/email_differences_by_label.json` for further analysis.

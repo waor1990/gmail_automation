@@ -66,7 +66,7 @@ Test coverage reports are generated in multiple formats:
 
 ```bash
 # Run linting on all code
-python -m flake8 src/ tests/
+python -m flake8 src/ tests/ gmail_automation.py
 
 # Configuration is in .flake8 file
 ```
@@ -75,17 +75,17 @@ python -m flake8 src/ tests/
 
 ```bash
 # Check if code needs formatting
-python -m black --check --diff src/ tests/
+python -m black --check --diff src/ tests/ gmail_automation.py
 
 # Format code automatically
-python -m black src/ tests/
+python -m black src/ tests/ gmail_automation.py
 ```
 
 ### Type Checking with MyPy
 
 ```bash
 # Run type checking
-python -m mypy src/
+python -m mypy src/ gmail_automation.py
 
 # Configuration is in pyproject.toml under [tool.mypy]
 ```

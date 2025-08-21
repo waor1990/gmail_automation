@@ -25,18 +25,18 @@ if (Test-Path $ActivateScript) {
     Write-Host "📦 Installing dependencies..." -ForegroundColor Yellow
     pip install --upgrade pip
     pip install -r requirements.txt
-
-    # Compile the CLI to ensure it's valid
-    Write-Host "🔍 Validating Gmail automation package..." -ForegroundColor Yellow
-    $process = Start-Process -FilePath "python" -ArgumentList "-m", "py_compile", "src/gmail_automation/cli.py" -Wait -PassThru -NoNewWindow
+    
+    # Compile the main script to ensure it's valid
+    Write-Host "🔍 Validating gmail_automation.py..." -ForegroundColor Yellow
+    $process = Start-Process -FilePath "python" -ArgumentList "-m", "py_compile", "gmail_automation.py" -Wait -PassThru -NoNewWindow
     if ($process.ExitCode -eq 0) {
-        Write-Host "✅ Gmail automation package compiles successfully" -ForegroundColor Green
+        Write-Host "✅ gmail_automation.py compiles successfully" -ForegroundColor Green
     }
     else {
-        Write-Host "❌ Gmail automation package has compilation errors" -ForegroundColor Red
+        Write-Host "❌ gmail_automation.py has compilation errors" -ForegroundColor Red
         exit 1
     }
-
+    
     Write-Host "✅ Setup complete!" -ForegroundColor Green
     Write-Host "To activate the environment in the future, run: $VenvDir\Scripts\Activate.ps1" -ForegroundColor Cyan
 }
