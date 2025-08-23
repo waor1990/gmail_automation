@@ -370,8 +370,7 @@ def register_callbacks(app):
         prevent_initial_call=True,
     )
     def on_load_logs(_n):
-        if not LOGS_DIR.exists():
-            return []
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
         files = sorted(
             LOGS_DIR.glob("*.log"),
             key=lambda p: p.stat().st_mtime,
@@ -383,7 +382,7 @@ def register_callbacks(app):
         Output("ddl-log-runs", "options"),
         Output("ddl-log-runs", "value"),
         Output("store-log-runs", "data"),
-        Output("log-content", "children"),
+        Output("log-content", "children", allow_duplicate=True),
         Input("btn-view-log", "n_clicks"),
         State("ddl-log-files", "value"),
         prevent_initial_call=True,
@@ -424,10 +423,11 @@ def register_callbacks(app):
         if not options:
             return [], None, {}, "No runs found in log."
 
-        return options, None, data, "Select run instance to view."
+        first_id = options[0]["value"]
+        return options, first_id, data, data[first_id]
 
     @app.callback(
-        Output("log-content", "children"),
+        Output("log-content", "children", allow_duplicate=True),
         Input("ddl-log-runs", "value"),
         State("store-log-runs", "data"),
         prevent_initial_call=True,
