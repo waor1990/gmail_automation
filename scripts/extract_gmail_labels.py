@@ -6,7 +6,8 @@ This script replicates the functionality of the Google Apps Script (saveLabelsTo
 but runs locally using the Gmail API through Python.
 
 This is a standalone script that extracts Gmail labels and associated email addresses
-to generate a configuration file. It runs completely separate from gmail_automation.py.
+to generate a configuration file. It runs completely separate from the main
+`gmail_automation` package.
 
 Usage:
     python scripts/extract_gmail_labels.py [--output OUTPUT_FILE] [--batch-size BATCH_SIZE]
