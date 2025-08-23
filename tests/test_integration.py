@@ -6,7 +6,7 @@ import unittest
 import tempfile
 import json
 import os
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock
 from gmail_automation.cli import main
 from gmail_automation.config import load_configuration
 
@@ -74,7 +74,7 @@ class TestIntegration(unittest.TestCase):
         }
 
         # Test that main function runs without errors
-        with patch("sys.argv", ["gmail_automation.py"]):
+        with patch("sys.argv", ["gmail_automation"]):
             try:
                 main()
                 # If we get here, the function completed without exceptions
@@ -125,9 +125,8 @@ class TestIntegration(unittest.TestCase):
                         mock_exists.return_value = True
 
                         with patch("builtins.open", create=True) as mock_file:
-                            mock_file.return_value.__enter__.return_value.read.return_value = json.dumps(
-                                config_data
-                            )
+                            file_handle = mock_file.return_value.__enter__.return_value
+                            file_handle.read.return_value = json.dumps(config_data)
 
                             with patch("json.load", return_value=config_data):
                                 result = load_configuration()
@@ -145,7 +144,7 @@ class TestIntegration(unittest.TestCase):
                 mock_get_credentials.side_effect = Exception("Credential error")
 
                 # The system should handle this gracefully
-                with patch("sys.argv", ["gmail_automation.py"]):
+                with patch("sys.argv", ["gmail_automation"]):
                     try:
                         main()
                     except SystemExit:
@@ -219,7 +218,7 @@ class TestEndToEndScenarios(unittest.TestCase):
         }
 
         with patch("gmail_automation.cli.load_configuration", return_value=config):
-            with patch("sys.argv", ["gmail_automation.py"]):
+            with patch("sys.argv", ["gmail_automation"]):
                 try:
                     main()
                     # Verify that the service methods were called
