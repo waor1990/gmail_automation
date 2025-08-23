@@ -11,7 +11,7 @@ from .analysis import (
 )
 from .transforms import config_to_tables, tables_to_config
 from .utils_io import write_json, backup_file, read_json
-from .constants import CONFIG_JSON, LABELS_JSON
+from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
 
 
 def register_callbacks(app):
@@ -361,3 +361,35 @@ def register_callbacks(app):
 
         write_json(diff, DIFF_JSON)
         return "Differences JSON exported: config/email_differences_by_label.json"
+
+    @app.callback(
+        Output("ddl-log-files", "options"),
+        Input("btn-load-logs", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def on_load_logs(_n):
+        if not LOGS_DIR.exists():
+            return []
+        files = sorted(
+            LOGS_DIR.glob("*.log"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )[:5]
+        return [{"label": f.name, "value": f.name} for f in files]
+
+    @app.callback(
+        Output("log-content", "children"),
+        Input("btn-view-log", "n_clicks"),
+        State("ddl-log-files", "value"),
+        prevent_initial_call=True,
+    )
+    def on_view_log(_n, filename):
+        if not filename:
+            return "No log file selected."
+        path = LOGS_DIR / filename
+        if not path.exists():
+            return f"Log file not found: {filename}"
+        try:
+            return path.read_text(encoding="utf-8")
+        except Exception as exc:  # pragma: no cover - rare file errors
+            return f"Error reading log: {exc}"
