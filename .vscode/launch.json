@@ -1,44 +1,44 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Python: Gmail Automation",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/gmail_automation.py",
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}"
-            },
-            "stopOnEntry": false,
-            "justMyCode": true
-        },
-        {
-            "name": "Python: Gmail Automation (Debug Mode)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/gmail_automation.py",
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}"
-            },
-            "stopOnEntry": true,
-            "justMyCode": false,
-            "logToFile": true
-        },
-        {
-            "name": "Python: Current File",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}"
-            }
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Gmail Automation",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "gmail_automation",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "stopOnEntry": false,
+      "justMyCode": true
+    },
+    {
+      "name": "Python: Gmail Automation (Debug Mode)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "gmail_automation",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "stopOnEntry": true,
+      "justMyCode": false,
+      "logToFile": true
+    },
+    {
+      "name": "Python: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    }
+  ]
 }
