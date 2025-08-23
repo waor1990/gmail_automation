@@ -44,7 +44,9 @@ def load_configuration(config_path: str | None = None):
     missing = [key for key in required_keys if key not in config]
     if missing:
         logging.error(
-            f"Missing required configuration keys: {', '.join(missing)} in {config_path}"
+            "Missing required configuration keys: %s in %s",
+            ", ".join(missing),
+            config_path,
         )
         return {}
     logging.debug("Configuration loaded successfully.")
@@ -90,10 +92,22 @@ def check_files_existence(client_secret_file: str | None = None):
     return client_secret_file, last_run
 
 
-def unix_to_readable(unix_timestamp):
+def unix_to_readable(unix_timestamp: float) -> str:
+    """Convert a Unix timestamp to a Pacific time string.
+
+    Args:
+        unix_timestamp: Seconds since the Unix epoch.
+
+    Returns:
+        Formatted timestamp in the ``America/Los_Angeles`` timezone. If the
+        conversion fails, ``"Invalid timestamp"`` is returned.
+    """
+
     try:
         unix_timestamp = float(unix_timestamp)
-        dt = datetime.fromtimestamp(unix_timestamp, tz=ZoneInfo("UTC"))
+        dt = datetime.fromtimestamp(unix_timestamp, tz=ZoneInfo("UTC")).astimezone(
+            ZoneInfo("America/Los_Angeles")
+        )
         return dt.strftime("%m/%d/%Y, %I:%M %p %Z")
     except (ValueError, TypeError, OSError) as e:
         logging.error(f"Error converting timestamp {unix_timestamp}: {e}")
@@ -113,7 +127,8 @@ def get_last_run_time():
 
     if not os.path.exists(last_run_file):
         logging.info(
-            f"No last run file found. Using default last run time: {unix_to_readable(default_time)}"
+            "No last run file found. Using default last run time: %s",
+            unix_to_readable(default_time),
         )
         return default_time
 

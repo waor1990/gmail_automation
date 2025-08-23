@@ -60,13 +60,20 @@ def setup_logging(verbose: bool = False, log_level: str = "INFO"):
     info_file_handler = logging.FileHandler(info_log_file_path, encoding="utf-8")
     info_file_handler.setLevel(logging.INFO)
     info_file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    pacific = ZoneInfo("America/Los_Angeles")
+
+    def _to_pacific(ts: float | None) -> time.struct_time:
+        return datetime.fromtimestamp(ts or 0.0, pacific).timetuple()
+
+    info_file_formatter.converter = _to_pacific
     info_file_handler.setFormatter(info_file_formatter)
 
     debug_file_handler = logging.FileHandler(debug_log_file_path, encoding="utf-8")
     debug_file_handler.setLevel(logging.DEBUG)
     debug_file_formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s"
+        "%(asctime)s - %(levelname)s - %(message)s",
     )
+    debug_file_formatter.converter = _to_pacific
     debug_file_handler.setFormatter(debug_file_formatter)
 
     # Determine console logging level: verbose flag overrides log_level
