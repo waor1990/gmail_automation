@@ -1,5 +1,7 @@
 from dash import html, no_update, callback_context
 from dash import Input, Output, State
+import re
+from typing import Dict, List
 from .analysis import (
     analyze_email_consistency,
     check_alphabetization,
@@ -378,6 +380,9 @@ def register_callbacks(app):
         return [{"label": f.name, "value": f.name} for f in files]
 
     @app.callback(
+        Output("ddl-log-runs", "options"),
+        Output("ddl-log-runs", "value"),
+        Output("store-log-runs", "data"),
         Output("log-content", "children"),
         Input("btn-view-log", "n_clicks"),
         State("ddl-log-files", "value"),
@@ -385,11 +390,49 @@ def register_callbacks(app):
     )
     def on_view_log(_n, filename):
         if not filename:
-            return "No log file selected."
+            return [], None, {}, "No log file selected."
         path = LOGS_DIR / filename
         if not path.exists():
-            return f"Log file not found: {filename}"
+            return [], None, {}, f"Log file not found: {filename}"
         try:
-            return path.read_text(encoding="utf-8")
+            text = path.read_text(encoding="utf-8")
         except Exception as exc:  # pragma: no cover - rare file errors
-            return f"Error reading log: {exc}"
+            return [], None, {}, f"Error reading log: {exc}"
+
+        runs: List[str] = []
+        current: List[str] = []
+        for line in text.splitlines():
+            msg = line.split(" - ", 2)[-1]
+            if re.fullmatch(r"-{10,}", msg.strip()):
+                if current:
+                    runs.append("\n".join(current))
+                    current = []
+                current.append(line)
+            else:
+                current.append(line)
+        if current:
+            runs.append("\n".join(current))
+
+        options = []
+        data: Dict[str, str] = {}
+        for idx, segment in enumerate(runs):
+            first_line = segment.splitlines()[0]
+            ts = first_line.split(" - ", 1)[0]
+            options.append({"label": f"Run {idx + 1} ({ts})", "value": str(idx)})
+            data[str(idx)] = segment
+
+        if not options:
+            return [], None, {}, "No runs found in log."
+
+        return options, None, data, "Select run instance to view."
+
+    @app.callback(
+        Output("log-content", "children"),
+        Input("ddl-log-runs", "value"),
+        State("store-log-runs", "data"),
+        prevent_initial_call=True,
+    )
+    def on_select_run(run_id, runs):
+        if not run_id or not runs:
+            return "No run selected."
+        return runs.get(run_id, "Run not found.")
