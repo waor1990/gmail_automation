@@ -3,10 +3,11 @@ Unit tests for the CLI module
 """
 
 import unittest
-import logging
+import warnings
 from unittest.mock import patch, Mock, MagicMock
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from dateutil.parser import UnknownTimezoneWarning
 from gmail_automation.cli import (
     parse_email_date,
     parse_header,
@@ -32,6 +33,8 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(result.year, 2023)
             self.assertEqual(result.month, 1)
             self.assertEqual(result.day, 1)
+            self.assertEqual(result.tzinfo, ZoneInfo("America/Los_Angeles"))
+            self.assertEqual(result.hour, 4)
 
     def test_parse_email_date_invalid_date(self):
         """Test parsing an invalid email date string"""
@@ -48,6 +51,19 @@ class TestCLI(unittest.TestCase):
         self.assertIsNotNone(result)
         if result is not None:
             self.assertEqual(result.tzinfo, ZoneInfo("America/Los_Angeles"))
+            self.assertEqual(result.hour, 12)
+
+    def test_parse_email_date_with_timezone_abbreviation(self):
+        """Test parsing a date string with timezone abbreviation"""
+        date_str = "Wed, 01 Jan 2023 12:00:00 EDT"
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", UnknownTimezoneWarning)
+            result = parse_email_date(date_str)
+        self.assertIsNotNone(result)
+        if result is not None:
+            self.assertEqual(result.tzinfo, ZoneInfo("America/Los_Angeles"))
+            self.assertEqual(result.hour, 9)
+        self.assertEqual(len(caught), 0)
 
     def test_parse_header_found(self):
         """Test parsing header when the header is found"""
