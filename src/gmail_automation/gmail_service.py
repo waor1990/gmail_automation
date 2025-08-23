@@ -2,6 +2,8 @@ import logging
 import random
 import time
 import os
+from typing import Any, Dict, Set, cast
+
 import httplib2
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -13,8 +15,8 @@ SCOPES = "https://mail.google.com/"
 APPLICATION_NAME = "Email Automation"
 
 # Cache dictionaries
-message_details_cache = {}
-processed_queries = set()
+message_details_cache: Dict[str, Dict[str, Any]] = {}
+processed_queries: Set[str] = set()
 
 
 def get_credentials():
@@ -80,10 +82,10 @@ def list_labels(service):
         return {}
 
 
-def get_existing_labels_cached(service):
+def get_existing_labels_cached(service) -> Dict[str, str]:
     if not hasattr(get_existing_labels_cached, "cache"):
-        get_existing_labels_cached.cache = list_labels(service)
-    return get_existing_labels_cached.cache
+        setattr(get_existing_labels_cached, "cache", list_labels(service))
+    return cast(Dict[str, str], getattr(get_existing_labels_cached, "cache"))
 
 
 def execute_request_with_backoff(request, max_retries=5):
@@ -94,7 +96,8 @@ def execute_request_with_backoff(request, max_retries=5):
             if error.resp.status in [429, 403]:
                 wait_time = min((2**retry) + random.uniform(0, 1), 64)
                 logging.warning(
-                    f"Rate limit exceeded. Retrying in {wait_time:.2f} seconds..."
+                    "Rate limit exceeded. Retrying in %.2f seconds...",
+                    wait_time,
                 )
                 time.sleep(wait_time)
             elif (
@@ -186,7 +189,8 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
     Args:
         service: Gmail API service object
         user_id: Gmail user ID (default: 'me')
-        output_file: Path to save the configuration file (default: config/gmail_labels_data.json)
+        output_file: Path to save the configuration file
+            (default: config/gmail_labels_data.json)
         batch_size: Number of labels to process in each batch (default: 5)
 
     Returns:
@@ -194,7 +198,6 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
     """
     import json
     import re
-    from collections import defaultdict
 
     if output_file is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -219,13 +222,17 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
         logging.info(f"Found {len(user_labels)} user labels to process")
 
         # Initialize the configuration structure
-        config_data = {"SENDER_TO_LABELS": {}}
+        config_data: Dict[str, Dict[str, list[dict[str, Any]]]] = {
+            "SENDER_TO_LABELS": {}
+        }
 
         # Process labels in batches
         for i in range(0, len(user_labels), batch_size):
             batch = user_labels[i : i + batch_size]
             logging.info(
-                f"Processing batch {i//batch_size + 1}/{(len(user_labels) + batch_size - 1)//batch_size}"
+                "Processing batch %s/%s",
+                i // batch_size + 1,
+                (len(user_labels) + batch_size - 1) // batch_size,
             )
 
             for label in batch:
@@ -292,7 +299,9 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
                         }
                     ]
                     logging.info(
-                        f"Label '{label_name}': found {len(email_addresses)} unique email addresses"
+                        "Label '%s': found %s unique email addresses",
+                        label_name,
+                        len(email_addresses),
                     )
                 else:
                     logging.info(f"Label '{label_name}': no emails found")
