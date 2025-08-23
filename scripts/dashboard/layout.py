@@ -214,6 +214,12 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
                         n_clicks=0,
                         style={"marginTop": "8px"},
                     ),
+                    dcc.Dropdown(
+                        id="ddl-log-runs",
+                        options=[],
+                        placeholder="Select run instance",
+                        style={"marginTop": "8px"},
+                    ),
                     html.Div(
                         id="log-content",
                         style={
@@ -232,5 +238,6 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
             dcc.Store(id="store-config", data=cfg),
             dcc.Store(id="store-analysis", data=analysis),
             dcc.Store(id="store-diff", data=diff),
+            dcc.Store(id="store-log-runs"),
         ],
     )
