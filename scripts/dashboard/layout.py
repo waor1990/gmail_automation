@@ -197,8 +197,47 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
                     html.Div(id="diff-projected", style={"marginTop": "8px"}),
                 ],
             ),
+            html.Div(
+                style=section_style,
+                children=[
+                    html.H2("Logs Viewer"),
+                    html.Button("Load Log Files", id="btn-load-logs", n_clicks=0),
+                    dcc.Dropdown(
+                        id="ddl-log-files",
+                        options=[],
+                        placeholder="Select log file",
+                        style={"marginTop": "8px"},
+                    ),
+                    html.Button(
+                        "View Log",
+                        id="btn-view-log",
+                        n_clicks=0,
+                        style={"marginTop": "8px"},
+                    ),
+                    dcc.Dropdown(
+                        id="ddl-log-runs",
+                        options=[],
+                        placeholder="Select run instance",
+                        style={"marginTop": "8px"},
+                    ),
+                    html.Div(
+                        id="log-content",
+                        style={
+                            "whiteSpace": "pre",
+                            "fontFamily": "monospace",
+                            "fontSize": "12px",
+                            "maxHeight": "400px",
+                            "overflowY": "auto",
+                            "border": "1px solid #ccc",
+                            "padding": "8px",
+                            "marginTop": "8px",
+                        },
+                    ),
+                ],
+            ),
             dcc.Store(id="store-config", data=cfg),
             dcc.Store(id="store-analysis", data=analysis),
             dcc.Store(id="store-diff", data=diff),
+            dcc.Store(id="store-log-runs"),
         ],
     )

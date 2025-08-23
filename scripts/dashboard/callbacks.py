@@ -1,5 +1,7 @@
 from dash import html, no_update, callback_context
 from dash import Input, Output, State
+import re
+from typing import Dict, List
 from .analysis import (
     analyze_email_consistency,
     check_alphabetization,
@@ -11,7 +13,7 @@ from .analysis import (
 )
 from .transforms import config_to_tables, tables_to_config
 from .utils_io import write_json, backup_file, read_json
-from .constants import CONFIG_JSON, LABELS_JSON
+from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
 
 
 def register_callbacks(app):
@@ -361,3 +363,76 @@ def register_callbacks(app):
 
         write_json(diff, DIFF_JSON)
         return "Differences JSON exported: config/email_differences_by_label.json"
+
+    @app.callback(
+        Output("ddl-log-files", "options"),
+        Input("btn-load-logs", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def on_load_logs(_n):
+        if not LOGS_DIR.exists():
+            return []
+        files = sorted(
+            LOGS_DIR.glob("*.log"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )[:5]
+        return [{"label": f.name, "value": f.name} for f in files]
+
+    @app.callback(
+        Output("ddl-log-runs", "options"),
+        Output("ddl-log-runs", "value"),
+        Output("store-log-runs", "data"),
+        Output("log-content", "children"),
+        Input("btn-view-log", "n_clicks"),
+        State("ddl-log-files", "value"),
+        prevent_initial_call=True,
+    )
+    def on_view_log(_n, filename):
+        if not filename:
+            return [], None, {}, "No log file selected."
+        path = LOGS_DIR / filename
+        if not path.exists():
+            return [], None, {}, f"Log file not found: {filename}"
+        try:
+            text = path.read_text(encoding="utf-8")
+        except Exception as exc:  # pragma: no cover - rare file errors
+            return [], None, {}, f"Error reading log: {exc}"
+
+        runs: List[str] = []
+        current: List[str] = []
+        for line in text.splitlines():
+            msg = line.split(" - ", 2)[-1]
+            if re.fullmatch(r"-{10,}", msg.strip()):
+                if current:
+                    runs.append("\n".join(current))
+                    current = []
+                current.append(line)
+            else:
+                current.append(line)
+        if current:
+            runs.append("\n".join(current))
+
+        options = []
+        data: Dict[str, str] = {}
+        for idx, segment in enumerate(runs):
+            first_line = segment.splitlines()[0]
+            ts = first_line.split(" - ", 1)[0]
+            options.append({"label": f"Run {idx + 1} ({ts})", "value": str(idx)})
+            data[str(idx)] = segment
+
+        if not options:
+            return [], None, {}, "No runs found in log."
+
+        return options, None, data, "Select run instance to view."
+
+    @app.callback(
+        Output("log-content", "children"),
+        Input("ddl-log-runs", "value"),
+        State("store-log-runs", "data"),
+        prevent_initial_call=True,
+    )
+    def on_select_run(run_id, runs):
+        if not run_id or not runs:
+            return "No run selected."
+        return runs.get(run_id, "Run not found.")
