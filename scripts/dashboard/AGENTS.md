@@ -22,7 +22,7 @@ This document describes the roles and responsibilities of the automated agents a
 - **Responsibilities**:
   - Launch dashboard.
   - Generate reports (`ECAQ`, `Diff`) from command line.
-  - Trigger data refresh via `gmail_automation.py`.
+  - Trigger data refresh via `python -m gmail_automation`.
   - Support developer tasks: linting, formatting, testing, cleanup.
 
 ### 3. `callbacks.py`
