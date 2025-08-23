@@ -4,6 +4,8 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
+from typing import Dict, Optional, Set, Tuple
+
 from dateutil import parser
 from zoneinfo import ZoneInfo
 from googleapiclient.errors import HttpError
@@ -26,8 +28,22 @@ from .gmail_service import (
     modify_message,
 )
 
-message_details_cache = {}
-processed_queries = set()
+message_details_cache: Dict[
+    str, Tuple[Optional[str], Optional[str], Optional[str], Optional[bool]]
+] = {}
+processed_queries: Set[str] = set()
+
+TZINFOS: dict[str, ZoneInfo] = {
+    "UTC": ZoneInfo("UTC"),
+    "PST": ZoneInfo("America/Los_Angeles"),
+    "PDT": ZoneInfo("America/Los_Angeles"),
+    "MST": ZoneInfo("America/Denver"),
+    "MDT": ZoneInfo("America/Denver"),
+    "CST": ZoneInfo("America/Chicago"),
+    "CDT": ZoneInfo("America/Chicago"),
+    "EST": ZoneInfo("America/New_York"),
+    "EDT": ZoneInfo("America/New_York"),
+}
 
 
 def setup_logging(verbose: bool = False, log_level: str = "INFO"):
@@ -45,13 +61,20 @@ def setup_logging(verbose: bool = False, log_level: str = "INFO"):
     info_file_handler = logging.FileHandler(info_log_file_path, encoding="utf-8")
     info_file_handler.setLevel(logging.INFO)
     info_file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    pacific = ZoneInfo("America/Los_Angeles")
+
+    def _to_pacific(ts: float | None) -> time.struct_time:
+        return datetime.fromtimestamp(ts or 0.0, pacific).timetuple()
+
+    info_file_formatter.converter = _to_pacific
     info_file_handler.setFormatter(info_file_formatter)
 
     debug_file_handler = logging.FileHandler(debug_log_file_path, encoding="utf-8")
     debug_file_handler.setLevel(logging.DEBUG)
     debug_file_formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s"
+        "%(asctime)s - %(levelname)s - %(message)s",
     )
+    debug_file_formatter.converter = _to_pacific
     debug_file_handler.setFormatter(debug_file_formatter)
 
     # Determine console logging level: verbose flag overrides log_level
@@ -89,7 +112,7 @@ def remove_old_logs(log_file_path):
         for line in lines:
             try:
                 log_date_str = line.split(" - ")[0]
-                log_date = parser.parse(log_date_str)
+                log_date = parser.parse(log_date_str, tzinfos=TZINFOS)
                 if log_date.tzinfo is None:
                     log_date = log_date.replace(tzinfo=ZoneInfo("UTC"))
                 if log_date >= cutoff_date:
@@ -109,7 +132,7 @@ def remove_old_logs_debug(log_file_path):
         for line in lines:
             try:
                 log_date_str = line.split(" - ")[0]
-                log_date = parser.parse(log_date_str)
+                log_date = parser.parse(log_date_str, tzinfos=TZINFOS)
                 if log_date.tzinfo is None:
                     log_date = log_date.replace(tzinfo=ZoneInfo("UTC"))
                 if log_date >= cutoff_date:
@@ -151,12 +174,22 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
-def parse_email_date(date_str):
+def parse_email_date(date_str: str) -> Optional[datetime]:
+    """Parse an email date string and return it in Pacific time.
+
+    Args:
+        date_str: Date string extracted from an email header.
+
+    Returns:
+        A timezone-aware ``datetime`` in the ``America/Los_Angeles`` timezone or
+        ``None`` if parsing fails.
+    """
+
     try:
-        date = parser.parse(date_str)
-        if date.tzinfo is None:
-            date = date.replace(tzinfo=ZoneInfo("America/Los_Angeles"))
-        return date
+        parsed_date = parser.parse(date_str, tzinfos=TZINFOS)
+        if parsed_date.tzinfo is None:
+            parsed_date = parsed_date.replace(tzinfo=ZoneInfo("America/Los_Angeles"))
+        return parsed_date.astimezone(ZoneInfo("America/Los_Angeles"))
     except Exception as e:
         logging.error(f"Error parsing date string '{date_str}': {e}")
         return None
@@ -204,10 +237,14 @@ def get_message_details(service, user_id, msg_id):
         validation = validate_details(details, ["subject", "date", "sender"])
         if validation["missing_details"]:
             logging.error(
-                f"Missing details for message ID {msg_id}: {validation['missing_details']}"
+                "Missing details for message ID %s: %s",
+                msg_id,
+                validation["missing_details"],
             )
             logging.info(
-                f"Available details for message ID {msg_id}: {validation['available_details']}"
+                "Available details for message ID %s: %s",
+                msg_id,
+                validation["available_details"],
             )
             return None, None, None, None
         date = parse_email_date(date_str)
@@ -229,7 +266,14 @@ def get_message_details_cached(service, user_id, msg_id):
         message_details_cache[msg_id] = (subject, date, sender, is_unread)
         return subject, date, sender, is_unread
     logging.error(
-        f"Caching incomplete details for message ID {msg_id}: (subject={subject}, date={date}, sender={sender})"
+        (
+            "Caching incomplete details for message ID %s: "
+            "(subject=%s, date=%s, sender=%s)"
+        ),
+        msg_id,
+        subject,
+        date,
+        sender,
     )
     message_details_cache[msg_id] = (None, None, None, None)
     return None, None, None, None
@@ -282,15 +326,17 @@ def process_email(
         try:
             email_date = parse_email_date(date)
             if email_date is not None:
-                if email_date.tzinfo is None:
-                    email_date = email_date.replace(
-                        tzinfo=ZoneInfo("America/Los_Angeles")
-                    )
                 current_time = datetime.now(ZoneInfo("America/Los_Angeles"))
                 days_diff = (current_time - email_date).days
                 if days_diff >= delete_after_days:
                     logging.info(
-                        f"Deleting email from: '{sender}' with subject: '{subject}' as it is older than {delete_after_days} days."
+                        (
+                            "Deleting email from '%s' with subject '%s' "
+                            "as it is older than %s days."
+                        ),
+                        sender,
+                        subject,
+                        delete_after_days,
                     )
                     if dry_run:
                         logging.info("Dry run enabled; email not deleted.")
@@ -303,9 +349,13 @@ def process_email(
                         except HttpError as delete_error:
                             if delete_error.resp.status == 403:
                                 logging.warning(
-                                    f"Insufficient permissions to delete email {msg_id}. "
-                                    "Email was labeled but not deleted. "
-                                    "To enable deletion, re-authorize with broader Gmail permissions."
+                                    (
+                                        "Insufficient permissions to delete email %s. "
+                                        "Email was labeled but not deleted. "
+                                        "To enable deletion, re-authorize with broader "
+                                        "Gmail permissions."
+                                    ),
+                                    msg_id,
                                 )
                             else:
                                 logging.error(
@@ -314,7 +364,13 @@ def process_email(
                     return True
                 else:
                     logging.debug(
-                        f"Email from '{sender}' is only {days_diff} days old, not deleting (threshold: {delete_after_days} days)"
+                        (
+                            "Email from '%s' is only %s days old, not deleting "
+                            "(threshold: %s days)"
+                        ),
+                        sender,
+                        days_diff,
+                        delete_after_days,
                     )
         except Exception as e:
             logging.error(f"Error parsing date for message ID {msg_id}: {e}")
@@ -332,7 +388,9 @@ def process_email(
     if label_id_to_add not in current_labels:
         if dry_run:
             logging.info(
-                f"Dry run: would modify email from '{sender}' with label '{label}'"
+                "Dry run: would modify email from '%s' with label '%s'",
+                sender,
+                label,
             )
         else:
             modify_message(
@@ -340,7 +398,16 @@ def process_email(
             )
             processed_email_ids.add(msg_id)
             logging.info(
-                f'Email from: "{sender}" dated: "{date}", and with subject: "{subject}" was modified with label "{label}", marked as read: "{mark_read}" and removed from Inbox.'
+                (
+                    "Email from '%s' dated '%s' with subject '%s' was modified "
+                    "with label '%s', marked as read: '%s' "
+                    "and removed from Inbox."
+                ),
+                sender,
+                date,
+                subject,
+                label,
+                mark_read,
             )
 
     return True
@@ -369,7 +436,10 @@ def process_emails_by_criteria(
 
     if not messages:
         logging.info(
-            f'No emails found for {criterion_type}: "{criterion_value}" for label: "{label}".'
+            "No emails found for %s: '%s' for label: '%s'.",
+            criterion_type,
+            criterion_value,
+            label,
         )
         return False
 
@@ -379,7 +449,10 @@ def process_emails_by_criteria(
     for msg_id in msg_ids:
         message_data = batched_messages.get(msg_id)
         if not message_data:
-            logging.error(f"Message ID {msg_id} not found in batch fetch.")
+            logging.error(
+                "Message ID %s was not located in batch fetch.",
+                msg_id,
+            )
             skipped_emails_count += 1
             continue
         subject, date, sender, is_unread = get_message_details_cached(
@@ -417,7 +490,12 @@ def process_emails_by_criteria(
             skipped_emails_count += 1
 
     logging.debug(
-        f'Processed {modified_emails_count} emails and skipped {skipped_emails_count} emails for {criterion_type}: "{criterion_value}" with label "{label}".'
+        "Processed %s emails and skipped %s emails for %s: '%s' with label '%s'.",
+        modified_emails_count,
+        skipped_emails_count,
+        criterion_type,
+        criterion_value,
+        label,
     )
     return any_emails_processed
 
@@ -431,8 +509,8 @@ def process_emails_for_labeling(
     os.makedirs(data_dir, exist_ok=True)
     processed_ids_file = os.path.join(data_dir, "processed_email_ids.txt")
     processed_email_ids = load_processed_email_ids(processed_ids_file)
-    current_run_processed_ids = set()
-    expected_labels = {}
+    current_run_processed_ids: Set[str] = set()
+    expected_labels: Dict[str, str] = {}
 
     any_emails_processed = False
 
@@ -440,7 +518,10 @@ def process_emails_for_labeling(
     for sender_category, sender_info in config.get("SENDER_TO_LABELS", {}).items():
         if sender_category not in existing_labels:
             logging.warning(
-                f"The label '{sender_category}' does not exist. Existing labels: {list(existing_labels.keys())}"
+                (
+                    f"The label '{sender_category}' does not exist. Existing labels: "
+                    f"{list(existing_labels.keys())}"
+                )
             )
             continue
         for info in sender_info:
@@ -448,7 +529,9 @@ def process_emails_for_labeling(
             delete_after_days = info.get("delete_after_days", None)
             emails = info["emails"]
             for email in emails:
-                query = f"from:{email} label:inbox after:{int(last_run_time)}"
+                query = "from:{sender} label:inbox after:{timestamp}".format(
+                    sender=email, timestamp=int(last_run_time)
+                )
                 emails_processed = process_emails_by_criteria(
                     service,
                     user_id,
