@@ -1,7 +1,9 @@
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Dict, Iterable
+
 from zoneinfo import ZoneInfo
 from dateutil import parser
 
@@ -114,6 +116,10 @@ def unix_to_readable(unix_timestamp: float) -> str:
         return "Invalid timestamp"
 
 
+DEFAULT_LAST_RUN_ISO = "2000-01-01T00:00:00Z"
+DEFAULT_LAST_RUN_TIME = datetime(2000, 1, 1, tzinfo=timezone.utc).timestamp()
+
+
 def get_last_run_time():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
@@ -161,3 +167,70 @@ def update_last_run_time(current_time):
     with open(last_run_file, "w", encoding="utf-8") as f:
         f.write(str(current_time))
     logging.debug(f"Updated last run time: {unix_to_readable(current_time)}")
+
+
+def get_sender_last_run_times(senders: Iterable[str]) -> Dict[str, float]:
+    """Return last run timestamps for each sender.
+
+    Args:
+        senders: Iterable of sender email addresses.
+
+    Returns:
+        Mapping from sender to Unix timestamp of the last processed message.
+    """
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
+    data_dir = os.path.join(root_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    sender_file = os.path.join(data_dir, "sender_last_run.json")
+
+    if os.path.exists(sender_file):
+        with open(sender_file, "r", encoding="utf-8") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = {}
+        result: Dict[str, float] = {}
+        for sender in senders:
+            value = data.get(sender)
+            if value is None:
+                result[sender] = DEFAULT_LAST_RUN_TIME
+            else:
+                result[sender] = (
+                    float(value)
+                    if isinstance(value, (int, float))
+                    else parser.isoparse(value).timestamp()
+                )
+        return result
+
+    # Fallback to legacy global last run file
+    global_time = get_last_run_time()
+    return {sender: global_time for sender in senders}
+
+
+def update_sender_last_run_times(times: Dict[str, float]) -> None:
+    """Persist last run timestamps for senders.
+
+    Args:
+        times: Mapping from sender to Unix timestamp.
+    """
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
+    data_dir = os.path.join(root_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    sender_file = os.path.join(data_dir, "sender_last_run.json")
+
+    serializable: Dict[str, str] = {}
+    for sender, ts in times.items():
+        if ts == DEFAULT_LAST_RUN_TIME:
+            serializable[sender] = DEFAULT_LAST_RUN_ISO
+        else:
+            serializable[sender] = (
+                datetime.fromtimestamp(ts, tz=timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
+    with open(sender_file, "w", encoding="utf-8") as f:
+        json.dump(serializable, f, indent=2, sort_keys=True)
