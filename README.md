@@ -96,7 +96,8 @@ file is absent.
 An interactive [Dash](https://dash.plotly.com/) dashboard is provided to review
 and edit your Gmail configuration. On launch the dashboard automatically runs
 all available reports, which now include sections summarizing projected changes
-if pending developer fixes were applied.
+if pending developer fixes were applied. A table of senders with the default
+`last_run` timestamp highlights newly added addresses awaiting processing.
 
 Launch the dashboard or export reports via the unified entry point:
 

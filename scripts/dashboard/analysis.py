@@ -1,4 +1,8 @@
 from typing import Any, Dict, List, Tuple, Set
+from gmail_automation.config import (
+    DEFAULT_LAST_RUN_TIME,
+    get_sender_last_run_times,
+)
 from .utils_io import read_json
 from .constants import CONFIG_JSON
 
@@ -22,6 +26,28 @@ def extract_sender_to_labels_emails(cfg: dict) -> Tuple[Set[str], Dict[str, List
                     all_emails.add(clean)
                     email_to_labels.setdefault(clean, []).append(label)
     return all_emails, email_to_labels
+
+
+def find_unprocessed_senders(cfg: dict) -> List[dict]:
+    """Return senders that have not been processed yet.
+
+    Args:
+        cfg: Loaded Gmail configuration.
+
+    Returns:
+        List of dictionaries with ``email`` and associated ``labels`` for
+        senders whose last run time matches the default epoch.
+    """
+
+    all_emails, email_to_labels = extract_sender_to_labels_emails(cfg)
+    times = get_sender_last_run_times(all_emails)
+    pending = []
+    for sender, ts in times.items():
+        if ts == DEFAULT_LAST_RUN_TIME:
+            pending.append(
+                {"email": sender, "labels": ", ".join(email_to_labels.get(sender, []))}
+            )
+    return sorted(pending, key=lambda r: r["email"])
 
 
 def check_alphabetization(cfg: dict) -> List[dict]:
