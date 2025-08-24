@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Any
 
 
 def _to_clean_email(value: Any) -> str:
@@ -31,21 +31,15 @@ def _to_nonneg_int(value: Any, default: int = 0) -> int:
     return default
 
 
-def config_to_tables(
-    cfg: Dict[str, Any]
-) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]]]:
+def config_to_table(cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    Flatten config into two tables:
-      - EMAIL_LIST -> [{"email": "..."}]
-      - SENDER_TO_LABELS -> [{"label": str, "group_index": int, "email": str,
-         "read_status": Any, "delete_after_days": Any}]
+    Flatten config into a table of sender-to-label mappings:
+      - SENDER_TO_LABELS -> [
+          {"label": str, "group_index": int, "email": str,
+           "read_status": Any, "delete_after_days": Any}
+        ]
     """
-    email_list = cfg.get("EMAIL_LIST") or []
     stl = cfg.get("SENDER_TO_LABELS") or {}
-
-    el_rows: List[Dict[str, str]] = [
-        {"email": _to_clean_email(e)} for e in email_list if _to_clean_email(e)
-    ]
 
     stl_rows: List[Dict[str, Any]] = []
     # stl is expected: Dict[label:str, List[{"emails": [str, ...], ...}, ...]]
@@ -81,31 +75,20 @@ def config_to_tables(
                     }
                 )
 
-    return el_rows, stl_rows
+    return stl_rows
 
 
-def tables_to_config(
-    el_rows: List[Dict[str, Any]],
-    stl_rows: List[Dict[str, Any]],
-) -> Dict[str, Any]:
+def table_to_config(stl_rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Rebuild config from edited tables.
+    Rebuild config from edited table.
     Output structure:
       {
-        "EMAIL_LIST": [str, ...],
         "SENDER_TO_LABELS": {
             "<label>": [{"emails": [str, ...]}, ...],
             ...
         }
       }
     """
-
-    # EMAIL_LIST
-    email_list: List[str] = []
-    for r in el_rows or []:
-        email = _to_clean_email(r.get("email"))
-        if email:
-            email_list.append(email)
 
     # SENDER_TO_LABELS re-aggregate by label, group_index
     # stl_map[label][group_index] -> {
@@ -168,7 +151,4 @@ def tables_to_config(
         if out_groups:
             stl_out[label] = out_groups
 
-    return {
-        "EMAIL_LIST": email_list,
-        "SENDER_TO_LABELS": stl_out,
-    }
+    return {"SENDER_TO_LABELS": stl_out}

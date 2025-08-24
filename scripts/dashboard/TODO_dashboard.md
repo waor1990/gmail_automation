@@ -50,10 +50,6 @@
 
 ## Medium-Priority
 
-### 🔲 Highlight Unlabeled Emails in UI
-
-- Show emails in `EMAIL_LIST` that have no label association.
-
 ### 🔲 Lint/Type Checks Pre-Commit
 
 - Add pre-commit hooks for `black`, `flake8`, `mypy`, etc.

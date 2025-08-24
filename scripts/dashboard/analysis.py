@@ -7,7 +7,6 @@ def load_config() -> Dict[str, Any]:
     if not CONFIG_JSON.exists():
         raise FileNotFoundError("Missing config/gmail_config-final.json")
     data: Dict[str, Any] = read_json(CONFIG_JSON)
-    data.setdefault("EMAIL_LIST", [])
     data.setdefault("SENDER_TO_LABELS", {})
     return data
 
@@ -25,27 +24,8 @@ def extract_sender_to_labels_emails(cfg: dict) -> Tuple[Set[str], Dict[str, List
     return all_emails, email_to_labels
 
 
-def analyze_email_consistency(cfg: dict) -> dict:
-    email_list = set(e.strip() for e in (cfg.get("EMAIL_LIST") or []) if e.strip())
-    sender_emails, email_to_labels = extract_sender_to_labels_emails(cfg)
-    missing_in_sender = sorted(email_list - sender_emails)
-    missing_in_list = sorted(sender_emails - email_list)
-    return {
-        "email_list_count": len(email_list),
-        "sender_labels_count": len(sender_emails),
-        "missing_in_sender": missing_in_sender,
-        "missing_in_list": missing_in_list,
-        "are_identical": not missing_in_sender and not missing_in_list,
-        "email_to_labels": email_to_labels,
-    }
-
-
 def check_alphabetization(cfg: dict) -> List[dict]:
     issues: List[dict] = []
-    elist = cfg.get("EMAIL_LIST") or []
-    cleaned = [e.strip() for e in elist]
-    if cleaned != sorted(cleaned, key=str.lower):
-        issues.append({"location": "EMAIL_LIST"})
     for label, configurations in (cfg.get("SENDER_TO_LABELS") or {}).items():
         for i, group in enumerate(configurations or []):
             emails = group.get("emails", []) or []
@@ -69,20 +49,6 @@ def check_case_and_duplicates(cfg: dict) -> Dict[str, List[dict]]:
             else:
                 seen.add(s)
         return sorted(set(dups))
-
-    elist = cfg.get("EMAIL_LIST") or []
-    if [e.strip() for e in elist] != lowered(elist):
-        issues["case_issues"].append({"location": "EMAIL_LIST"})
-    d = duplicate_lowers(elist)
-    if d:
-        issues["duplicate_issues"].append(
-            {
-                "location": "EMAIL_LIST",
-                "duplicates": d,
-                "original_count": len(elist),
-                "unique_count": len(set(lowered(elist))),
-            }
-        )
 
     for label, configurations in (cfg.get("SENDER_TO_LABELS") or {}).items():
         for i, group in enumerate(configurations or []):
@@ -127,15 +93,6 @@ def normalize_case_and_dups(cfg: dict):
                 out.append(norm)
         return out, removed, cased
 
-    elist = updated.get("EMAIL_LIST") or []
-    fixed, removed, cased = normalize(elist)
-    if removed or cased or elist != fixed:
-        updated["EMAIL_LIST"] = fixed
-        if removed:
-            changes.append(f"EMAIL_LIST (removed {removed} duplicates)")
-        elif cased:
-            changes.append("EMAIL_LIST (fixed case)")
-
     for label, configurations in (updated.get("SENDER_TO_LABELS") or {}).items():
         for i, group in enumerate(configurations or []):
             emails = group.get("emails", []) or []
@@ -156,13 +113,6 @@ def sort_lists(cfg: dict):
     updated = json.loads(json.dumps(cfg))
     changes = []
 
-    elist = updated.get("EMAIL_LIST") or []
-    c = [e.strip() for e in elist]
-    s = sorted(c, key=str.lower)
-    if c != s:
-        updated["EMAIL_LIST"] = s
-        changes.append("EMAIL_LIST")
-
     for label, configurations in (updated.get("SENDER_TO_LABELS") or {}).items():
         for i, group in enumerate(configurations or []):
             emails = group.get("emails", []) or []
@@ -175,7 +125,7 @@ def sort_lists(cfg: dict):
 
 
 def compute_label_differences(cfg: dict, labels_data: dict) -> dict:
-    cfg_emails: Set[str] = set((cfg.get("EMAIL_LIST") or []))
+    cfg_emails: Set[str] = set()
     for _, entries in (cfg.get("SENDER_TO_LABELS") or {}).items():
         for entry in entries or []:
             for e in entry.get("emails") or []:

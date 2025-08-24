@@ -1,7 +1,7 @@
 from dash import html, dcc, dash_table
 
 
-def make_layout(el_rows, stl_rows, analysis, diff, cfg):
+def make_layout(stl_rows, analysis, diff, cfg):
     section_style = {"marginBottom": "24px"}
     control_row = html.Div(
         style={"display": "flex", "gap": "12px", "flexWrap": "wrap"},
@@ -50,38 +50,6 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
                     html.Div(id="metrics", style={"marginBottom": "8px"}),
                     html.Div(id="issues-block", style={"marginBottom": "8px"}),
                     html.Div(id="projected-changes"),
-                ],
-            ),
-            html.Div(
-                style=section_style,
-                children=[
-                    html.H2("EMAIL_LIST Editor"),
-                    dash_table.DataTable(
-                        id="tbl-email-list",
-                        columns=[{"name": "email", "id": "email"}],
-                        data=el_rows,
-                        editable=True,
-                        row_deletable=True,
-                        row_selectable="multi",
-                        page_size=15,
-                        style_table={"maxHeight": "350px", "overflowY": "auto"},
-                        style_cell={"fontFamily": "monospace", "fontSize": "12px"},
-                    ),
-                    html.Div(
-                        style={"display": "flex", "alignItems": "center", "gap": "8px"},
-                        children=[
-                            html.Button(
-                                "Add blank row to EMAIL_LIST",
-                                id="btn-add-email-row",
-                                n_clicks=0,
-                                title="Append an empty row for a new email address",
-                            ),
-                            html.Span(
-                                "Appends an empty row to the table for a new email.",
-                                style={"fontSize": "12px", "color": "#555"},
-                            ),
-                        ],
-                    ),
                 ],
             ),
             html.Div(
@@ -141,7 +109,7 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
                                 n_clicks=0,
                                 style={"background": "#e8f0ff"},
                                 title=(
-                                    "Sync changes from both tables to the "
+                                    "Sync changes from the table to the "
                                     "working config. Use Save Config to "
                                     "write to file."
                                 ),
@@ -150,7 +118,7 @@ def make_layout(el_rows, stl_rows, analysis, diff, cfg):
                     ),
                     html.Span(
                         (
-                            "Applies edits from both tables to the working "
+                            "Applies edits from the table to the working "
                             "config; remember to Save Config to persist."
                         ),
                         style={"fontSize": "12px", "color": "#555"},

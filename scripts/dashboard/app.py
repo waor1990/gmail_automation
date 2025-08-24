@@ -4,12 +4,11 @@ from .layout import make_layout
 from .callbacks import register_callbacks
 from .analysis import (
     load_config,
-    analyze_email_consistency,
     check_alphabetization,
     check_case_and_duplicates,
     compute_label_differences,
 )
-from .transforms import config_to_tables
+from .transforms import config_to_table
 from .utils_io import read_json
 from .constants import LABELS_JSON
 from .reports import write_ECAQ_report, write_diff_json
@@ -27,9 +26,8 @@ def _prepare_initial_data():
     except Exception:
         pass
 
-    el_rows, stl_rows = config_to_tables(cfg)
+    stl_rows = config_to_table(cfg)
     analysis = {
-        "consistency": analyze_email_consistency(cfg),
         "sorting": check_alphabetization(cfg),
         "case_dups": check_case_and_duplicates(cfg),
     }
@@ -37,14 +35,14 @@ def _prepare_initial_data():
     if LABELS_JSON.exists():
         labels = read_json(LABELS_JSON)
         diff = compute_label_differences(cfg, labels)
-    return cfg, el_rows, stl_rows, analysis, diff
+    return cfg, stl_rows, analysis, diff
 
 
 def main():
-    cfg, el_rows, stl_rows, analysis, diff = _prepare_initial_data()
+    cfg, stl_rows, analysis, diff = _prepare_initial_data()
     app = Dash(__name__)
     app.title = "Gmail Config Dashboard"
-    app.layout = make_layout(el_rows, stl_rows, analysis, diff, cfg)
+    app.layout = make_layout(stl_rows, analysis, diff, cfg)
     register_callbacks(app)
     app.run(host="127.0.0.1", port=8050, debug=False)
 

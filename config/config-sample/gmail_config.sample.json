@@ -1,9 +1,6 @@
 {
     "EMAIL_USER": "you@example.com",
     "EMAIL_PASS": "app-specific-password",
-    "EMAIL_LIST": [
-        "sender@example.com"
-    ],
     "SENDER_TO_LABELS": {
         "Example_Label": [
             {

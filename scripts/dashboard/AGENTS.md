@@ -40,7 +40,7 @@ This document describes the roles and responsibilities of the automated agents a
 - **Role**: UI definition.
 - **Responsibilities**:
   - Render main dashboard layout and tables.
-  - Provide editing controls for `EMAIL_LIST` and `SENDER_TO_LABELS`.
+  - Provide editing controls for `SENDER_TO_LABELS`.
   - Host report export buttons and table toggles.
 
 ### 5. `transforms.py`
@@ -55,7 +55,7 @@ This document describes the roles and responsibilities of the automated agents a
 - **Role**: Static and semantic analysis on config data.
 - **Responsibilities**:
   - Check alphabetization, case, and duplicates.
-  - Validate email consistency across `EMAIL_LIST` and `SENDER_TO_LABELS`.
+  - Validate SENDER_TO_LABELS entries for sorting, casing, and duplicates.
   - Compute diffs between current and expected label mappings.
 
 ### 7. `reports.py`

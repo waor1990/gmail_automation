@@ -3,7 +3,6 @@ from dash import Input, Output, State
 import re
 from typing import Dict, List
 from .analysis import (
-    analyze_email_consistency,
     check_alphabetization,
     check_case_and_duplicates,
     load_config,
@@ -11,14 +10,13 @@ from .analysis import (
     sort_lists,
     compute_label_differences,
 )
-from .transforms import config_to_tables, tables_to_config
+from .transforms import config_to_table, table_to_config
 from .utils_io import write_json, backup_file, read_json
 from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
 
 
 def register_callbacks(app):
     @app.callback(
-        Output("tbl-email-list", "data", allow_duplicate=True),
         Output("tbl-stl", "data", allow_duplicate=True),
         Output("store-config", "data", allow_duplicate=True),
         Output("store-analysis", "data", allow_duplicate=True),
@@ -32,7 +30,7 @@ def register_callbacks(app):
     )
     def on_fix(n_case, n_dups, n_sort, n_all, cfg):
         if not cfg:
-            return no_update, no_update, no_update, no_update, "No config loaded."
+            return no_update, no_update, no_update, "No config loaded."
 
         action = callback_context.triggered[0]["prop_id"].split(".")[0]
         tmp = cfg
@@ -42,14 +40,12 @@ def register_callbacks(app):
         if action in ("btn-fix-sort", "btn-fix-all"):
             tmp, _ = sort_lists(tmp)
 
-        el_rows, stl_rows = config_to_tables(tmp)
+        stl_rows = config_to_table(tmp)
         analysis = {
-            "consistency": analyze_email_consistency(tmp),
             "sorting": check_alphabetization(tmp),
             "case_dups": check_case_and_duplicates(tmp),
         }
         return (
-            el_rows,
             stl_rows,
             tmp,
             analysis,
@@ -61,14 +57,12 @@ def register_callbacks(app):
         Output("store-analysis", "data", allow_duplicate=True),
         Output("status", "children", allow_duplicate=True),
         Input("btn-apply-edits", "n_clicks"),
-        State("tbl-email-list", "data"),
         State("tbl-stl", "data"),
         prevent_initial_call=True,
     )
-    def on_apply_edits(_n, el_rows, stl_rows):
-        tmp = tables_to_config(el_rows, stl_rows)
+    def on_apply_edits(_n, stl_rows):
+        tmp = table_to_config(stl_rows)
         analysis = {
-            "consistency": analyze_email_consistency(tmp),
             "sorting": check_alphabetization(tmp),
             "case_dups": check_case_and_duplicates(tmp),
         }
@@ -97,17 +91,6 @@ def register_callbacks(app):
         else:
             write_json(cfg, CONFIG_JSON)
             return "Updated: config/gmail_config-final.json (no backup)"
-
-    @app.callback(
-        Output("tbl-email-list", "data", allow_duplicate=True),
-        Input("btn-add-email-row", "n_clicks"),
-        State("tbl-email-list", "data"),
-        prevent_initial_call=True,
-    )
-    def add_email_row(_n, rows):
-        rows = rows or []
-        rows.append({"email": ""})
-        return rows
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
@@ -145,7 +128,6 @@ def register_callbacks(app):
         return new_hidden, "Show read/delete columns"
 
     @app.callback(
-        Output("tbl-email-list", "data", allow_duplicate=True),
         Output("tbl-stl", "data", allow_duplicate=True),
         Output("store-config", "data", allow_duplicate=True),
         Output("store-analysis", "data", allow_duplicate=True),
@@ -161,12 +143,10 @@ def register_callbacks(app):
                 no_update,
                 no_update,
                 no_update,
-                no_update,
                 "Missing config/gmail_config-final.json",
             )
-        el_rows, stl_rows = config_to_tables(cfg)
+        stl_rows = config_to_table(cfg)
         analysis = {
-            "consistency": analyze_email_consistency(cfg),
             "sorting": check_alphabetization(cfg),
             "case_dups": check_case_and_duplicates(cfg),
         }
@@ -178,7 +158,6 @@ def register_callbacks(app):
         except Exception:
             pass
         return (
-            el_rows,
             stl_rows,
             cfg,
             analysis,
@@ -196,7 +175,6 @@ def register_callbacks(app):
         if not analysis:
             return "", "", ""
 
-        cons = analysis["consistency"]
         sorting = analysis["sorting"]
         cd = analysis["case_dups"]
 
@@ -209,24 +187,6 @@ def register_callbacks(app):
                 else html.Ul([html.Li("None")])
             )
 
-        metrics = html.Div(
-            [
-                html.Div(f"EMAIL_LIST count: {cons['email_list_count']}"),
-                html.Div(f"SENDER_TO_LABELS email set: {cons['sender_labels_count']}"),
-                html.Div(f"Sets identical: {cons['are_identical']}"),
-            ]
-        )
-
-        missing_sender = ul(cons["missing_in_sender"])
-        missing_list = ul(
-            [
-                (
-                    f"{e} (labels: "
-                    f"{', '.join(cons['email_to_labels'].get(e, ['Unknown']))})"
-                )
-                for e in cons["missing_in_list"]
-            ]
-        )
         sort_list = ul([i["location"] for i in sorting])
         case_list = ul([i["location"] for i in cd["case_issues"]])
 
@@ -240,10 +200,6 @@ def register_callbacks(app):
 
         issues = html.Div(
             [
-                html.H4("Emails in EMAIL_LIST but not in SENDER_TO_LABELS"),
-                missing_sender,
-                html.H4("Emails in SENDER_TO_LABELS but not in EMAIL_LIST"),
-                missing_list,
                 html.H4("Lists not alphabetized"),
                 sort_list,
                 html.H4("Case inconsistencies"),
@@ -258,7 +214,7 @@ def register_callbacks(app):
         changes.extend(sort_changes)
         proj_list = ul(changes)
         projected = html.Div([html.H4("Projected Changes After Fix All"), proj_list])
-        return metrics, issues, projected
+        return "", issues, projected
 
     @app.callback(
         Output("diff-summary", "children"),
