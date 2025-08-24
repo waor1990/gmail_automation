@@ -24,3 +24,17 @@ def test_ecaq_report_flags_case_insensitive_duplicates():
     assert "LISTS WITH DUPLICATES (1):" in text
     assert "SENDER_TO_LABELS.Foo[0].emails (1 duplicates)" in text
     assert "dup@example.com" in text
+
+
+def test_ecaq_report_flags_cross_label_duplicates():
+    cfg = {
+        "SENDER_TO_LABELS": {
+            "Foo": [{"emails": ["dup@example.com"]}],
+            "Bar": [{"emails": ["Dup@example.com"]}],
+        }
+    }
+    text = generate_report_text(cfg)
+    assert "SENDERS IN MULTIPLE LABELS (1):" in text
+    assert "dup@example.com" in text
+    assert "SENDER_TO_LABELS.Foo[0].emails" in text
+    assert "SENDER_TO_LABELS.Bar[0].emails" in text

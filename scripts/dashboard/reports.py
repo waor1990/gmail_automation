@@ -51,7 +51,20 @@ def generate_report_text(cfg: dict) -> str:
             for d in i["duplicates"]:
                 lines.append(f"  • {d}")
         lines.append("")
-    all_good = not sort_issues and not cd["case_issues"] and not cd["duplicate_issues"]
+    if cd["cross_label_duplicates"]:
+        msg = f"SENDERS IN MULTIPLE LABELS ({len(cd['cross_label_duplicates'])}): "
+        lines += [msg, ""]
+        for item in cd["cross_label_duplicates"]:
+            lines.append(f"- {item['email']}")
+            for loc in item["locations"]:
+                lines.append(f"  • {loc}")
+        lines.append("")
+    all_good = (
+        not sort_issues
+        and not cd["case_issues"]
+        and not cd["duplicate_issues"]
+        and not cd["cross_label_duplicates"]
+    )
     if all_good:
         lines.append("STATUS: CLEAN. All lists alphabetized, lowercase, unique.")
     else:

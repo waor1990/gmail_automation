@@ -62,7 +62,20 @@ def check_alphabetization(cfg: dict) -> List[dict]:
 
 
 def check_case_and_duplicates(cfg: dict) -> Dict[str, List[dict]]:
-    issues: Dict[str, List[dict]] = {"case_issues": [], "duplicate_issues": []}
+    """Validate casing and locate duplicate senders.
+
+    Returns a dictionary with keys:
+
+    - ``case_issues``: locations where emails are not lowercase
+    - ``duplicate_issues``: lists containing the same email multiple times
+    - ``cross_label_duplicates``: emails appearing under more than one label
+    """
+
+    issues: Dict[str, List[dict]] = {
+        "case_issues": [],
+        "duplicate_issues": [],
+        "cross_label_duplicates": [],
+    }
 
     def folded(seq: List[str]) -> List[str]:
         """Return case-insensitive normalized strings."""
@@ -76,6 +89,10 @@ def check_case_and_duplicates(cfg: dict) -> Dict[str, List[dict]]:
             else:
                 seen.add(s)
         return sorted(set(dups))
+
+    # Track which labels each normalized email appears in
+    email_locations: Dict[str, List[str]] = {}
+    email_labels: Dict[str, Set[str]] = {}
 
     for label, configurations in (cfg.get("SENDER_TO_LABELS") or {}).items():
         for i, group in enumerate(configurations or []):
@@ -95,6 +112,19 @@ def check_case_and_duplicates(cfg: dict) -> Dict[str, List[dict]]:
                         "unique_count": len(set(low)),
                     }
                 )
+
+            loc = f"SENDER_TO_LABELS.{label}[{i}].emails"
+            for e in emails:
+                norm = e.strip().casefold()
+                email_locations.setdefault(norm, []).append(loc)
+                email_labels.setdefault(norm, set()).add(label)
+
+    for email, labels in email_labels.items():
+        if len(labels) > 1:
+            issues["cross_label_duplicates"].append(
+                {"email": email, "locations": email_locations[email]}
+            )
+
     return issues
 
 
