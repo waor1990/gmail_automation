@@ -5,3 +5,4 @@
 - Document data sources and licenses in a `README.md` when adding new files.
 - Prefer CSV or JSON formats for tabular or structured data.
 - Ensure deterministic data; avoid committing generated artifacts.
+- Runtime state files (e.g., `sender_last_run.json`) must remain ignored via `.gitignore`.

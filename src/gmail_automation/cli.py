@@ -16,8 +16,10 @@ from .config import (
     load_configuration,
     check_files_existence,
     unix_to_readable,
-    get_last_run_time,
+    get_sender_last_run_times,
+    update_sender_last_run_times,
     update_last_run_time,
+    DEFAULT_LAST_RUN_TIME,
 )
 from .gmail_service import (
     get_credentials,
@@ -501,8 +503,28 @@ def process_emails_by_criteria(
 
 
 def process_emails_for_labeling(
-    service, user_id, existing_labels, config, last_run_time, dry_run=False
+    service,
+    user_id,
+    existing_labels,
+    config,
+    last_run_times: Dict[str, float],
+    current_time: float,
+    dry_run: bool = False,
 ):
+    """Process emails for all configured senders and apply labels.
+
+    Args:
+        service: Authorized Gmail API service instance.
+        user_id: Gmail user identifier, usually ``"me"``.
+        existing_labels: Mapping of label names to label IDs.
+        config: Loaded configuration dictionary.
+        last_run_times: Per-sender mapping of last processed timestamps.
+        current_time: Timestamp to record as the new last run time.
+        dry_run: When ``True``, fetch emails without modifying them.
+
+    Returns:
+        ``True`` if any emails were processed and modified.
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
     data_dir = os.path.join(root_dir, "data")
@@ -529,8 +551,9 @@ def process_emails_for_labeling(
             delete_after_days = info.get("delete_after_days", None)
             emails = info["emails"]
             for email in emails:
+                sender_last_run = last_run_times.get(email, DEFAULT_LAST_RUN_TIME)
                 query = "from:{sender} label:inbox after:{timestamp}".format(
-                    sender=email, timestamp=int(last_run_time)
+                    sender=email, timestamp=int(sender_last_run)
                 )
                 emails_processed = process_emails_by_criteria(
                     service,
@@ -550,6 +573,7 @@ def process_emails_for_labeling(
                 )
                 if emails_processed:
                     any_emails_processed = True
+                    last_run_times[email] = current_time
 
     save_processed_email_ids(processed_ids_file, processed_email_ids)
     return any_emails_processed
@@ -576,7 +600,15 @@ def main(argv=None):
         service = build_service(credentials)
 
         user_id = "me"
-        last_run_time = get_last_run_time()
+
+        # Collect all senders configured for labeling
+        senders = {
+            email
+            for entries in config.get("SENDER_TO_LABELS", {}).values()
+            for info in entries
+            for email in info.get("emails", [])
+        }
+        last_run_times = get_sender_last_run_times(senders)
 
         existing_labels = get_existing_labels_cached(service)
 
@@ -585,9 +617,13 @@ def main(argv=None):
             user_id,
             existing_labels,
             config,
-            last_run_time,
+            last_run_times,
+            current_time,
             dry_run=args.dry_run,
         )
+
+        if not args.dry_run:
+            update_sender_last_run_times(last_run_times)
 
         if emails_processed and not args.dry_run:
             update_last_run_time(current_time)

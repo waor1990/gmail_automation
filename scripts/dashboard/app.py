@@ -7,6 +7,7 @@ from .analysis import (
     check_alphabetization,
     check_case_and_duplicates,
     compute_label_differences,
+    find_unprocessed_senders,
 )
 from .transforms import config_to_table
 from .utils_io import read_json
@@ -35,14 +36,15 @@ def _prepare_initial_data():
     if LABELS_JSON.exists():
         labels = read_json(LABELS_JSON)
         diff = compute_label_differences(cfg, labels)
-    return cfg, stl_rows, analysis, diff
+    pending = find_unprocessed_senders(cfg)
+    return cfg, stl_rows, analysis, diff, pending
 
 
 def main():
-    cfg, stl_rows, analysis, diff = _prepare_initial_data()
+    cfg, stl_rows, analysis, diff, pending = _prepare_initial_data()
     app = Dash(__name__)
     app.title = "Gmail Config Dashboard"
-    app.layout = make_layout(stl_rows, analysis, diff, cfg)
+    app.layout = make_layout(stl_rows, analysis, diff, cfg, pending)
     register_callbacks(app)
     app.run(host="127.0.0.1", port=8050, debug=False)
 

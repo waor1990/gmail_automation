@@ -1,4 +1,8 @@
 from typing import Any, Dict, List, Tuple, Set
+from gmail_automation.config import (
+    DEFAULT_LAST_RUN_TIME,
+    get_sender_last_run_times,
+)
 from .utils_io import read_json
 from .constants import CONFIG_JSON
 
@@ -24,42 +28,82 @@ def extract_sender_to_labels_emails(cfg: dict) -> Tuple[Set[str], Dict[str, List
     return all_emails, email_to_labels
 
 
+def find_unprocessed_senders(cfg: dict) -> List[dict]:
+    """Return senders that have not been processed yet.
+
+    Args:
+        cfg: Loaded Gmail configuration.
+
+    Returns:
+        List of dictionaries with ``email`` and associated ``labels`` for
+        senders whose last run time matches the default epoch.
+    """
+
+    all_emails, email_to_labels = extract_sender_to_labels_emails(cfg)
+    times = get_sender_last_run_times(all_emails)
+    pending = []
+    for sender, ts in times.items():
+        if ts == DEFAULT_LAST_RUN_TIME:
+            pending.append(
+                {"email": sender, "labels": ", ".join(email_to_labels.get(sender, []))}
+            )
+    return sorted(pending, key=lambda r: r["email"])
+
+
 def check_alphabetization(cfg: dict) -> List[dict]:
     issues: List[dict] = []
     for label, configurations in (cfg.get("SENDER_TO_LABELS") or {}).items():
         for i, group in enumerate(configurations or []):
             emails = group.get("emails", []) or []
             c = [e.strip() for e in emails]
-            if c != sorted(c, key=str.lower):
+            if c != sorted(c, key=str.casefold):
                 issues.append({"location": f"SENDER_TO_LABELS.{label}[{i}].emails"})
     return issues
 
 
 def check_case_and_duplicates(cfg: dict) -> Dict[str, List[dict]]:
-    issues: Dict[str, List[dict]] = {"case_issues": [], "duplicate_issues": []}
+    """Validate casing and locate duplicate senders.
 
-    def lowered(seq: List[str]) -> List[str]:
-        return [s.strip().lower() for s in seq]
+    Returns a dictionary with keys:
 
-    def duplicate_lowers(seq: List[str]) -> List[str]:
+    - ``case_issues``: locations where emails are not lowercase
+    - ``duplicate_issues``: lists containing the same email multiple times
+    - ``cross_label_duplicates``: emails appearing under more than one label
+    """
+
+    issues: Dict[str, List[dict]] = {
+        "case_issues": [],
+        "duplicate_issues": [],
+        "cross_label_duplicates": [],
+    }
+
+    def folded(seq: List[str]) -> List[str]:
+        """Return case-insensitive normalized strings."""
+        return [s.strip().casefold() for s in seq]
+
+    def duplicate_folds(seq: List[str]) -> List[str]:
         seen, dups = set(), []
-        for s in lowered(seq):
+        for s in folded(seq):
             if s in seen:
                 dups.append(s)
             else:
                 seen.add(s)
         return sorted(set(dups))
 
+    # Track which labels each normalized email appears in
+    email_locations: Dict[str, List[str]] = {}
+    email_labels: Dict[str, Set[str]] = {}
+
     for label, configurations in (cfg.get("SENDER_TO_LABELS") or {}).items():
         for i, group in enumerate(configurations or []):
             emails = group.get("emails", []) or []
-            if [e.strip() for e in emails] != lowered(emails):
+            if [e.strip() for e in emails] != folded(emails):
                 issues["case_issues"].append(
                     {"location": f"SENDER_TO_LABELS.{label}[{i}].emails"}
                 )
-            d = duplicate_lowers(emails)
+            d = duplicate_folds(emails)
             if d:
-                low = lowered(emails)
+                low = folded(emails)
                 issues["duplicate_issues"].append(
                     {
                         "location": f"SENDER_TO_LABELS.{label}[{i}].emails",
@@ -68,6 +112,19 @@ def check_case_and_duplicates(cfg: dict) -> Dict[str, List[dict]]:
                         "unique_count": len(set(low)),
                     }
                 )
+
+            loc = f"SENDER_TO_LABELS.{label}[{i}].emails"
+            for e in emails:
+                norm = e.strip().casefold()
+                email_locations.setdefault(norm, []).append(loc)
+                email_labels.setdefault(norm, set()).add(label)
+
+    for email, labels in email_labels.items():
+        if len(labels) > 1:
+            issues["cross_label_duplicates"].append(
+                {"email": email, "locations": email_locations[email]}
+            )
+
     return issues
 
 
@@ -83,7 +140,7 @@ def normalize_case_and_dups(cfg: dict):
         removed = 0
         cased = False
         for s in seq:
-            norm = s.strip().lower()
+            norm = s.strip().casefold()
             if norm != s:
                 cased = True
             if norm in seen:
@@ -117,7 +174,7 @@ def sort_lists(cfg: dict):
         for i, group in enumerate(configurations or []):
             emails = group.get("emails", []) or []
             c = [e.strip() for e in emails]
-            s = sorted(c, key=str.lower)
+            s = sorted(c, key=str.casefold)
             if c != s:
                 group["emails"] = s
                 changes.append(f"SENDER_TO_LABELS.{label}[{i}].emails")
@@ -129,7 +186,7 @@ def compute_label_differences(cfg: dict, labels_data: dict) -> dict:
     for _, entries in (cfg.get("SENDER_TO_LABELS") or {}).items():
         for entry in entries or []:
             for e in entry.get("emails") or []:
-                cfg_emails.add(e)
+                cfg_emails.add(e.casefold())
 
     output: Dict[str, Any] = {
         "comparison_summary": {
@@ -143,17 +200,19 @@ def compute_label_differences(cfg: dict, labels_data: dict) -> dict:
 
     total_missing = 0
     for label_name, entries in (labels_data.get("SENDER_TO_LABELS") or {}).items():
-        label_emails: Set[str] = set()
+        label_emails_fold: Dict[str, str] = {}
         for entry in entries or []:
             for e in entry.get("emails") or []:
-                label_emails.add(e)
+                cf = e.casefold()
+                label_emails_fold.setdefault(cf, e)
 
-        missing = sorted(label_emails - cfg_emails)
+        missing_folds = sorted(set(label_emails_fold) - cfg_emails)
+        missing = [label_emails_fold[m] for m in missing_folds]
         exists_in_target = label_name in (cfg.get("SENDER_TO_LABELS") or {})
         if missing or not exists_in_target:
             output["missing_emails_by_label"][label_name] = {
                 "label_exists_in_target": exists_in_target,
-                "total_emails_in_source": len(label_emails),
+                "total_emails_in_source": len(label_emails_fold),
                 "missing_emails_count": len(missing),
                 "missing_emails": missing,
             }

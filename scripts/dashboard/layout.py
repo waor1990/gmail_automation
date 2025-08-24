@@ -1,7 +1,7 @@
 from dash import html, dcc, dash_table
 
 
-def make_layout(stl_rows, analysis, diff, cfg):
+def make_layout(stl_rows, analysis, diff, cfg, pending):
     section_style = {"marginBottom": "24px"}
     control_row = html.Div(
         style={"display": "flex", "gap": "12px", "flexWrap": "wrap"},
@@ -50,6 +50,23 @@ def make_layout(stl_rows, analysis, diff, cfg):
                     html.Div(id="metrics", style={"marginBottom": "8px"}),
                     html.Div(id="issues-block", style={"marginBottom": "8px"}),
                     html.Div(id="projected-changes"),
+                ],
+            ),
+            html.Div(
+                style=section_style,
+                children=[
+                    html.H2("New Senders Pending Processing"),
+                    dash_table.DataTable(
+                        id="tbl-new-senders",
+                        columns=[
+                            {"name": "email", "id": "email"},
+                            {"name": "labels", "id": "labels"},
+                        ],
+                        data=pending,
+                        page_size=15,
+                        style_table={"maxHeight": "200px", "overflowY": "auto"},
+                        style_cell={"fontFamily": "monospace", "fontSize": "12px"},
+                    ),
                 ],
             ),
             html.Div(

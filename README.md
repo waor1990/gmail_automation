@@ -81,12 +81,23 @@ Logs are written to `logs/gmail_automation_info.log` and `logs/gmail_automation_
 
 Credentials and log files should not be committed to version control. Update `.gitignore` accordingly and keep sensitive files private.
 
+## Runtime State
+
+Timestamps of the last processed email for each sender are stored in
+`data/sender_last_run.json`. When a new address is introduced in the
+`SENDER_TO_LABELS` configuration, the system initializes its entry with
+`2000-01-01T00:00:00Z` so that historical messages are considered. After a
+successful run (without `--dry-run`), these timestamps are updated to the
+current time. A legacy `data/last_run.txt` file is still read if the per-sender
+file is absent.
+
 ## Dashboard and Reports
 
 An interactive [Dash](https://dash.plotly.com/) dashboard is provided to review
 and edit your Gmail configuration. On launch the dashboard automatically runs
 all available reports, which now include sections summarizing projected changes
-if pending developer fixes were applied.
+if pending developer fixes were applied. A table of senders with the default
+`last_run` timestamp highlights newly added addresses awaiting processing.
 
 Launch the dashboard or export reports via the unified entry point:
 

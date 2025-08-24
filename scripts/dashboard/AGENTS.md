@@ -15,6 +15,7 @@ This document describes the roles and responsibilities of the automated agents a
   - Load and parse the Gmail config.
   - Auto-generate reports (`ECAQ`, `Diff`) at startup.
   - Launch Dash app with precomputed analysis and state.
+  - Surface senders with no recorded `last_run` timestamp.
 
 ### 2. `__main__.py`
 
@@ -42,6 +43,7 @@ This document describes the roles and responsibilities of the automated agents a
   - Render main dashboard layout and tables.
   - Provide editing controls for `SENDER_TO_LABELS`.
   - Host report export buttons and table toggles.
+  - Show a table of unprocessed senders for visibility.
 
 ### 5. `transforms.py`
 
@@ -57,6 +59,7 @@ This document describes the roles and responsibilities of the automated agents a
   - Check alphabetization, case, and duplicates.
   - Validate SENDER_TO_LABELS entries for sorting, casing, and duplicates.
   - Compute diffs between current and expected label mappings.
+  - Identify senders whose `last_run` remains at the default epoch.
 
 ### 7. `reports.py`
 
