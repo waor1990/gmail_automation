@@ -28,3 +28,5 @@ data/sender_last_run.json
 
 # Binary executables
 tools/jq.exe
+
+*.hintrc

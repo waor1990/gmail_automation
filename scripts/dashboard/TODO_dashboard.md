@@ -1,65 +1,113 @@
-# TODO_dashboard.md
+# TODO_dashboard.md (August 2025 – User Experience & Visual Design Focus)
 
-## High-Priority Improvements
+## 🎯 Guiding Goals
 
-### ✅ 1. Consolidate Analysis Logic
+- Improve **user compatibility** across devices and skill levels (non-technical users included).
+- Ensure **visual consistency** and intuitive interactivity throughout the dashboard.
+- Enhance **clarity**, **performance**, and **editing safety**.
 
-- Create a helper `run_full_analysis(cfg)` to reduce duplicated code across `app.py`, `callbacks.py`, and `reports.py`.
-- Extract to `analysis_helpers.py` or similar.
+---
 
-### ✅ 2. Handle `read_status` and `delete_after_days` More Robustly
+## ✅ High-Priority Improvements
 
-- Normalize `read_status` to actual booleans (`True/False`) instead of string `"true"` or `""`.
-- Use a utility like `_to_bool(value)` to sanitize values.
-- Normalize `delete_after_days` to `Optional[int]`.
+### 1. 📊 Visual Label Sync Coverage (Diff Overview)
 
-### ✅ 3. Improve `group_index` Handling
+- Use charts or progress bars to visualize per-label sync status.
+- Surface **% match**, total emails, and missing count with color-coded clarity.
+- Add status icons to indicate labels missing entirely from the config.
 
-- Make `group_index` field hidden or read-only in the UI.
-- Prevent user errors by not exposing it directly for editing.
+### 2. ➕ “Add Missing Emails” Inline Action
 
-### ✅ 4. Expand Diff Table UX
+- Add per-row action buttons in the Differences table to import missing emails directly.
+- Preserve source casing and metadata (`read_status`, `delete_after_days`) when possible.
+- Prevent duplicates by normalizing against current config.
 
-- The `missing_emails` column currently renders markdown using HTML.
-- Replace with expandable rows, modals, or click-to-expand widgets for better user interaction.
+### 3. ⚠️ Fix Data Type Inconsistencies in Config
 
-### ✅ 5. Projected Diffs Should Actually Project
+- Convert `read_status` values like `"true"` (string) into proper booleans.
+- Normalize `delete_after_days` to `int` or `null`, not strings.
+- Add `_to_bool()` to `transforms.py` and sanitize on import/export.
 
-- `compute_label_differences()` doesn’t reduce diff count in projections.
-- Add `case_insensitive=True` option and normalize case during comparison to get realistic projections.
+### 4. 🚩 Highlight “Unprocessed” Senders Visually
 
-### ✅ 6. Add Lazy-Loading or Server-Side Paging
+- Add a red/yellow indicator next to emails with `last_run == DEFAULT_LAST_RUN_TIME`.
+- Let users filter, sort, or export the list.
+- Tooltip or explanation banner: “Not yet processed by Gmail automation.”
 
-- Large diffs (500+ emails) will eventually hit Dash/DOM performance limits.
-- Switch to server-side pagination or lazy-load emails per label.
+### 5. 🧩 Improve Group Index Visibility and Control
 
-### ✅ 7. Improve Config Validation
+- Hide `group_index` by default for simpler editing.
+- Add “Advanced Mode” toggle to expose grouping for power users.
+- Consider UI widgets for **splitting/merging** groups instead of raw index editing.
 
-- Validate that every label group has valid structure before loading.
-- Highlight invalid entries or structural issues in the UI.
+### 6. 🔀 Toggle Between “Flat Table” and “Grouped Tree” Views
 
-### ✅ 8. Add Undo/Redo History Support
+- Grouped Tree View: Show label → group → email hierarchy.
+- Flat Table View: Retain current model (single row per email).
+- Preserve editing safety and internal data integrity in both modes.
 
-- Store past configs in `dcc.Store` as a stack.
-- Allow users to undo/redo up to N previous states.
+### 7. 🔁 Centralize Analysis Logic (`run_full_analysis(cfg)`)
 
-### ✅ 9. Add Plugin/Hook Support
+- Reduce redundancy across `app.py`, `callbacks.py`, and `reports.py`.
+- Create `analysis_helpers.py` with consistent return schema (sorting, case, dups).
 
-- Make it possible to sync with external label data sources (e.g., Gmail API, Google Sheets).
-- Use hook mechanism or plugin registration.
+---
 
-## Medium-Priority
+## 🔶 Medium-Priority Enhancements
 
-### 🔲 Lint/Type Checks Pre-Commit
+### 8. ✅ One-Click “Fix & Re-Analyze” Flow
 
-- Add pre-commit hooks for `black`, `flake8`, `mypy`, etc.
+- Streamline button actions: “Fix All” should trigger normalization, sorting, and re-analysis in one step.
+- Reduce user confusion about multi-click workflows.
 
-### 🔲 Visualize Missing Labels as a Tree Map or Bar Chart
+### 9. 🪟 Hoverable Diff Projections (Lightweight UI)
 
-### 🔲 Add Export Option for Filtered Diffs Only
+- Replace bulk “Projected Changes” block with hover cards or expandable previews per label.
+- Goal: Let users explore projected outcomes without taking action.
 
-## Low-Priority
+### 10. 🔍 Email Collision Viewer (Cross-Label Duplicates)
 
-### 🔲 Add Theme Toggle (Dark/Light)
+- Add panel showing emails that exist in more than one label.
+- Include conflict resolution UI (reassign, split, remove).
 
-### 🔲 Add Command Palette (Jump to actions with keyboard)
+### 11. 💾 Preserve Log Viewer State
+
+- When viewing logs, retain current selection after reload or refresh.
+- Cache selected file and run in local storage or via `dcc.Store`.
+
+### 12. 🧪 Add Import Validator for External Files
+
+- Allow users to upload CSV or JSON files (e.g. from Gmail or Notion) and validate schema before import.
+- Provide interactive feedback on format issues.
+
+---
+
+## 🧊 Low-Priority Suggestions (UI Polish & Advanced Features)
+
+### 13. ⚙️ Global Defaults for New Config Entries
+
+- Let users set default values for new entries: `read_status`, `delete_after_days`, etc.
+- Offer a settings modal or persistent sidebar for these defaults.
+
+### 14. 🧼 “Ignore Email” Rules
+
+- Add a system for blacklisting emails from future diffs or imports.
+- Store in a dedicated `IGNORED_EMAILS` config section.
+
+### 15. 🌙 Add Theme Toggle + Accessibility Support
+
+- Provide dark/light mode toggle with saved user preference.
+- Improve tab navigation, color contrast, and focus indicators for screen readers.
+
+### 16. 🛠️ CLI: `--import-missing LABEL` Flag
+
+- Add CLI tool to import missing emails into a specific label from the latest diff file.
+- Useful for automated or batch sync workflows.
+
+---
+
+## ✅ Current Health Check
+
+- 🎉 Config passes all structure validations and produces a clean ECAQ report.
+- ✅ Differences JSON generation and projection logic are stable.
+- 🧩 Opportunities remain around visual experience, data hygiene, and import guidance.

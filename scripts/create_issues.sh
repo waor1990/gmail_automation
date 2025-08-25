@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ISSUE_DIR="issues"
-LOG_FILE="create_issues.log"
+LOG_FILE="logs/create_issues.log"
 
 log(){
     echo "$(date -Iseconds) $1" | tee -a "$LOG_FILE"
