@@ -3,14 +3,15 @@
 This document explains how to configure and run the Gmail Automation script.
 
 1. Install Python 3.10 or newer.
-1. Clone this repository and install dependencies:
+1. Clone this repository and install development dependencies:
 
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements-dev.txt
    ```
 
    You can also run `python -m scripts.setup` to create a virtual
-   environment. Legacy shims are provided for convenience:
+   environment and install the dependencies automatically. Legacy shims
+   are provided for convenience:
 
    ```bash
    ./scripts/setup.sh        # Git Bash
@@ -24,6 +25,13 @@ This document explains how to configure and run the Gmail Automation script.
    source .venv/bin/activate         # Linux/macOS
    source .venv/Scripts/activate     # Git Bash on Windows
    .\.venv\Scripts\Activate.ps1     # PowerShell
+   .\.venv\Scripts\activate.bat     # cmd.exe
+   ```
+
+1. Run tests with:
+
+   ```bash
+   python -m pytest
    ```
 1. Create `config/gmail_config-final.json` from the sample file in `config/config-sample/gmail_config.sample.json` and edit it with
    your label rules.
