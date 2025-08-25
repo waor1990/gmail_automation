@@ -238,29 +238,40 @@ class TestProcessEmail(unittest.TestCase):
             False,
         )
 
-        result = process_email(
-            service,
-            "me",
-            "123",
-            None,
-            None,
-            None,
-            None,
-            "Streaming",
-            True,
-            30,
-            {"Streaming": "label_id"},
-            set(),
-            set(),
-            {},
-            {},
-            dry_run=False,
-        )
+        with patch("logging.info") as mock_logging_info:
+            result = process_email(
+                service,
+                "me",
+                "123",
+                None,
+                None,
+                None,
+                None,
+                "Streaming",
+                True,
+                30,
+                {"Streaming": "label_id"},
+                set(),
+                set(),
+                {},
+                {},
+                dry_run=False,
+            )
 
         self.assertTrue(result)
         messages.get.assert_not_called()
         mock_modify.assert_not_called()
         messages.delete.assert_called_once_with(userId="me", id="123")
+        mock_logging_info.assert_any_call(
+            (
+                "Deleting email from '%s' with subject '%s' dated '%s' "
+                "as it is older than %s days."
+            ),
+            "sender@example.com",
+            "Old Subject",
+            "01/01/2000, 12:00 AM PST",
+            30,
+        )
 
 
 if __name__ == "__main__":

@@ -333,11 +333,12 @@ def process_email(
                 if days_diff >= delete_after_days:
                     logging.info(
                         (
-                            "Deleting email from '%s' with subject '%s' "
+                            "Deleting email from '%s' with subject '%s' dated '%s' "
                             "as it is older than %s days."
                         ),
                         sender,
                         subject,
+                        date,
                         delete_after_days,
                     )
                     if dry_run:
