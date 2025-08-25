@@ -1,4 +1,5 @@
 # Gmail Automation
+[![CI](https://github.com/waor1990/gmail_automation/actions/workflows/python-tests.yml/badge.svg)](https://github.com/waor1990/gmail_automation/actions/workflows/python-tests.yml)
 
 This repository contains a Python script that labels and organizes Gmail messages using the Gmail API. It relies on a JSON configuration that maps specific senders or keywords to labels.
 

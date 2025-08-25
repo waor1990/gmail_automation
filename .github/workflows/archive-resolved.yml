@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Git
         run: |
@@ -44,7 +44,4 @@ jobs:
           git pull origin main --rebase
 
       - name: Push changes
-        uses: ad-m/github-push-action@v0.8.0
-        with:
-          github_token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
-          branch: main
+        run: git push origin HEAD:main
