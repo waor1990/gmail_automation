@@ -8,15 +8,16 @@ This repository contains a Python script that labels and organizes Gmail message
 - Python 3.10 or newer
 - [Google API credentials](https://developers.google.com/gmail/api/quickstart/python)
 - Packages listed in `requirements.txt`
+- Development tools listed in `requirements-dev.txt`
 
-Install dependencies with:
+Install development dependencies with:
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 You can also run the setup module which creates a Python virtual environment
-and installs the dependencies automatically:
+and installs both runtime and development dependencies automatically:
 
 ```bash
 python -m scripts.setup
@@ -33,8 +34,18 @@ scripts\setup.cmd         # cmd.exe
 Activate the environment with:
 
 ```bash
-source .venv/bin/activate       # Linux/macOS
-source .venv/Scripts/activate   # Git Bash on Windows
+source .venv/bin/activate         # Linux/macOS
+source .venv/Scripts/activate     # Git Bash on Windows
+\.venv\Scripts\Activate.ps1      # PowerShell
+\.venv\Scripts\activate.bat      # cmd.exe
+```
+
+## Testing
+
+Run the test suite with:
+
+```bash
+python -m pytest
 ```
 
 ## Configuration

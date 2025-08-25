@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a virtual environment and install dependencies."""
+"""Create a virtual environment and install runtime and development dependencies."""
 
 from __future__ import annotations
 
@@ -37,7 +37,10 @@ def install_requirements(venv: Path, dry_run: bool) -> None:
         / ("Scripts" if os.name == "nt" else "bin")
         / ("python.exe" if os.name == "nt" else "python")
     )
-    run([str(python), "-m", "pip", "install", "-r", "requirements.txt"], dry_run)
+    run(
+        [str(python), "-m", "pip", "install", "-r", "requirements-dev.txt"],
+        dry_run,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
