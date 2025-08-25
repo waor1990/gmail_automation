@@ -30,3 +30,7 @@ data/sender_last_run.json
 tools/jq.exe
 
 *.hintrc
+
+# Coverage reports
+.coverage
+coverage.xml
