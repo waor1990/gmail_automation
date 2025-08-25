@@ -14,11 +14,26 @@ Install dependencies with:
 pip install -r requirements.txt
 ```
 
-You can also run the setup script which creates a Python virtual environment
+You can also run the setup module which creates a Python virtual environment
 and installs the dependencies automatically:
 
 ```bash
-./scripts/setup.sh
+python -m scripts.setup
+```
+
+Examples for other shells:
+
+```bash
+./scripts/setup.sh        # Git Bash
+.\scripts\setup.ps1       # PowerShell
+scripts\setup.cmd         # cmd.exe
+```
+
+Activate the environment with:
+
+```bash
+source .venv/bin/activate       # Linux/macOS
+source .venv/Scripts/activate   # Git Bash on Windows
 ```
 
 ## Configuration

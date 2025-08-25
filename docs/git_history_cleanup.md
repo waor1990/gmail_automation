@@ -12,17 +12,19 @@ The repository previously contained sensitive files in its Git history, includin
 - Log files with potentially sensitive information (`*.log`)
 - Runtime state files (`last_run.txt`, `processed_email_ids.txt`)
 
-## Cleanup Scripts
+## Cleanup Command
 
-Two scripts are provided for cleaning the Git history:
+Run the cleanup with:
 
-### PowerShell Script (Windows)
+```bash
+python -m scripts.clean_git_history --dry-run
+```
+
+Legacy shims are available:
 
 ```powershell
 .\scripts\clean_git_history.ps1
 ```
-
-### Bash Script (Unix/Linux/macOS/WSL)
 
 ```bash
 ./scripts/clean_git_history.sh
