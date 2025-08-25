@@ -28,7 +28,7 @@ fi
 # Define sensitive files to remove from history
 SENSITIVE_FILES=(
     "client_secret_*.json"
-    "gmail-python-email.json" 
+    "gmail-python-email.json"
     "data/gmail-python-email.json"
     "gmail_config-final.json"
     "config/gmail_config-final.json"

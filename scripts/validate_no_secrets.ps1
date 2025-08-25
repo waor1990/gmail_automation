@@ -8,7 +8,7 @@ Write-Host ""
 $criticalPatterns = @(
     "client_secret_*.json",
     "*token*.json",
-    "gmail_config-final.json", 
+    "gmail_config-final.json",
     "last_run.txt",
     "processed_email_ids.txt"
 )
@@ -34,7 +34,7 @@ foreach ($pattern in $criticalPatterns) {
                 $unignoredFiles += $file
             }
         }
-        
+
         if ($unignoredFiles.Count -gt 0) {
             Write-Host "❌ Found untracked sensitive files matching pattern '$pattern':" -ForegroundColor Red
             $unignoredFiles | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
@@ -56,7 +56,7 @@ foreach ($pattern in $warningPatterns) {
                 $unignoredFiles += $file
             }
         }
-        
+
         if ($unignoredFiles.Count -gt 0) {
             Write-Host "❌ Found untracked files matching pattern '$pattern':" -ForegroundColor Red
             $unignoredFiles | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
@@ -85,7 +85,7 @@ try {
                 }
             }
         }
-        
+
         if (-not $stagedSensitive) {
             Write-Host "✅ No sensitive files in staging area" -ForegroundColor Green
         }
@@ -103,7 +103,7 @@ Write-Host ""
 Write-Host "🕒 Checking recent Git history..." -ForegroundColor Cyan
 try {
     $historyFiles = git log --name-only --pretty=format: -10 2>$null | Where-Object { $_ -ne "" } | Sort-Object -Unique
-    
+
     if ($historyFiles) {
         $historySensitive = $false
         foreach ($file in $historyFiles) {
@@ -115,7 +115,7 @@ try {
                 }
             }
         }
-        
+
         if (-not $historySensitive) {
             Write-Host "✅ No sensitive files found in recent history" -ForegroundColor Green
         }

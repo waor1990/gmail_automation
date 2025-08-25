@@ -17,7 +17,7 @@ echo ""
 # Define sensitive file patterns
 SENSITIVE_PATTERNS=(
     "client_secret_*.json"
-    "*token*.json" 
+    "*token*.json"
     "gmail_config-final.json"
     "*.log"
     "last_run.txt"
@@ -44,7 +44,7 @@ if [[ -n "$staged_files" ]]; then
             fi
         done
     done <<< "$staged_files"
-    
+
     if [[ "$staged_sensitive" == "false" ]]; then
         echo -e "${GREEN}✅ No sensitive files in staging area${NC}"
     fi
@@ -71,7 +71,7 @@ if [[ -n "$untracked_unignored" ]]; then
             fi
         done
     done <<< "$untracked_unignored"
-    
+
     if [[ "$untracked_sensitive" == "false" ]]; then
         echo -e "${GREEN}✅ No sensitive files in untracked files${NC}"
     fi

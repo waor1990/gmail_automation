@@ -17,7 +17,7 @@ if ($LASTEXITCODE -ne 0) {
 # Define sensitive files to remove from history
 $sensitiveFiles = @(
     "client_secret_*.json",
-    "gmail-python-email.json", 
+    "gmail-python-email.json",
     "data/gmail-python-email.json",
     "gmail_config-final.json",
     "config/gmail_config-final.json",
@@ -59,22 +59,22 @@ try {
             Write-Host "⚠️  Warning: Could not remove pattern $pattern (may not exist in history)" -ForegroundColor Yellow
         }
     }
-    
+
     Write-Host "✅ Git history cleaned successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "📊 Repository statistics:" -ForegroundColor Cyan
-    
+
     # Show repository size reduction
     $repoSize = (Get-ChildItem .git -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
     Write-Host "Repository size: $([math]::Round($repoSize, 2)) MB" -ForegroundColor White
-    
+
     Write-Host ""
     Write-Host "🔄 Next steps:" -ForegroundColor Green
     Write-Host "1. Verify the cleanup with: git log --name-only" -ForegroundColor White
     Write-Host "2. Force push to remote (if needed): git push --force-with-lease origin main" -ForegroundColor White
     Write-Host "3. Inform collaborators to re-clone the repository" -ForegroundColor White
     Write-Host "4. Delete the backup branch when satisfied: git branch -D backup-before-cleanup" -ForegroundColor White
-    
+
 }
 catch {
     Write-Host "❌ Error during cleanup: $_" -ForegroundColor Red

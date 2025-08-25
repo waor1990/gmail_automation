@@ -111,11 +111,11 @@ git branch -D backup-before-cleanup
    config/client_secret_*.json
    data/gmail-python-email.json
    *_token.json
-   
+
    # Logs
    logs/
    *.log
-   
+
    # Runtime files
    data/last_run.txt
    data/processed_email_ids.txt

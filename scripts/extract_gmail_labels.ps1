@@ -1,5 +1,5 @@
 # Gmail Labels Extraction Script (PowerShell)
-# 
+#
 # This script extracts Gmail labels and associated email addresses to generate
 # a configuration file that can be used by the Gmail automation tool.
 #
@@ -59,7 +59,7 @@ Write-Host "Running: $Command" -ForegroundColor Cyan
 try {
     Invoke-Expression $Command
     $ExitCode = $LASTEXITCODE
-    
+
     if ($ExitCode -eq 0) {
         Write-Host "`nLabel extraction completed successfully!" -ForegroundColor Green
         if ($OutputFile) {
