@@ -2,7 +2,7 @@
 """Create GitHub issues from markdown files."""
 
 from __future__ import annotations
-
+from typing import TypedDict, Optional
 import argparse
 import logging
 import subprocess
@@ -39,7 +39,7 @@ def run(cmd: list[str], dry_run: bool) -> subprocess.CompletedProcess[str] | Non
         raise
 
 
-def parse_issue_file(path: Path) -> tuple[str, str]:
+def parse_issue_file(path: Path) -> tuple[str, str, IssueMeta]:
     text = path.read_text(encoding="utf-8").splitlines()
     title = text[0].lstrip("# ") if text else path.stem
     body_lines = []
@@ -90,11 +90,24 @@ def issue_exists(title: str, dry_run: bool) -> bool:
     return any(item["title"] == title for item in data)
 
 
-def create_issue(title: str, body: str, dry_run: bool) -> str | None:
-    out = run(
-        ["gh", "issue", "create", "--title", title, "--body", body],
-        dry_run,
-    )
+def create_issue(
+    title: str, body: str, issue_meta: IssueMeta, dry_run: bool
+) -> str | None:
+    cmd = ["gh", "issue", "create", "--title", title, "--body", body]
+
+    for label in issue_meta["labels"]:
+        cmd += ["--label", label]
+
+    for assignee in issue_meta["assignees"]:
+        cmd += ["--assignee", assignee]
+
+    for project in issue_meta["projects"]:
+        cmd += ["--project", project]
+
+    if issue_meta["milestone"]:
+        cmd += ["--milestone", issue_meta["milestone"]]
+
+    out = run(cmd, dry_run)
     if out is None:
         return None
     match = re.search(r"/issues/(\d+)", out.stdout)
@@ -134,13 +147,14 @@ def main(argv: list[str] | None = None) -> int:
         if file.name in EXCLUDED_FILES or file.parent.name in {"solved", "generated"}:
             continue
 
-        title, body = parse_issue_file(file)
+        title, body, issue_meta = parse_issue_file(file)
 
         if issue_exists(title, args.dry_run):
             LOGGER.info("skipping existing issue %s", title)
             continue
 
-        number = create_issue(title, body, args.dry_run)
+        number = create_issue(title, body, issue_meta, args.dry_run)
+
         if number:
             LOGGER.info("created issue #%s from %s", number, file)
             destination = generated_path / file.name
