@@ -2,7 +2,7 @@
 
 Helper commands are exposed as Python modules. Run them with:
 
-```
+``` python
 python -m scripts.<name> [options]
 ```
 

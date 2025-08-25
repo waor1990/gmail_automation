@@ -9,22 +9,75 @@ import subprocess
 from pathlib import Path
 import json
 import shlex
+import re
 
 LOGGER = logging.getLogger(__name__)
+EXCLUDED_FILES = {"AGENTS.md"}
+
+
+class IssueMeta(TypedDict):
+    labels: list[str]
+    assignees: list[str]
+    projects: list[str]
+    milestone: Optional[str]
 
 
 def run(cmd: list[str], dry_run: bool) -> subprocess.CompletedProcess[str] | None:
+    LOGGER.debug("running command: %s", " ".join(shlex.quote(c) for c in cmd))
     if dry_run:
-        LOGGER.debug("dry-run: %s", " ".join(shlex.quote(c) for c in cmd))
+        LOGGER.debug("dry-run mode active")
         return None
-    return subprocess.run(cmd, check=True, text=True, capture_output=True)
+    try:
+        return subprocess.run(
+            cmd, check=True, text=True, capture_output=True, encoding="utf-8"
+        )
+    except subprocess.CalledProcessError as e:
+        LOGGER.error(f"Error running command: {e.cmd}")
+        LOGGER.error(f"Exit code: {e.returncode}")
+        LOGGER.error(f"stdout: {e.stdout}")
+        LOGGER.error(f"stderr: {e.stderr}")
+        raise
 
 
 def parse_issue_file(path: Path) -> tuple[str, str]:
     text = path.read_text(encoding="utf-8").splitlines()
     title = text[0].lstrip("# ") if text else path.stem
-    body = "\n".join(text[1:])
-    return title, body
+    body_lines = []
+
+    issue_meta: IssueMeta = {
+        "labels": [],
+        "assignees": [],
+        "projects": [],
+        "milestone": None,
+    }
+
+    for line in text[1:]:
+        clean_line = line.lstrip("- ").strip()
+        lower = clean_line.lower()
+
+        if lower.startswith("**labels**:"):
+            issue_meta["labels"] = [
+                v.strip() for v in clean_line.split(":", 1)[1].split(",") if v.strip()
+            ]
+
+        elif lower.startswith("**priority**:"):
+            priority = clean_line.split(":", 1)[1].strip()
+            issue_meta["labels"].append(priority)
+        elif lower.startswith("**assignees**:"):
+            issue_meta["assignees"] = [
+                v.strip() for v in clean_line.split(":", 1)[1].split(",")
+            ]
+        elif lower.startswith("**milestone**:"):
+            issue_meta["milestone"] = clean_line.split(":", 1)[1].strip()
+        elif lower.startswith("**projects**:"):
+            issue_meta["projects"] = [
+                v.strip() for v in clean_line.split(":", 1)[1].split(",")
+            ]
+        else:
+            body_lines.append(line)
+
+    body = "\n".join(body_lines).strip()
+    return title, body, issue_meta
 
 
 def issue_exists(title: str, dry_run: bool) -> bool:
@@ -39,13 +92,13 @@ def issue_exists(title: str, dry_run: bool) -> bool:
 
 def create_issue(title: str, body: str, dry_run: bool) -> str | None:
     out = run(
-        ["gh", "issue", "create", "--title", title, "--body", body, "--json", "number"],
+        ["gh", "issue", "create", "--title", title, "--body", body],
         dry_run,
     )
     if out is None:
         return None
-    data = json.loads(out.stdout)
-    return str(data.get("number"))
+    match = re.search(r"/issues/(\d+)", out.stdout)
+    return match.group(1) if match else None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -55,19 +108,51 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args(argv)
 
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
+    logs_path = Path("logs")
+    logs_path.mkdir(exist_ok=True)
+    log_file_path = logs_path / "create_issues.log"
+
+    # Set up both console and file logging
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper(), logging.INFO),
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(log_file_path, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
+    )
+
     issues_path = Path(args.issues_dir)
-    files = list(issues_path.glob("*.md")) + list(issues_path.glob("*.txt"))
-    for file in sorted(files):
-        if file.parent.name == "solved":
+    generated_path = issues_path / "generated"
+    generated_path.mkdir(exist_ok=True)
+
+    issue_files = [
+        f for f in issues_path.iterdir() if f.suffix in {".md", ".txt"} and f.is_file()
+    ]
+
+    for file in sorted(issue_files):
+        if file.name in EXCLUDED_FILES or file.parent.name in {"solved", "generated"}:
             continue
+
         title, body = parse_issue_file(file)
+
         if issue_exists(title, args.dry_run):
             LOGGER.info("skipping existing issue %s", title)
             continue
+
         number = create_issue(title, body, args.dry_run)
         if number:
             LOGGER.info("created issue #%s from %s", number, file)
+            destination = generated_path / file.name
+            if destination.exists():
+                LOGGER.warning("destination file %s already exists", destination)
+                continue
+            if args.dry_run:
+                LOGGER.info("dry-run: would move %s to %s", file, destination)
+            else:
+                file.rename(destination)
+                LOGGER.info("moved %s to %s", file, destination)
+
     return 0
 
 

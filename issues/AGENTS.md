@@ -1,5 +1,8 @@
 # Issues Directory Guidelines
 
+These changes are to be implemented in the Dash dashboard.
+
+
 - Store open issues as markdown files named with a numeric prefix, e.g. `001_issue_name.md`.
 - Move resolved issues to the `solved/` subfolder.
 - Keep this directory free of credential or log files.
