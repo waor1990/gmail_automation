@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 
 def _to_clean_email(value: Any) -> str:
@@ -13,7 +13,20 @@ def _to_clean_email(value: Any) -> str:
     return s
 
 
-def _to_nonneg_int(value: Any, default: int = 0) -> int:
+def _to_bool(value: Any, default: bool | None = None) -> bool | None:
+    """Coerce common string representations to booleans."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in {"true", "1", "yes"}:
+            return True
+        if v in {"false", "0", "no"}:
+            return False
+    return default
+
+
+def _to_nonneg_int(value: Any, default: int | None = 0) -> int | None:
     """
     Strictly coerce value to a non-negative int.
     Handles: int, str digits, other -> default.
@@ -52,7 +65,7 @@ def config_to_table(cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
             continue
         for gi, group in enumerate(groups):
             # group_index is the index position in the list
-            group_index = _to_nonneg_int(gi)
+            group_index = _to_nonneg_int(gi) or 0
             read_status = None
             delete_after_days = None
             emails = []
@@ -62,8 +75,10 @@ def config_to_table(cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
                     emails = [
                         _to_clean_email(e) for e in raw_emails if _to_clean_email(e)
                     ]
-                read_status = group.get("read_status")
-                delete_after_days = group.get("delete_after_days")
+                read_status = _to_bool(group.get("read_status"))
+                delete_after_days = _to_nonneg_int(
+                    group.get("delete_after_days"), default=None
+                )
             for email in emails:
                 stl_rows.append(
                     {
@@ -100,12 +115,12 @@ def table_to_config(stl_rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         label = _to_clean_email(r.get("label"))
         if not label:
             continue
-        group_index = _to_nonneg_int(r.get("group_index"), default=0)
+        group_index = _to_nonneg_int(r.get("group_index"), default=0) or 0
         email = _to_clean_email(r.get("email"))
         if not email:
             continue
-        read_status = r.get("read_status")
-        delete_after_days = r.get("delete_after_days")
+        read_status = _to_bool(r.get("read_status"))
+        delete_after_days = _to_nonneg_int(r.get("delete_after_days"), default=None)
 
         group_dict = stl_map.setdefault(label, {})
         group_data = group_dict.setdefault(

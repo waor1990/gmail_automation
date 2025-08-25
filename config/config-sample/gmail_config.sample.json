@@ -4,7 +4,7 @@
     "SENDER_TO_LABELS": {
         "Example_Label": [
             {
-                "read_status": "true",
+                "read_status": true,
                 "delete_after_days": 30,
                 "emails": [
                     "sender@example.com"
