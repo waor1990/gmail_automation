@@ -73,6 +73,16 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 style=section_style,
                 children=[
                     html.H2("SENDER_TO_LABELS Editor"),
+                    html.P(
+                        [
+                            (
+                                "Edit mappings below. Use Advanced Mode to merge "
+                                "or split rows, then apply edits and save."
+                            ),
+                        ],
+                        id="stl-help",
+                        style={"fontSize": "14px", "maxWidth": "800px"},
+                    ),
                     dash_table.DataTable(
                         id="tbl-stl",
                         columns=[
@@ -90,7 +100,11 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 "type": "numeric",
                             },
                         ],
-                        hidden_columns=["read_status", "delete_after_days"],
+                        hidden_columns=[
+                            "group_index",
+                            "read_status",
+                            "delete_after_days",
+                        ],
                         data=stl_rows,
                         editable=True,
                         row_deletable=True,
@@ -112,12 +126,12 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 ),
                             ),
                             html.Button(
-                                "Show read/delete columns",
-                                id="btn-toggle-stl-cols",
+                                "Show Advanced Mode",
+                                id="btn-toggle-advanced",
                                 n_clicks=0,
                                 title=(
-                                    "Show or hide read_status and "
-                                    "delete_after_days columns"
+                                    "Toggle visibility of grouping controls "
+                                    "and the group_index column"
                                 ),
                             ),
                             html.Button(
@@ -132,6 +146,31 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 ),
                             ),
                         ],
+                    ),
+                    html.Div(
+                        id="advanced-controls",
+                        style={"display": "none", "gap": "8px", "marginTop": "8px"},
+                        children=[
+                            html.Button(
+                                "Merge Selected",
+                                id="btn-merge-groups",
+                                n_clicks=0,
+                                title=(
+                                    "Merge selected rows into a single "
+                                    "group per label"
+                                ),
+                            ),
+                            html.Button(
+                                "Split Selected",
+                                id="btn-split-groups",
+                                n_clicks=0,
+                                title="Move each selected row into its own group",
+                            ),
+                        ],
+                    ),
+                    html.Div(
+                        id="stl-selection",
+                        style={"fontSize": "12px", "marginTop": "4px"},
                     ),
                     html.Span(
                         (

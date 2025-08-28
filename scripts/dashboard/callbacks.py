@@ -13,6 +13,7 @@ from .analysis import (
 from .transforms import config_to_table, table_to_config
 from .utils_io import write_json, backup_file, read_json
 from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
+from .group_ops import merge_selected, split_selected
 
 
 def register_callbacks(app):
@@ -112,20 +113,52 @@ def register_callbacks(app):
         return rows
 
     @app.callback(
-        Output("tbl-stl", "hidden_columns"),
-        Output("btn-toggle-stl-cols", "children"),
-        Input("btn-toggle-stl-cols", "n_clicks"),
+        Output("tbl-stl", "hidden_columns", allow_duplicate=True),
+        Output("btn-toggle-advanced", "children"),
+        Output("advanced-controls", "style"),
+        Input("btn-toggle-advanced", "n_clicks"),
         State("tbl-stl", "hidden_columns"),
         prevent_initial_call=True,
     )
-    def toggle_stl_columns(_n, hidden):
+    def toggle_advanced_mode(_n, hidden):
         hidden = hidden or []
-        extra = {"read_status", "delete_after_days"}
-        if extra.issubset(hidden):
-            new_hidden = [c for c in hidden if c not in extra]
-            return new_hidden, "Hide read/delete columns"
-        new_hidden = list(extra.union(hidden))
-        return new_hidden, "Show read/delete columns"
+        if "group_index" in hidden:
+            new_hidden = [c for c in hidden if c != "group_index"]
+            return (
+                new_hidden,
+                "Hide Advanced Mode",
+                {"display": "flex", "gap": "8px", "marginTop": "8px"},
+            )
+        new_hidden = hidden + ["group_index"]
+        return new_hidden, "Show Advanced Mode", {"display": "none"}
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input("btn-merge-groups", "n_clicks"),
+        Input("btn-split-groups", "n_clicks"),
+        State("tbl-stl", "data"),
+        State("tbl-stl", "selected_rows"),
+        prevent_initial_call=True,
+    )
+    def on_group_actions(n_merge, n_split, rows, selected):
+        if not rows or not selected:
+            return no_update, "Select one or more rows first."
+        action = callback_context.triggered[0]["prop_id"].split(".")[0]
+        rows_str = ", ".join(str(i + 1) for i in selected)
+        if action == "btn-merge-groups":
+            return merge_selected(rows, selected), f"Merged rows {rows_str}"
+        return split_selected(rows, selected), f"Split rows {rows_str}"
+
+    @app.callback(
+        Output("stl-selection", "children"),
+        Input("tbl-stl", "selected_rows"),
+    )
+    def on_selection_change(selected):
+        if not selected:
+            return "No rows selected."
+        rows = ", ".join(str(i + 1) for i in selected)
+        return f"Selected rows: {rows}"
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
@@ -197,6 +230,22 @@ def register_callbacks(app):
             lines.extend([html.Div(f"• {d}") for d in i["duplicates"]])
             dup_blocks.append(html.Div(lines, style={"marginLeft": "12px"}))
         dup_div = html.Div(dup_blocks) if dup_blocks else html.Div("None")
+        # Rebuild duplicates block using proper lists (replace placeholder bell char)
+        if cd.get("duplicate_issues"):
+            fixed_blocks = []
+            for i in cd["duplicate_issues"]:
+                dup_count = i["original_count"] - i["unique_count"]
+                items = [html.Li(d) for d in i["duplicates"]]
+                fixed_blocks.append(
+                    html.Div(
+                        [
+                            html.Div(f"{i['location']} ({dup_count} duplicates)"),
+                            html.Ul(items) if items else html.Ul([html.Li("None")]),
+                        ],
+                        style={"marginLeft": "12px"},
+                    )
+                )
+            dup_div = html.Div(fixed_blocks)
 
         issues = html.Div(
             [
@@ -209,12 +258,20 @@ def register_callbacks(app):
             ]
         )
 
+        metrics = html.Div(
+            [
+                html.Div(f"Lists not alphabetized: {len(sorting)}"),
+                html.Div(f"Case issues: {len(cd['case_issues'])}"),
+                html.Div(f"Duplicate sets: {len(cd['duplicate_issues'])}"),
+            ]
+        )
+
         proj_cfg, changes = normalize_case_and_dups(cfg)
         proj_cfg, sort_changes = sort_lists(proj_cfg)
         changes.extend(sort_changes)
         proj_list = ul(changes)
         projected = html.Div([html.H4("Projected Changes After Fix All"), proj_list])
-        return "", issues, projected
+        return metrics, issues, projected
 
     @app.callback(
         Output("diff-summary", "children"),
