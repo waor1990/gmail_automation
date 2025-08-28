@@ -24,17 +24,17 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           ISSUE_NUM=$(printf "%03d" "$ISSUE_NUMBER")
-          FILE=$(ls issues 2>/dev/null | grep -E "^${ISSUE_NUM}_" | head -n1 || true)
+          FILE=$(ls issues/generated 2>/dev/null | grep -E "^${ISSUE_NUM}_" | head -n1 || true)
           if [ -z "$FILE" ]; then
             SAFE_TITLE=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '_')
-            FILE=$(find issues -maxdepth 1 -type f -iname "*${SAFE_TITLE}*" | head -n1 || true)
+            FILE=$(find issues/generated -maxdepth 1 -type f -iname "*${SAFE_TITLE}*" | head -n1 || true)
           fi
           if [ -z "$FILE" ]; then
             echo "No matching file found" && exit 0
           fi
           FILE="${FILE##*/}"
           mkdir -p issues/solved
-          git mv "issues/$FILE" issues/solved/
+          git mv "issues/generated/$FILE" issues/solved/
           git commit -m "Archive resolved issue #$ISSUE_NUMBER"
 
       - name: Pull latest changes
