@@ -230,6 +230,22 @@ def register_callbacks(app):
             lines.extend([html.Div(f"• {d}") for d in i["duplicates"]])
             dup_blocks.append(html.Div(lines, style={"marginLeft": "12px"}))
         dup_div = html.Div(dup_blocks) if dup_blocks else html.Div("None")
+        # Rebuild duplicates block using proper lists (replace placeholder bell char)
+        if cd.get("duplicate_issues"):
+            fixed_blocks = []
+            for i in cd["duplicate_issues"]:
+                dup_count = i["original_count"] - i["unique_count"]
+                items = [html.Li(d) for d in i["duplicates"]]
+                fixed_blocks.append(
+                    html.Div(
+                        [
+                            html.Div(f"{i['location']} ({dup_count} duplicates)"),
+                            html.Ul(items) if items else html.Ul([html.Li("None")]),
+                        ],
+                        style={"marginLeft": "12px"},
+                    )
+                )
+            dup_div = html.Div(fixed_blocks)
 
         issues = html.Div(
             [
@@ -242,12 +258,20 @@ def register_callbacks(app):
             ]
         )
 
+        metrics = html.Div(
+            [
+                html.Div(f"Lists not alphabetized: {len(sorting)}"),
+                html.Div(f"Case issues: {len(cd['case_issues'])}"),
+                html.Div(f"Duplicate sets: {len(cd['duplicate_issues'])}"),
+            ]
+        )
+
         proj_cfg, changes = normalize_case_and_dups(cfg)
         proj_cfg, sort_changes = sort_lists(proj_cfg)
         changes.extend(sort_changes)
         proj_list = ul(changes)
         projected = html.Div([html.H4("Projected Changes After Fix All"), proj_list])
-        return "", issues, projected
+        return metrics, issues, projected
 
     @app.callback(
         Output("diff-summary", "children"),
