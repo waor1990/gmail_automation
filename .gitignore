@@ -34,3 +34,5 @@ tools/jq.exe
 # Coverage reports
 .coverage
 coverage.xml
+
+.fake
