@@ -121,11 +121,11 @@ def register_callbacks(app):
     )
     def toggle_stl_columns(_n, hidden):
         hidden = hidden or []
-        extra = {"read_status", "delete_after_days"}
-        if extra.issubset(hidden):
+        extra = ["read_status", "delete_after_days"]
+        if set(extra).issubset(hidden):
             new_hidden = [c for c in hidden if c not in extra]
             return new_hidden, "Hide read/delete columns"
-        new_hidden = list(extra.union(hidden))
+        new_hidden = hidden + [c for c in extra if c not in hidden]
         return new_hidden, "Show read/delete columns"
 
     @app.callback(
@@ -150,6 +150,7 @@ def register_callbacks(app):
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
         Input("btn-merge-groups", "n_clicks"),
         Input("btn-split-groups", "n_clicks"),
         State("tbl-stl", "data"),
@@ -158,11 +159,22 @@ def register_callbacks(app):
     )
     def on_group_actions(n_merge, n_split, rows, selected):
         if not rows or not selected:
-            return no_update
+            return no_update, "Select one or more rows first."
         action = callback_context.triggered[0]["prop_id"].split(".")[0]
+        rows_str = ", ".join(str(i + 1) for i in selected)
         if action == "btn-merge-groups":
-            return merge_selected(rows, selected)
-        return split_selected(rows, selected)
+            return merge_selected(rows, selected), f"Merged rows {rows_str}"
+        return split_selected(rows, selected), f"Split rows {rows_str}"
+
+    @app.callback(
+        Output("stl-selection", "children"),
+        Input("tbl-stl", "selected_rows"),
+    )
+    def on_selection_change(selected):
+        if not selected:
+            return "No rows selected."
+        rows = ", ".join(str(i + 1) for i in selected)
+        return f"Selected rows: {rows}"
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),

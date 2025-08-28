@@ -73,6 +73,20 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 style=section_style,
                 children=[
                     html.H2("SENDER_TO_LABELS Editor"),
+                    html.P(
+                        [
+                            (
+                                "Edit mappings below. Toggle extra columns to manage "
+                                "read/delete rules."
+                            ),
+                            (
+                                "Select rows to merge or split in Advanced Mode, "
+                                "then apply edits and save."
+                            ),
+                        ],
+                        id="stl-help",
+                        style={"fontSize": "14px", "maxWidth": "800px"},
+                    ),
                     dash_table.DataTable(
                         id="tbl-stl",
                         columns=[
@@ -166,6 +180,10 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 title="Move each selected row into its own group",
                             ),
                         ],
+                    ),
+                    html.Div(
+                        id="stl-selection",
+                        style={"fontSize": "12px", "marginTop": "4px"},
                     ),
                     html.Span(
                         (
