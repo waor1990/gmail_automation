@@ -9,6 +9,7 @@ from .analysis import (
     normalize_case_and_dups,
     sort_lists,
     compute_label_differences,
+    find_unprocessed_senders,
 )
 from .transforms import config_to_table, table_to_config
 from .utils_io import write_json, backup_file, read_json
@@ -449,3 +450,56 @@ def register_callbacks(app):
         if not run_id or not runs:
             return "No run selected."
         return runs.get(run_id, "Run not found.")
+
+    # Recompute and store pending senders whenever config changes
+    @app.callback(
+        Output("store-pending", "data"),
+        Input("store-config", "data"),
+        prevent_initial_call="initial_duplicate",
+    )
+    def on_config_change_pending(cfg):
+        if not cfg:
+            return []
+        try:
+            return find_unprocessed_senders(cfg)
+        except Exception:
+            return []
+
+    # Populate dropdown options and filter the pending table by selected labels
+    @app.callback(
+        Output("ddl-pending-labels", "options"),
+        Output("tbl-new-senders", "data"),
+        Input("store-pending", "data"),
+        Input("ddl-pending-labels", "value"),
+    )
+    def on_filter_pending(pending, selected_labels):
+        pending = pending or []
+        # Build label options from current pending dataset
+        labels_set = set()
+        for row in pending:
+            lbls = (row.get("labels") or "").split(",")
+            for lbl in lbls:
+                clean = lbl.strip()
+                if clean:
+                    labels_set.add(clean)
+        options = [
+            {"label": label_value, "value": label_value}
+            for label_value in sorted(labels_set, key=str.casefold)
+        ]
+
+        # Apply filter if any labels are selected
+        if selected_labels:
+            selected = set(
+                selected_labels
+                if isinstance(selected_labels, list)
+                else [selected_labels]
+            )
+            filtered = []
+            for row in pending:
+                row_labels = set(
+                    s.strip() for s in (row.get("labels") or "").split(",") if s.strip()
+                )
+                if row_labels & selected:
+                    filtered.append(row)
+            return options, filtered
+        return options, pending

@@ -56,9 +56,26 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 style=section_style,
                 children=[
                     html.H2("New Senders Pending Processing"),
+                    html.Div(
+                        "Senders not yet processed by Gmail automation.",
+                        id="pending-help",
+                        style={
+                            "fontSize": "12px",
+                            "color": "#a00",
+                            "marginBottom": "4px",
+                        },
+                    ),
+                    dcc.Dropdown(
+                        id="ddl-pending-labels",
+                        options=[],
+                        multi=True,
+                        placeholder="Filter by label...",
+                        style={"marginBottom": "8px", "maxWidth": "400px"},
+                    ),
                     dash_table.DataTable(
                         id="tbl-new-senders",
                         columns=[
+                            {"name": "", "id": "status"},
                             {"name": "email", "id": "email"},
                             {"name": "labels", "id": "labels"},
                         ],
@@ -66,6 +83,21 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         page_size=15,
                         style_table={"maxHeight": "200px", "overflowY": "auto"},
                         style_cell={"fontFamily": "monospace", "fontSize": "12px"},
+                        sort_action="native",
+                        filter_action="native",
+                        export_format="csv",
+                        export_headers="display",
+                        style_data_conditional=[
+                            {
+                                "if": {"filter_query": "{status} = '🔴'"},
+                                "backgroundColor": "#ffe5e5",
+                            },
+                            {
+                                "if": {"column_id": "status"},
+                                "textAlign": "center",
+                                "width": "30px",
+                            },
+                        ],
                     ),
                 ],
             ),
@@ -262,6 +294,7 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
             dcc.Store(id="store-config", data=cfg),
             dcc.Store(id="store-analysis", data=analysis),
             dcc.Store(id="store-diff", data=diff),
+            dcc.Store(id="store-pending", data=pending),
             dcc.Store(id="store-log-runs"),
         ],
     )

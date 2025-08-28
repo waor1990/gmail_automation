@@ -22,4 +22,4 @@ def test_find_unprocessed_senders(monkeypatch):
     )
 
     result = analysis.find_unprocessed_senders(cfg)
-    assert result == [{"email": "new@example.com", "labels": "LabelA"}]
+    assert result == [{"email": "new@example.com", "labels": "LabelA", "status": "🔴"}]

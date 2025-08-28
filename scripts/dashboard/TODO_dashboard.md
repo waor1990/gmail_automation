@@ -28,11 +28,11 @@
 - Normalize `delete_after_days` to `int` or `null`, not strings.
 - Add `_to_bool()` to `transforms.py` and sanitize on import/export.
 
-### 4. 🚩 Highlight “Unprocessed” Senders Visually
+### 4. 🚩 Highlight “Unprocessed” Senders Visually ✅
 
-- Add a red/yellow indicator next to emails with `last_run == DEFAULT_LAST_RUN_TIME`.
-- Let users filter, sort, or export the list.
-- Tooltip or explanation banner: “Not yet processed by Gmail automation.”
+- Pending senders table shows a red indicator for new emails.
+- Users can filter, sort, or export the list.
+- Added banner: “Not yet processed by Gmail automation.”
 
 ### 5. 🧩 Improve Group Index Visibility and Control
 
