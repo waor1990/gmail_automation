@@ -35,8 +35,9 @@ def find_unprocessed_senders(cfg: dict) -> List[dict]:
         cfg: Loaded Gmail configuration.
 
     Returns:
-        List of dictionaries with ``email`` and associated ``labels`` for
-        senders whose last run time matches the default epoch.
+        List of dictionaries with ``email``, associated ``labels``, and a
+        ``status`` indicator for senders whose last run time matches the
+        default epoch.
     """
 
     all_emails, email_to_labels = extract_sender_to_labels_emails(cfg)
@@ -45,7 +46,11 @@ def find_unprocessed_senders(cfg: dict) -> List[dict]:
     for sender, ts in times.items():
         if ts == DEFAULT_LAST_RUN_TIME:
             pending.append(
-                {"email": sender, "labels": ", ".join(email_to_labels.get(sender, []))}
+                {
+                    "email": sender,
+                    "labels": ", ".join(email_to_labels.get(sender, [])),
+                    "status": "🔴",
+                }
             )
     return sorted(pending, key=lambda r: r["email"])
 
