@@ -1,0 +1,8 @@
+{
+  "include": ["src", "scripts"],
+  "extraPaths": ["src"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": "none"
+}
