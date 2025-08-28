@@ -57,13 +57,20 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 children=[
                     html.H2("New Senders Pending Processing"),
                     html.Div(
-                        "Not yet processed by Gmail automation.",
+                        "Senders not yet processed by Gmail automation.",
                         id="pending-help",
                         style={
                             "fontSize": "12px",
                             "color": "#a00",
                             "marginBottom": "4px",
                         },
+                    ),
+                    dcc.Dropdown(
+                        id="ddl-pending-labels",
+                        options=[],
+                        multi=True,
+                        placeholder="Filter by label...",
+                        style={"marginBottom": "8px", "maxWidth": "400px"},
                     ),
                     dash_table.DataTable(
                         id="tbl-new-senders",
@@ -287,6 +294,7 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
             dcc.Store(id="store-config", data=cfg),
             dcc.Store(id="store-analysis", data=analysis),
             dcc.Store(id="store-diff", data=diff),
+            dcc.Store(id="store-pending", data=pending),
             dcc.Store(id="store-log-runs"),
         ],
     )
