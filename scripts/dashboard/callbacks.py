@@ -114,22 +114,6 @@ def register_callbacks(app):
 
     @app.callback(
         Output("tbl-stl", "hidden_columns", allow_duplicate=True),
-        Output("btn-toggle-stl-cols", "children"),
-        Input("btn-toggle-stl-cols", "n_clicks"),
-        State("tbl-stl", "hidden_columns"),
-        prevent_initial_call=True,
-    )
-    def toggle_stl_columns(_n, hidden):
-        hidden = hidden or []
-        extra = ["read_status", "delete_after_days"]
-        if set(extra).issubset(hidden):
-            new_hidden = [c for c in hidden if c not in extra]
-            return new_hidden, "Hide read/delete columns"
-        new_hidden = hidden + [c for c in extra if c not in hidden]
-        return new_hidden, "Show read/delete columns"
-
-    @app.callback(
-        Output("tbl-stl", "hidden_columns", allow_duplicate=True),
         Output("btn-toggle-advanced", "children"),
         Output("advanced-controls", "style"),
         Input("btn-toggle-advanced", "n_clicks"),

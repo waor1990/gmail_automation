@@ -76,12 +76,8 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                     html.P(
                         [
                             (
-                                "Edit mappings below. Toggle extra columns to manage "
-                                "read/delete rules."
-                            ),
-                            (
-                                "Select rows to merge or split in Advanced Mode, "
-                                "then apply edits and save."
+                                "Edit mappings below. Use Advanced Mode to merge "
+                                "or split rows, then apply edits and save."
                             ),
                         ],
                         id="stl-help",
@@ -127,15 +123,6 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 title=(
                                     "Append an empty row for a new "
                                     "label/email mapping"
-                                ),
-                            ),
-                            html.Button(
-                                "Show read/delete columns",
-                                id="btn-toggle-stl-cols",
-                                n_clicks=0,
-                                title=(
-                                    "Show or hide read_status and "
-                                    "delete_after_days columns"
                                 ),
                             ),
                             html.Button(
