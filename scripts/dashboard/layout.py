@@ -90,7 +90,11 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 "type": "numeric",
                             },
                         ],
-                        hidden_columns=["read_status", "delete_after_days"],
+                        hidden_columns=[
+                            "group_index",
+                            "read_status",
+                            "delete_after_days",
+                        ],
                         data=stl_rows,
                         editable=True,
                         row_deletable=True,
@@ -121,6 +125,15 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 ),
                             ),
                             html.Button(
+                                "Show Advanced Mode",
+                                id="btn-toggle-advanced",
+                                n_clicks=0,
+                                title=(
+                                    "Toggle visibility of grouping controls "
+                                    "and the group_index column"
+                                ),
+                            ),
+                            html.Button(
                                 "Apply table edits to config",
                                 id="btn-apply-edits",
                                 n_clicks=0,
@@ -130,6 +143,27 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                     "working config. Use Save Config to "
                                     "write to file."
                                 ),
+                            ),
+                        ],
+                    ),
+                    html.Div(
+                        id="advanced-controls",
+                        style={"display": "none", "gap": "8px", "marginTop": "8px"},
+                        children=[
+                            html.Button(
+                                "Merge Selected",
+                                id="btn-merge-groups",
+                                n_clicks=0,
+                                title=(
+                                    "Merge selected rows into a single "
+                                    "group per label"
+                                ),
+                            ),
+                            html.Button(
+                                "Split Selected",
+                                id="btn-split-groups",
+                                n_clicks=0,
+                                title="Move each selected row into its own group",
                             ),
                         ],
                     ),

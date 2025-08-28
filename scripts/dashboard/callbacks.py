@@ -13,6 +13,7 @@ from .analysis import (
 from .transforms import config_to_table, table_to_config
 from .utils_io import write_json, backup_file, read_json
 from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
+from .group_ops import merge_selected, split_selected
 
 
 def register_callbacks(app):
@@ -112,7 +113,7 @@ def register_callbacks(app):
         return rows
 
     @app.callback(
-        Output("tbl-stl", "hidden_columns"),
+        Output("tbl-stl", "hidden_columns", allow_duplicate=True),
         Output("btn-toggle-stl-cols", "children"),
         Input("btn-toggle-stl-cols", "n_clicks"),
         State("tbl-stl", "hidden_columns"),
@@ -126,6 +127,42 @@ def register_callbacks(app):
             return new_hidden, "Hide read/delete columns"
         new_hidden = list(extra.union(hidden))
         return new_hidden, "Show read/delete columns"
+
+    @app.callback(
+        Output("tbl-stl", "hidden_columns", allow_duplicate=True),
+        Output("btn-toggle-advanced", "children"),
+        Output("advanced-controls", "style"),
+        Input("btn-toggle-advanced", "n_clicks"),
+        State("tbl-stl", "hidden_columns"),
+        prevent_initial_call=True,
+    )
+    def toggle_advanced_mode(_n, hidden):
+        hidden = hidden or []
+        if "group_index" in hidden:
+            new_hidden = [c for c in hidden if c != "group_index"]
+            return (
+                new_hidden,
+                "Hide Advanced Mode",
+                {"display": "flex", "gap": "8px", "marginTop": "8px"},
+            )
+        new_hidden = hidden + ["group_index"]
+        return new_hidden, "Show Advanced Mode", {"display": "none"}
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Input("btn-merge-groups", "n_clicks"),
+        Input("btn-split-groups", "n_clicks"),
+        State("tbl-stl", "data"),
+        State("tbl-stl", "selected_rows"),
+        prevent_initial_call=True,
+    )
+    def on_group_actions(n_merge, n_split, rows, selected):
+        if not rows or not selected:
+            return no_update
+        action = callback_context.triggered[0]["prop_id"].split(".")[0]
+        if action == "btn-merge-groups":
+            return merge_selected(rows, selected)
+        return split_selected(rows, selected)
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
