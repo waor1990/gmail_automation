@@ -83,3 +83,8 @@ This document describes the roles and responsibilities of the automated agents a
 - All agents are designed to work independently and can be called from the CLI or UI.
 - Reports are auto-refreshed on dashboard load and optionally via a refresh button.
 - The entire state is round-trippable through JSON, enabling robust state persistence.
+
+## Related Tasks
+
+- Dashboard feature tasks and UX improvements are tracked in `.codex/tasks/` as GitHub Issue Form YAMLs.
+- When implementing or reviewing dashboard changes, consult the relevant task YAML for acceptance criteria and verification steps.

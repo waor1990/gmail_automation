@@ -1,63 +1,97 @@
-# yaml-language-server: $schema=../.vscode/schemas/codex-task.schema.json
-version: 1
-task:
-  id: "095"
-  title: "Add Missing Emails Inline Action"
-  priority: High
-  status: todo
-  labels: [dashboard, ux]
-  summary: >-
-    Add per-row action buttons in the Differences table to import missing
-    emails directly into the working config for a selected label, preserving
-    casing and metadata when available.
-  details: |
-    Implement an inline "Import missing" action in the Differences view to move
-    emails listed under `missing_emails_by_label[label].missing_emails` into the
-    current working configuration (`store-config`) for that label.
+# yaml-language-server: $schema=https://json.schemastore.org/github-issue-forms.json
+name: "Task 095: Add Missing Emails Inline Action"
+description: "Feature task to import missing emails per label from Diff view"
+title: "[Task 095] Add Missing Emails Inline Action"
+labels:
+  - dashboard
+  - ux
+  - "priority: High"
+  - "status: todo"
+  - "task:095"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Summary
+        Add per-row action buttons in the Differences table to import missing emails directly into the working config for a selected label, preserving casing and metadata when available.
 
-    - Add a new `actions` column to `tbl-diff` with a per-row button.
-    - On click, read missing emails for that label from `store-diff` and merge
-      them into the appropriate `SENDER_TO_LABELS.<label>[i].emails` entries in
-      `store-config`.
-    - Avoid duplicates by normalizing against `store-config` (casefold compare),
-      but preserve the source casing for newly added emails.
-    - Recompute analysis and the diff, updating `tbl-stl`, `store-config`,
-      `store-analysis`, `store-diff`, and `diff-summary`.
-  acceptance_criteria:
-    - "tbl-diff shows an Actions column with an 'Import missing' button"
-    - "Clicking the button imports all missing emails for that label into config"
-    - "No duplicate entries are added; existing entries remain unchanged"
-    - "Source casing is preserved for imported emails"
-    - "Diff summary and missing counts update immediately to reflect the change"
-    - "Works when target config lacks the label (creates new group entry)"
-  references:
-    - "scripts/dashboard/layout.py:219"
-    - "scripts/dashboard/callbacks.py:278"
-    - "scripts/dashboard/analysis.py:189"
-    - "scripts/dashboard/constants.py:7"
-    - "scripts/dashboard/TODO_dashboard.md"
-    - "issues/generated/095_➕_Add_Missing_Emails_Inline_Action.md"
-  estimate: 0.5-1.0 day
-  out_of_scope:
-    - Bulk multi-label import flows (handled by future CLI flag task 103).
-    - Conflict resolution UI for cross-label duplicates (see future task 110).
-  how_to_verify:
-    - "Ensure files exist: config/gmail_config-final.json and config/gmail_labels_data.json"
-    - "Generate baseline diff: python -m scripts.dashboard --report diff"
-    - "Launch dashboard: python -m scripts.dashboard (or --launch)"
-    - "Open 'Differences View' and confirm a label with missing emails is listed"
-    - "Click the 'Import missing' button in the Actions column for that label"
-    - "Observe: missing_count for that label decreases; diff summary updates"
-    - "Open SENDER_TO_LABELS Editor; confirm imported emails appear under the target label"
-    - "Verify no duplicates were added (case-insensitive check)"
-    - "If label absent, confirm a new group entry is created after import"
-    - "Optionally export diff JSON and confirm config/email_differences_by_label.json reflects the change"
-  plan:
-    - "Add Actions column to tbl-diff (layout.py)"
-    - "Add callback to import missing emails per label (callbacks.py)"
-    - "Merge emails into SENDER_TO_LABELS, creating label/group if missing"
-    - "Normalize to avoid duplicates (casefold compare) and preserve source casing"
-    - "Recompute analysis + diff and update stores/UI"
-  commands:
-    - "python -m scripts.dashboard --report diff"
-    - "python -m scripts.dashboard --launch"
+  - type: markdown
+    attributes:
+      value: |
+        ## Details
+        Implement an inline "Import missing" action in the Differences view to move emails listed under `missing_emails_by_label[label].missing_emails` into the current working configuration (`store-config`) for that label.
+
+        - Add a new `actions` column to `tbl-diff` with a per-row button.
+        - On click, read missing emails for that label from `store-diff` and merge them into the appropriate `SENDER_TO_LABELS.<label>[i].emails` entries in `store-config`.
+        - Avoid duplicates by normalizing against `store-config` (casefold compare), but preserve the source casing for newly added emails.
+        - Recompute analysis and the diff, updating `tbl-stl`, `store-config`, `store-analysis`, `store-diff`, and `diff-summary`.
+
+  - type: checkboxes
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: "tbl-diff shows an Actions column with an 'Import missing' button"
+        - label: "Clicking the button imports all missing emails for that label into config"
+        - label: "No duplicate entries are added; existing entries remain unchanged"
+        - label: "Source casing is preserved for imported emails"
+        - label: "Diff summary and missing counts update immediately to reflect the change"
+        - label: "Works when target config lacks the label (creates new group entry)"
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Out of Scope
+        - Bulk multi-label import flows (handled by future CLI flag task 103).
+        - Conflict resolution UI for cross-label duplicates (see future task 110).
+
+  - type: markdown
+    attributes:
+      value: |
+        ## How to Verify
+        - Ensure files exist: `config/gmail_config-final.json` and `config/gmail_labels_data.json`
+        - Generate baseline diff: `python -m scripts.dashboard --report diff`
+        - Launch dashboard: `python -m scripts.dashboard` (or `--launch`)
+        - Open 'Differences View' and confirm a label with missing emails is listed
+        - Click the 'Import missing' button in the Actions column for that label
+        - Observe: missing_count for that label decreases; diff summary updates
+        - Open SENDER_TO_LABELS Editor; confirm imported emails appear under the target label
+        - Verify no duplicates were added (case-insensitive check)
+        - If label absent, confirm a new group entry is created after import
+        - Optionally export diff JSON and confirm `config/email_differences_by_label.json` reflects the change
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Plan
+        - Add Actions column to `tbl-diff` (layout.py)
+        - Add callback to import missing emails per label (callbacks.py)
+        - Merge emails into `SENDER_TO_LABELS`, creating label/group if missing
+        - Normalize to avoid duplicates (casefold compare) and preserve source casing
+        - Recompute analysis + diff and update stores/UI
+
+  - type: markdown
+    attributes:
+      value: |
+        ## References
+        - scripts/dashboard/layout.py:219
+        - scripts/dashboard/callbacks.py:278
+        - scripts/dashboard/analysis.py:189
+        - scripts/dashboard/constants.py:7
+        - scripts/dashboard/TODO_dashboard.md
+        - issues/generated/095_➕_Add_Missing_Emails_Inline_Action.md
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Estimate
+        0.5–1.0 day
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Commands
+        ```bash
+        python -m scripts.dashboard --report diff
+        python -m scripts.dashboard --launch
+        ```

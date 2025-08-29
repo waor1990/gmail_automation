@@ -1,55 +1,90 @@
-# yaml-language-server: $schema=../.vscode/schemas/codex-task.schema.json
-version: 1
-task:
-  id: "098"
-  title: "Visual Label Sync Coverage (Diff Overview)"
-  priority: High
-  status: todo
-  labels: [dashboard, ux]
-  summary: >-
-    Visualize per-label sync coverage using charts/progress indicators in the
-    Differences section, surfacing % match, totals, and missing counts with
-    clear color/status cues.
-  details: |
-    Build a visual overview of label sync coverage derived from
-    `compute_label_differences` data. Expand the existing Differences section to
-    include a compact per-label bar/progress visualization and status icons for
-    labels missing entirely in the target config.
+# yaml-language-server: $schema=https://json.schemastore.org/github-issue-forms.json
+name: "Task 098: Visual Label Sync Coverage (Diff Overview)"
+description: "Add per-label coverage visualization in Differences view"
+title: "[Task 098] Visual Label Sync Coverage (Diff Overview)"
+labels:
+  - dashboard
+  - ux
+  - "priority: High"
+  - "status: todo"
+  - "task:098"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Summary
+        Visualize per-label sync coverage using charts/progress indicators in the Differences section, surfacing % match, totals, and missing counts with clear color/status cues.
 
-    - Compute, for each label, percent match =
-      `(total_in_source - missing_count) / total_in_source`.
-    - Add a compact visualization (e.g., HTML/CSS progress bar or Dash graph)
-      in `tbl-diff` or adjacent to it for quick scanning.
-    - Show a clear icon/badge for labels missing entirely from the target.
-    - Ensure visuals update whenever `store-config` changes and diff recomputes.
-  acceptance_criteria:
-    - "Each label row displays a clear coverage indicator (0–100%)"
-    - "Labels missing in the target have a distinct icon or badge"
-    - "Coverage visuals update after imports or fix actions"
-    - "No performance regressions in the Diff view with ~100 labels"
-  references:
-    - "scripts/dashboard/layout.py:219"
-    - "scripts/dashboard/callbacks.py:278"
-    - "scripts/dashboard/analysis.py:189"
-    - "scripts/dashboard/constants.py:7"
-    - "scripts/dashboard/TODO_dashboard.md"
-    - "issues/generated/098_📊_Visual_Label_Sync_Coverage_(Diff_Overview).md"
-  estimate: 0.5 day
-  out_of_scope:
-    - Global dashboard theming or unrelated layout refactors.
-    - Persisting coverage snapshots to disk.
-  how_to_verify:
-    - "Launch dashboard: python -m scripts.dashboard (ensure diff is available)"
-    - "Navigate to 'Differences View' and confirm a per-label coverage indicator is visible"
-    - "Coverage shows 0–100% based on (total_in_source - missing_count) / total_in_source"
-    - "Labels missing in target show a distinct icon/badge"
-    - "Trigger a change (e.g., 'Import missing' from task 095 or 'Fix All')"
-    - "Confirm coverage visuals update immediately to reflect new missing counts"
-    - "Scroll through ~100 labels (if available) and validate UI remains responsive"
-  plan:
-    - "Compute per-label coverage from store-diff in callbacks"
-    - "Render compact bar/progress indicator per label"
-    - "Add badge/icon for labels missing in target"
-    - "Wire updates to re-render on diff changes"
-  commands:
-    - "python -m scripts.dashboard --launch"
+  - type: markdown
+    attributes:
+      value: |
+        ## Details
+        Build a visual overview of label sync coverage derived from `compute_label_differences` data. Expand the existing Differences section to include a compact per-label bar/progress visualization and status icons for labels missing entirely in the target config.
+
+        - Compute, for each label, percent match = `(total_in_source - missing_count) / total_in_source`.
+        - Add a compact visualization (e.g., HTML/CSS progress bar or Dash graph) in `tbl-diff` or adjacent to it for quick scanning.
+        - Show a clear icon/badge for labels missing entirely from the target.
+        - Ensure visuals update whenever `store-config` changes and diff recomputes.
+
+  - type: checkboxes
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: "Each label row displays a clear coverage indicator (0–100%)"
+        - label: "Labels missing in the target have a distinct icon or badge"
+        - label: "Coverage visuals update after imports or fix actions"
+        - label: "No performance regressions in the Diff view with ~100 labels"
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Out of Scope
+        - Global dashboard theming or unrelated layout refactors.
+        - Persisting coverage snapshots to disk.
+
+  - type: markdown
+    attributes:
+      value: |
+        ## How to Verify
+        - Launch dashboard: `python -m scripts.dashboard` (ensure diff is available)
+        - Navigate to 'Differences View' and confirm a per-label coverage indicator is visible
+        - Coverage shows 0–100% based on `(total_in_source - missing_count) / total_in_source`
+        - Labels missing in target show a distinct icon/badge
+        - Trigger a change (e.g., 'Import missing' from task 095 or 'Fix All')
+        - Confirm coverage visuals update immediately to reflect new missing counts
+        - Scroll through ~100 labels (if available) and validate UI remains responsive
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Plan
+        - Compute per-label coverage from store-diff in callbacks
+        - Render compact bar/progress indicator per label
+        - Add badge/icon for labels missing in target
+        - Wire updates to re-render on diff changes
+
+  - type: markdown
+    attributes:
+      value: |
+        ## References
+        - scripts/dashboard/layout.py:219
+        - scripts/dashboard/callbacks.py:278
+        - scripts/dashboard/analysis.py:189
+        - scripts/dashboard/constants.py:7
+        - scripts/dashboard/TODO_dashboard.md
+        - issues/generated/098_📊_Visual_Label_Sync_Coverage_(Diff_Overview).md
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Estimate
+        0.5 day
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Commands
+        ```bash
+        python -m scripts.dashboard --launch
+        ```

@@ -13,8 +13,7 @@
     "reportMissingTypeStubs": "none"
   },
   "yaml.schemas": {
-
-    ".vscode/schemas/codex-task.schema.json": [
+    "https://json.schemastore.org/github-issue-forms.json": [
       ".codex/tasks/*.yaml"
     ]
   }
