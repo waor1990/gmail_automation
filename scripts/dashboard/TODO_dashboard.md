@@ -46,13 +46,6 @@
 - Flat Table View: Retain current model (single row per email).
 - Preserve editing safety and internal data integrity in both modes.
 
-### 7. 🔁 Centralize Analysis Logic (`run_full_analysis(cfg)`)
-
-- Reduce redundancy across `app.py`, `callbacks.py`, and `reports.py`.
-- Create `analysis_helpers.py` with consistent return schema (sorting, case, dups).
-
----
-
 ## 🔶 Medium-Priority Enhancements
 
 ### 8. ✅ One-Click “Fix & Re-Analyze” Flow
