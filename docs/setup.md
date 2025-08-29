@@ -10,7 +10,9 @@ This document explains how to configure and run the Gmail Automation script.
    ```
 
    You can also run `python -m scripts.setup` to create a virtual
-   environment and install the dependencies automatically. Legacy shims
+   environment and install the dependencies automatically (it also
+   upgrades `pip`, installs from `requirements-dev.txt`, and can
+   optionally install pre-commit hooks with `--install-hooks`). Legacy shims
    are provided for convenience:
 
    ```bash
@@ -33,6 +35,9 @@ This document explains how to configure and run the Gmail Automation script.
    ```bash
    python -m pytest
    ```
+
+   For ongoing upkeep, see `python -m scripts.maintenance --help` to
+   validate secrets, manage hooks, and run checks/tests.
 1. Create `config/gmail_config-final.json` from the sample file in `config/config-sample/gmail_config.sample.json` and edit it with
    your label rules.
 1. Obtain a client secret JSON file from Google Cloud and place it in the

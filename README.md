@@ -16,11 +16,13 @@ Install development dependencies with:
 pip install -r requirements-dev.txt
 ```
 
-You can also run the setup module which creates a Python virtual environment
-and installs both runtime and development dependencies automatically:
+You can also run the setup module which creates a Python virtual environment,
+upgrades pip, and installs both runtime and development dependencies
+automatically. Optionally install pre-commit hooks with `--install-hooks`:
 
 ```bash
-python -m scripts.setup
+python -m scripts.setup                     # create venv, upgrade pip, install deps
+python -m scripts.setup --install-hooks     # also install pre-commit hooks
 ```
 
 Examples for other shells:
@@ -40,12 +42,58 @@ source .venv/Scripts/activate     # Git Bash on Windows
 \.venv\Scripts\activate.bat      # cmd.exe
 ```
 
+Windows convenience launcher:
+
+```bat
+scripts\enter_venv.cmd   # opens a new Command Prompt with the venv activated
+```
+
+You can skip activation by invoking the venv’s Python directly for one-off
+commands, for example:
+
+```bat
+.\.venv\Scripts\python -m pytest
+```
+
 ## Testing
 
 Run the test suite with:
 
 ```bash
 python -m pytest
+```
+
+## Maintenance
+
+Use the maintenance helper to validate secrets, manage hooks, run checks, and
+handle outdated packages:
+
+```bash
+# Validate no secrets are committed
+python -m scripts.maintenance --validate-secrets
+
+# Install or autoupdate pre-commit hooks
+python -m scripts.maintenance --install-hooks
+python -m scripts.maintenance --autoupdate-hooks
+
+# Run pre-commit on all files
+python -m scripts.maintenance --run-hooks
+
+# Run the test suite
+python -m scripts.maintenance --tests
+
+# List outdated packages and choose to upgrade all/some interactively
+python -m scripts.maintenance --outdated
+
+# Non-interactive upgrades
+python -m scripts.maintenance --outdated --upgrade-all
+python -m scripts.maintenance --outdated --upgrade pandas plotly
+
+# List only (no prompts)
+python -m scripts.maintenance --outdated --no-input
+
+# Full pass: validate → hooks → run hooks → tests
+python -m scripts.maintenance --all
 ```
 
 ## Configuration
