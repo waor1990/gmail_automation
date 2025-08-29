@@ -2,16 +2,9 @@
 from dash import Dash
 from .layout import make_layout
 from .callbacks import register_callbacks
-from .analysis import (
-    load_config,
-    check_alphabetization,
-    check_case_and_duplicates,
-    compute_label_differences,
-    find_unprocessed_senders,
-)
+from .analysis import load_config, find_unprocessed_senders
+from .analysis_helpers import run_full_analysis
 from .transforms import config_to_table
-from .utils_io import read_json
-from .constants import LABELS_JSON
 from .reports import write_ECAQ_report, write_diff_json
 
 
@@ -28,14 +21,8 @@ def _prepare_initial_data():
         pass
 
     stl_rows = config_to_table(cfg)
-    analysis = {
-        "sorting": check_alphabetization(cfg),
-        "case_dups": check_case_and_duplicates(cfg),
-    }
-    diff = None
-    if LABELS_JSON.exists():
-        labels = read_json(LABELS_JSON)
-        diff = compute_label_differences(cfg, labels)
+    analysis = run_full_analysis(cfg)
+    diff = analysis["diff"]
     pending = find_unprocessed_senders(cfg)
     return cfg, stl_rows, analysis, diff, pending
 

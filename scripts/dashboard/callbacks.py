@@ -3,15 +3,13 @@ from dash import Input, Output, State
 import re
 from typing import Dict, List
 from .analysis import (
-    check_alphabetization,
-    check_case_and_duplicates,
     load_config,
     normalize_case_and_dups,
     sort_lists,
-    compute_label_differences,
     find_unprocessed_senders,
     import_missing_emails,
 )
+from .analysis_helpers import run_full_analysis
 from .transforms import config_to_table, table_to_config
 from .utils_io import write_json, backup_file, read_json
 from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
@@ -44,10 +42,7 @@ def register_callbacks(app):
             tmp, _ = sort_lists(tmp)
 
         stl_rows = config_to_table(tmp)
-        analysis = {
-            "sorting": check_alphabetization(tmp),
-            "case_dups": check_case_and_duplicates(tmp),
-        }
+        analysis = run_full_analysis(tmp)
         return (
             stl_rows,
             tmp,
@@ -65,10 +60,7 @@ def register_callbacks(app):
     )
     def on_apply_edits(_n, stl_rows):
         tmp = table_to_config(stl_rows)
-        analysis = {
-            "sorting": check_alphabetization(tmp),
-            "case_dups": check_case_and_duplicates(tmp),
-        }
+        analysis = run_full_analysis(tmp)
         return tmp, analysis, "Applied table edits to working config (not yet saved)."
 
     @app.callback(
@@ -181,10 +173,7 @@ def register_callbacks(app):
                 "Missing config/gmail_config-final.json",
             )
         stl_rows = config_to_table(cfg)
-        analysis = {
-            "sorting": check_alphabetization(cfg),
-            "case_dups": check_case_and_duplicates(cfg),
-        }
+        analysis = run_full_analysis(cfg)
         try:
             from .reports import write_ECAQ_report, write_diff_json
 
@@ -268,9 +257,7 @@ def register_callbacks(app):
             ]
         )
 
-        proj_cfg, changes = normalize_case_and_dups(cfg)
-        proj_cfg, sort_changes = sort_lists(proj_cfg)
-        changes.extend(sort_changes)
+        changes = analysis.get("projected_changes") or []
         proj_list = ul(changes)
         projected = html.Div([html.H4("Projected Changes After Fix All"), proj_list])
         return metrics, issues, projected
@@ -291,8 +278,9 @@ def register_callbacks(app):
             return "", [], None, "", "No config loaded."
         if not LABELS_JSON.exists():
             return "", [], None, "", "Missing config/gmail_labels_data.json"
-        labels = read_json(LABELS_JSON)
-        diff = compute_label_differences(cfg, labels)
+        analysis = run_full_analysis(cfg)
+        diff = analysis["diff"]
+        assert diff is not None
         summary = diff["comparison_summary"]
         rows = []
         for label, info in diff["missing_emails_by_label"].items():
@@ -325,10 +313,9 @@ def register_callbacks(app):
                 }
             )
 
-        proj_cfg, changes = normalize_case_and_dups(cfg)
-        proj_cfg, sort_changes = sort_lists(proj_cfg)
-        changes.extend(sort_changes)
-        proj_diff = compute_label_differences(proj_cfg, labels)
+        changes = analysis.get("projected_changes") or []
+        proj_diff = analysis.get("projected_diff")
+        assert proj_diff is not None
 
         # Build a richer projection summary
         import re
@@ -341,7 +328,9 @@ def register_callbacks(app):
             if m
         ]
         removed_dups_total = sum(removed_dup_counts)
-        sorted_lists_count = len(sort_changes)
+        sorted_lists_count = sum(
+            1 for c in changes if "(fixed case)" not in c and "duplicates" not in c
+        )
 
         def extract_label(c: str) -> str | None:
             m = re.search(r"SENDER_TO_LABELS\\.([^\\[]+)\\[", c)
@@ -372,7 +361,7 @@ def register_callbacks(app):
                     [
                         html.Div(f"Before (missing emails): {before_missing}"),
                         html.Div(f"After (missing emails): {after_missing}"),
-                        html.Div(f"Delta: {delta_missing:+d}"),
+                        html.Div("Delta: {:+d}".format(delta_missing)),
                     ],
                     style={"marginBottom": "6px"},
                 ),
@@ -453,10 +442,7 @@ def register_callbacks(app):
             )
 
         stl_rows = config_to_table(updated)
-        analysis = {
-            "sorting": check_alphabetization(updated),
-            "case_dups": check_case_and_duplicates(updated),
-        }
+        analysis = run_full_analysis(updated)
         msg = f"Imported {len(added)} emails into {label}."
         return stl_rows, updated, analysis, None, msg
 

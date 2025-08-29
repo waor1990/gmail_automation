@@ -3,25 +3,16 @@ from datetime import datetime
 import argparse
 
 from .constants import LABELS_JSON, REPORT_TXT, DIFF_JSON
-from .utils_io import read_json, write_json
-from .analysis import (
-    load_config,
-    check_alphabetization,
-    check_case_and_duplicates,
-    compute_label_differences,
-    normalize_case_and_dups,
-    sort_lists,
-)
+from .utils_io import write_json
+from .analysis import load_config
+from .analysis_helpers import run_full_analysis
 
 
 def generate_report_text(cfg: dict) -> str:
-    sort_issues = check_alphabetization(cfg)
-    cd = check_case_and_duplicates(cfg)
-
-    # Projected changes if developer actions (fix all) were applied
-    proj_cfg, proj_changes = normalize_case_and_dups(cfg)
-    proj_cfg, sort_changes = sort_lists(proj_cfg)
-    proj_changes.extend(sort_changes)
+    analysis = run_full_analysis(cfg)
+    sort_issues = analysis["sorting"]
+    cd = analysis["case_dups"]
+    proj_changes = analysis["projected_changes"]
 
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
@@ -98,14 +89,10 @@ def write_diff_json():
     cfg = load_config()
     if not LABELS_JSON.exists():
         raise FileNotFoundError("Missing config/gmail_labels_data.json")
-    labels = read_json(LABELS_JSON)
-    diff = compute_label_differences(cfg, labels)
-
-    # Compute projected diff after applying developer actions
-    proj_cfg, proj_changes = normalize_case_and_dups(cfg)
-    proj_cfg, sort_changes = sort_lists(proj_cfg)
-    proj_changes.extend(sort_changes)
-    proj_diff = compute_label_differences(proj_cfg, labels)
+    analysis = run_full_analysis(cfg)
+    diff = analysis["diff"]
+    proj_changes = analysis["projected_changes"]
+    proj_diff = analysis["projected_diff"]
     diff["projected_changes"] = {
         "config_actions": proj_changes,
         "diff_after_actions": proj_diff,
