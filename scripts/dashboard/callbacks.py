@@ -1,6 +1,7 @@
-from dash import html, no_update, callback_context
-from dash import Input, Output, State
+from dash import html, dcc, no_update, callback_context
+from dash import Input, Output, State, MATCH
 import re
+import json
 from typing import Dict, List
 from .analysis import (
     load_config,
@@ -10,13 +11,66 @@ from .analysis import (
     import_missing_emails,
 )
 from .analysis_helpers import run_full_analysis
-from .transforms import config_to_table, table_to_config
+from .transforms import config_to_table, table_to_config, rows_to_grouped
 from .utils_io import write_json, backup_file, read_json
 from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
 from .group_ops import merge_selected, split_selected
 
 
 def register_callbacks(app):
+    def _render_grouped_tree(rows: List[Dict[str, str]]):
+        grouped = rows_to_grouped(rows)
+        items = []
+        for label in sorted(grouped):
+            group_items = []
+            for gi in sorted(grouped[label]):
+                emails = grouped[label][gi]
+                email_items = [
+                    html.Li(
+                        [
+                            html.Span(email),
+                            html.Button(
+                                "Remove",
+                                id={
+                                    "type": "grp-remove",
+                                    "label": label,
+                                    "group": gi,
+                                    "email": email,
+                                },
+                                n_clicks=0,
+                                style={"marginLeft": "4px"},
+                            ),
+                        ]
+                    )
+                    for email in emails
+                ]
+                group_items.append(
+                    html.Li(
+                        [
+                            html.Span(f"Group {gi}"),
+                            html.Ul(email_items),
+                            dcc.Input(
+                                id={"type": "grp-input", "label": label, "group": gi},
+                                placeholder="new email",
+                                style={"marginRight": "4px", "fontSize": "12px"},
+                            ),
+                            html.Button(
+                                "Add",
+                                id={"type": "grp-add", "label": label, "group": gi},
+                                n_clicks=0,
+                                style={"fontSize": "12px"},
+                            ),
+                        ]
+                    )
+                )
+            items.append(html.Li([html.Strong(label), html.Ul(group_items)]))
+        return html.Ul(items)
+
+    def _recompute(rows):
+        cfg = table_to_config(rows)
+        analysis = run_full_analysis(cfg)
+        return cfg, analysis
+
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
         Output("store-config", "data", allow_duplicate=True),
@@ -153,6 +207,83 @@ def register_callbacks(app):
             return "No rows selected."
         rows = ", ".join(str(i + 1) for i in selected)
         return f"Selected rows: {rows}"
+
+    @app.callback(
+        Output("stl-grouped", "children"),
+        Input("tbl-stl", "data"),
+    )
+    def render_grouped(rows):
+        return _render_grouped_tree(rows or [])
+
+    @app.callback(
+        Output("flat-view", "style"),
+        Output("grouped-view", "style"),
+        Input("stl-view-toggle", "value"),
+    )
+    def toggle_view(mode):
+        if mode == "grouped":
+            return {"display": "none"}, {"display": "block"}
+        return {"display": "block"}, {"display": "none"}
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("store-config", "data", allow_duplicate=True),
+        Output("store-analysis", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input({"type": "grp-add", "label": MATCH, "group": MATCH}, "n_clicks"),
+        State({"type": "grp-input", "label": MATCH, "group": MATCH}, "value"),
+        State("tbl-stl", "data"),
+        prevent_initial_call=True,
+    )
+    def on_group_add(_n, new_email, rows):
+        trig = json.loads(callback_context.triggered[0]["prop_id"].split(".")[0])
+        label = trig["label"]
+        group = trig["group"]
+        email = (new_email or "").strip()
+        if not email:
+            return no_update, no_update, no_update, "Enter an email."
+        rows = rows or []
+        rows.append(
+            {
+                "label": label,
+                "group_index": group,
+                "email": email,
+                "read_status": False,
+                "delete_after_days": None,
+            }
+        )
+        cfg, analysis = _recompute(rows)
+        return rows, cfg, analysis, f"Added {email} to {label} group {group}"
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("store-config", "data", allow_duplicate=True),
+        Output("store-analysis", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input(
+            {"type": "grp-remove", "label": MATCH, "group": MATCH, "email": MATCH},
+            "n_clicks",
+        ),
+        State("tbl-stl", "data"),
+        prevent_initial_call=True,
+    )
+    def on_group_remove(_n, rows):
+        trig = json.loads(callback_context.triggered[0]["prop_id"].split(".")[0])
+        label = trig["label"]
+        group = trig["group"]
+        email = trig["email"]
+        rows = rows or []
+        new_rows = [
+            r
+            for r in rows
+            if not (
+                r.get("label") == label
+                and (r.get("group_index") or 0) == group
+                and r.get("email") == email
+            )
+        ]
+        cfg, analysis = _recompute(new_rows)
+        return new_rows, cfg, analysis, f"Removed {email} from {label} group {group}"
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
@@ -361,7 +492,11 @@ def register_callbacks(app):
                     [
                         html.Div(f"Before (missing emails): {before_missing}"),
                         html.Div(f"After (missing emails): {after_missing}"),
-                        html.Div("Delta: {:+d}".format(delta_missing)),
+<<<<<<< HEAD
+                        html.Div(f"Delta: {delta_missing:+d}"),  # noqa: E231
+=======
+                        html.Div(f"Delta: {delta_missing:+d}"),  # noqa: E231
+>>>>>>> 4b5f7e7 (feat: add grouped STL view)
                     ],
                     style={"marginBottom": "6px"},
                 ),
