@@ -17,6 +17,26 @@ from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
 from .group_ops import merge_selected, split_selected
 
 
+def _render_coverage(total: int, missing: int) -> str:
+    """Return a small HTML progress bar for coverage."""
+    pct = 100 if total == 0 else int(round((total - missing) / total * 100))
+    if pct == 100:
+        color = "#2e7d32"  # green
+    elif pct >= 50:
+        color = "#ed6c02"  # orange
+    else:
+        color = "#c62828"  # red
+    bar = (
+        "<div style='display:flex;align-items:center'>"
+        "<div style='background:#eee;width:60px;height:8px'>"
+        "<div style='background:{color};width:{pct}%;height:8px'></div>"
+        "</div>"
+        "<span style='margin-left:4px;font-size:10px'>{pct}%</span>"
+        "</div>"
+    ).format(color=color, pct=pct)
+    return bar
+
+
 def register_callbacks(app):
     def _render_grouped_tree(rows: List[Dict[str, str]]):
         grouped = rows_to_grouped(rows)
@@ -432,13 +452,18 @@ def register_callbacks(app):
                 "Import missing"
                 "</button>"
             )
+            total = info["total_emails_in_source"]
+            missing = info["missing_emails_count"]
+            coverage_html = _render_coverage(total, missing)
+            exists_icon = "✅" if info["label_exists_in_target"] else "❌"
 
             rows.append(
                 {
                     "label": label,
-                    "exists_in_target": info["label_exists_in_target"],
-                    "total_in_source": info["total_emails_in_source"],
-                    "missing_count": info["missing_emails_count"],
+                    "exists_in_target": exists_icon,
+                    "total_in_source": total,
+                    "missing_count": missing,
+                    "coverage": coverage_html,
                     "missing_emails": missing_html,
                     "actions": action_btn,
                 }
