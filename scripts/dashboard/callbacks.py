@@ -492,11 +492,7 @@ def register_callbacks(app):
                     [
                         html.Div(f"Before (missing emails): {before_missing}"),
                         html.Div(f"After (missing emails): {after_missing}"),
-<<<<<<< HEAD
                         html.Div(f"Delta: {delta_missing:+d}"),  # noqa: E231
-=======
-                        html.Div(f"Delta: {delta_missing:+d}"),  # noqa: E231
->>>>>>> 4b5f7e7 (feat: add grouped STL view)
                     ],
                     style={"marginBottom": "6px"},
                 ),
