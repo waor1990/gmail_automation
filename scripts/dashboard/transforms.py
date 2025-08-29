@@ -167,3 +167,16 @@ def table_to_config(stl_rows: List[Dict[str, Any]]) -> Dict[str, Any]:
             stl_out[label] = out_groups
 
     return {"SENDER_TO_LABELS": stl_out}
+
+
+def rows_to_grouped(stl_rows: List[Dict[str, Any]]) -> Dict[str, Dict[int, List[str]]]:
+    """Group table rows into a label → group_index → emails structure."""
+    grouped: Dict[str, Dict[int, List[str]]] = {}
+    for r in stl_rows or []:
+        label = _to_clean_email(r.get("label"))
+        email = _to_clean_email(r.get("email"))
+        if not label or not email:
+            continue
+        group_index = _to_nonneg_int(r.get("group_index"), default=0) or 0
+        grouped.setdefault(label, {}).setdefault(group_index, []).append(email)
+    return grouped

@@ -115,101 +115,130 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         id="stl-help",
                         style={"fontSize": "14px", "maxWidth": "800px"},
                     ),
-                    dash_table.DataTable(
-                        id="tbl-stl",
-                        columns=[
-                            {"name": "label", "id": "label"},
-                            {
-                                "name": "group_index",
-                                "id": "group_index",
-                                "type": "numeric",
-                            },
-                            {"name": "email", "id": "email"},
-                            {"name": "read_status", "id": "read_status"},
-                            {
-                                "name": "delete_after_days",
-                                "id": "delete_after_days",
-                                "type": "numeric",
-                            },
+                    dcc.RadioItems(
+                        id="stl-view-toggle",
+                        options=[
+                            {"label": "Flat Table", "value": "flat"},
+                            {"label": "Grouped Tree", "value": "grouped"},
                         ],
-                        hidden_columns=[
-                            "group_index",
-                            "read_status",
-                            "delete_after_days",
-                        ],
-                        data=stl_rows,
-                        editable=True,
-                        row_deletable=True,
-                        row_selectable="multi",
-                        page_size=15,
-                        style_table={"maxHeight": "400px", "overflowY": "auto"},
-                        style_cell={"fontFamily": "monospace", "fontSize": "12px"},
+                        value="flat",
+                        inline=True,
+                        style={"marginBottom": "8px"},
                     ),
                     html.Div(
-                        style={"display": "flex", "gap": "8px"},
+                        id="flat-view",
                         children=[
-                            html.Button(
-                                "Add blank row to SENDER_TO_LABELS",
-                                id="btn-add-stl-row",
-                                n_clicks=0,
-                                title=(
-                                    "Append an empty row for a new "
-                                    "label/email mapping"
-                                ),
+                            dash_table.DataTable(
+                                id="tbl-stl",
+                                columns=[
+                                    {"name": "label", "id": "label"},
+                                    {
+                                        "name": "group_index",
+                                        "id": "group_index",
+                                        "type": "numeric",
+                                    },
+                                    {"name": "email", "id": "email"},
+                                    {"name": "read_status", "id": "read_status"},
+                                    {
+                                        "name": "delete_after_days",
+                                        "id": "delete_after_days",
+                                        "type": "numeric",
+                                    },
+                                ],
+                                hidden_columns=[
+                                    "group_index",
+                                    "read_status",
+                                    "delete_after_days",
+                                ],
+                                data=stl_rows,
+                                editable=True,
+                                row_deletable=True,
+                                row_selectable="multi",
+                                page_size=15,
+                                style_table={"maxHeight": "400px", "overflowY": "auto"},
+                                style_cell={
+                                    "fontFamily": "monospace",
+                                    "fontSize": "12px",
+                                },
                             ),
-                            html.Button(
-                                "Show Advanced Mode",
-                                id="btn-toggle-advanced",
-                                n_clicks=0,
-                                title=(
-                                    "Toggle visibility of grouping controls "
-                                    "and the group_index column"
-                                ),
+                            html.Div(
+                                style={"display": "flex", "gap": "8px"},
+                                children=[
+                                    html.Button(
+                                        "Add blank row to SENDER_TO_LABELS",
+                                        id="btn-add-stl-row",
+                                        n_clicks=0,
+                                        title=(
+                                            "Append an empty row for a new "
+                                            "label/email mapping"
+                                        ),
+                                    ),
+                                    html.Button(
+                                        "Show Advanced Mode",
+                                        id="btn-toggle-advanced",
+                                        n_clicks=0,
+                                        title=(
+                                            "Toggle visibility of grouping controls "
+                                            "and the group_index column"
+                                        ),
+                                    ),
+                                    html.Button(
+                                        "Apply table edits to config",
+                                        id="btn-apply-edits",
+                                        n_clicks=0,
+                                        style={"background": "#e8f0ff"},
+                                        title=(
+                                            "Sync changes from the table to the "
+                                            "working config. Use Save Config to "
+                                            "write to file."
+                                        ),
+                                    ),
+                                ],
                             ),
-                            html.Button(
-                                "Apply table edits to config",
-                                id="btn-apply-edits",
-                                n_clicks=0,
-                                style={"background": "#e8f0ff"},
-                                title=(
-                                    "Sync changes from the table to the "
-                                    "working config. Use Save Config to "
-                                    "write to file."
+                            html.Div(
+                                id="advanced-controls",
+                                style={
+                                    "display": "none",
+                                    "gap": "8px",
+                                    "marginTop": "8px",
+                                },
+                                children=[
+                                    html.Button(
+                                        "Merge Selected",
+                                        id="btn-merge-groups",
+                                        n_clicks=0,
+                                        title=(
+                                            "Merge selected rows into a single "
+                                            "group per label"
+                                        ),
+                                    ),
+                                    html.Button(
+                                        "Split Selected",
+                                        id="btn-split-groups",
+                                        n_clicks=0,
+                                        title=(
+                                            "Move each selected row into its own group"
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            html.Div(
+                                id="stl-selection",
+                                style={"fontSize": "12px", "marginTop": "4px"},
+                            ),
+                            html.Span(
+                                (
+                                    "Applies edits from the table to the working "
+                                    "config; remember to Save Config to persist."
                                 ),
+                                style={"fontSize": "12px", "color": "#555"},
                             ),
                         ],
                     ),
                     html.Div(
-                        id="advanced-controls",
-                        style={"display": "none", "gap": "8px", "marginTop": "8px"},
-                        children=[
-                            html.Button(
-                                "Merge Selected",
-                                id="btn-merge-groups",
-                                n_clicks=0,
-                                title=(
-                                    "Merge selected rows into a single "
-                                    "group per label"
-                                ),
-                            ),
-                            html.Button(
-                                "Split Selected",
-                                id="btn-split-groups",
-                                n_clicks=0,
-                                title="Move each selected row into its own group",
-                            ),
-                        ],
-                    ),
-                    html.Div(
-                        id="stl-selection",
-                        style={"fontSize": "12px", "marginTop": "4px"},
-                    ),
-                    html.Span(
-                        (
-                            "Applies edits from the table to the working "
-                            "config; remember to Save Config to persist."
-                        ),
-                        style={"fontSize": "12px", "color": "#555"},
+                        id="grouped-view",
+                        style={"display": "none"},
+                        children=[html.Div(id="stl-grouped")],
                     ),
                 ],
             ),

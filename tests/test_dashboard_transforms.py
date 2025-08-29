@@ -1,4 +1,8 @@
-from scripts.dashboard.transforms import config_to_table, table_to_config
+from scripts.dashboard.transforms import (
+    config_to_table,
+    table_to_config,
+    rows_to_grouped,
+)
 
 
 def test_config_to_table_sanitizes_types():
@@ -58,4 +62,18 @@ def test_table_to_config_sanitizes_types():
                 },
             ]
         }
+    }
+
+
+def test_rows_to_grouped_groups_by_label_and_index():
+    rows = [
+        {"label": "L1", "group_index": 0, "email": "a@example.com"},
+        {"label": "L1", "group_index": 0, "email": "b@example.com"},
+        {"label": "L1", "group_index": 1, "email": "c@example.com"},
+        {"label": "L2", "group_index": 0, "email": "d@example.com"},
+    ]
+    grouped = rows_to_grouped(rows)
+    assert grouped == {
+        "L1": {0: ["a@example.com", "b@example.com"], 1: ["c@example.com"]},
+        "L2": {0: ["d@example.com"]},
     }
