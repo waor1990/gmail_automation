@@ -238,7 +238,11 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 "id": "missing_emails",
                                 "presentation": "markdown",
                             },
-                            {"name": "actions", "id": "actions"},
+                            {
+                                "name": "actions",
+                                "id": "actions",
+                                "presentation": "markdown",
+                            },
                         ],
                         data=[],
                         page_size=15,

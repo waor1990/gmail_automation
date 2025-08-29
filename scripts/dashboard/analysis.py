@@ -255,10 +255,16 @@ def import_missing_emails(
 
     source_groups = (labels_data.get("SENDER_TO_LABELS") or {}).get(label) or []
 
+    # Match requested emails case-insensitively against source entries
+    missing_cf = {e.casefold() for e in emails}
+
     for src in source_groups:
         meta = {k: src.get(k) for k in ("read_status", "delete_after_days") if k in src}
-        to_add = [e for e in (src.get("emails") or []) if e in emails]
-        to_add = [e for e in to_add if e.casefold() not in existing]
+        to_add = [
+            e
+            for e in (src.get("emails") or [])
+            if e and e.casefold() in missing_cf and e.casefold() not in existing
+        ]
         if not to_add:
             continue
 
@@ -268,13 +274,15 @@ def import_missing_emails(
             ) == meta.get("delete_after_days"):
                 tgt.setdefault("emails", []).extend(to_add)
                 existing.update(e.casefold() for e in to_add)
-                added.extend(to_add)
+                # Only count items that were explicitly requested
+                added.extend([e for e in to_add if e in emails])
                 break
         else:
             new_group = {"emails": to_add}
             new_group.update(meta)
             target_groups.append(new_group)
             existing.update(e.casefold() for e in to_add)
-            added.extend(to_add)
+            # Only count items that were explicitly requested
+            added.extend([e for e in to_add if e in emails])
 
     return updated, added

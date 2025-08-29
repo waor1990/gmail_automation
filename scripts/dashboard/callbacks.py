@@ -305,6 +305,15 @@ def register_callbacks(app):
                 "</summary>"
                 f"<ul>{missing_items}</ul></details>"
             )
+            # Render a real button inside the cell
+            # DataTable will still report clicks via active_cell
+            action_btn = (
+                '<button title="Import all missing emails for this label" '
+                'style="padding:2px 6px; font-size:12px;">'
+                "Import missing"
+                "</button>"
+            )
+
             rows.append(
                 {
                     "label": label,
@@ -312,7 +321,7 @@ def register_callbacks(app):
                     "total_in_source": info["total_emails_in_source"],
                     "missing_count": info["missing_emails_count"],
                     "missing_emails": missing_html,
-                    "actions": "Import missing",
+                    "actions": action_btn,
                 }
             )
 
@@ -320,13 +329,73 @@ def register_callbacks(app):
         proj_cfg, sort_changes = sort_lists(proj_cfg)
         changes.extend(sort_changes)
         proj_diff = compute_label_differences(proj_cfg, labels)
+
+        # Build a richer projection summary
+        import re
+
+        case_fixes = sum(1 for c in changes if "(fixed case)" in c)
+        removed_dup_counts = [
+            int(m.group(1))
+            for c in changes
+            for m in [re.search(r"removed (\\d+) duplicates", c)]
+            if m
+        ]
+        removed_dups_total = sum(removed_dup_counts)
+        sorted_lists_count = len(sort_changes)
+
+        def extract_label(c: str) -> str | None:
+            m = re.search(r"SENDER_TO_LABELS\\.([^\\[]+)\\[", c)
+            return m.group(1) if m else None
+
+        labels_affected = sorted({lbl for c in changes if (lbl := extract_label(c))})
+
+        before_missing = summary["total_missing_emails"]
+        after_missing = proj_diff["comparison_summary"]["total_missing_emails"]
+        delta_missing = after_missing - before_missing
+
+        # Top labels by remaining missing emails (limit to 10 for readability)
+        items = list((proj_diff.get("missing_emails_by_label") or {}).items())
+        items.sort(key=lambda kv: kv[1].get("missing_emails_count", 0), reverse=True)
+        top_labels = [
+            html.Li(
+                f"{lbl}: {info['missing_emails_count']} remaining"
+                + (" (new label)" if not info.get("label_exists_in_target") else "")
+            )
+            for lbl, info in items
+            if info.get("missing_emails_count", 0) > 0
+        ][:10]
+
         proj_div = html.Div(
             [
                 html.H4("Projected Changes After Fix All"),
-                html.Ul([html.Li(c) for c in changes] or [html.Li("None")]),
                 html.Div(
-                    "Total missing emails after fixes: "
-                    f"{proj_diff['comparison_summary']['total_missing_emails']}"
+                    [
+                        html.Div(f"Before (missing emails): {before_missing}"),
+                        html.Div(f"After (missing emails): {after_missing}"),
+                        html.Div(f"Delta: {delta_missing:+d}"),
+                    ],
+                    style={"marginBottom": "6px"},
+                ),
+                html.Div(
+                    [
+                        html.Div(f"Case fixes: {case_fixes}"),
+                        html.Div(f"Duplicates removed: {removed_dups_total}"),
+                        html.Div(f"Sorted lists: {sorted_lists_count}"),
+                        html.Div(f"Labels affected: {len(labels_affected)}"),
+                    ],
+                    style={"marginBottom": "6px"},
+                ),
+                html.Details(
+                    [
+                        html.Summary("Changed locations"),
+                        html.Ul([html.Li(c) for c in changes] or [html.Li("None")]),
+                    ]
+                ),
+                html.Details(
+                    [
+                        html.Summary("Top labels by remaining missing emails"),
+                        html.Ul(top_labels or [html.Li("None")]),
+                    ]
                 ),
             ]
         )
