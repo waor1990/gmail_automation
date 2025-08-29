@@ -251,7 +251,11 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         id="tbl-diff",
                         columns=[
                             {"name": "label", "id": "label"},
-                            {"name": "exists_in_target", "id": "exists_in_target"},
+                            {
+                                "name": "exists_in_target",
+                                "id": "exists_in_target",
+                                "presentation": "markdown",
+                            },
                             {
                                 "name": "total_in_source",
                                 "id": "total_in_source",
@@ -261,6 +265,11 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 "name": "missing_count",
                                 "id": "missing_count",
                                 "type": "numeric",
+                            },
+                            {
+                                "name": "coverage",
+                                "id": "coverage",
+                                "presentation": "markdown",
                             },
                             {
                                 "name": "missing_emails",
