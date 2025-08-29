@@ -10,6 +10,7 @@ from .analysis import (
     sort_lists,
     compute_label_differences,
     find_unprocessed_senders,
+    import_missing_emails,
 )
 from .transforms import config_to_table, table_to_config
 from .utils_io import write_json, backup_file, read_json
@@ -311,6 +312,7 @@ def register_callbacks(app):
                     "total_in_source": info["total_emails_in_source"],
                     "missing_count": info["missing_emails_count"],
                     "missing_emails": missing_html,
+                    "actions": "Import missing",
                 }
             )
 
@@ -344,6 +346,50 @@ def register_callbacks(app):
             proj_div,
             "Differences computed.",
         )
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("store-config", "data", allow_duplicate=True),
+        Output("store-analysis", "data", allow_duplicate=True),
+        Output("tbl-diff", "active_cell"),
+        Output("status", "children", allow_duplicate=True),
+        Input("tbl-diff", "active_cell"),
+        State("tbl-diff", "data"),
+        State("store-config", "data"),
+        State("store-diff", "data"),
+        prevent_initial_call=True,
+    )
+    def on_import_missing(active_cell, rows, cfg, diff):
+        if not cfg or not diff or not active_cell:
+            return no_update, no_update, no_update, no_update, no_update
+        if active_cell.get("column_id") != "actions":
+            return no_update, no_update, no_update, no_update, no_update
+
+        label = rows[active_cell["row"]]["label"]
+        info = (diff.get("missing_emails_by_label") or {}).get(label, {})
+        emails = info.get("missing_emails") or []
+        if not emails:
+            return no_update, no_update, no_update, None, "No missing emails found."
+
+        labels_data = read_json(LABELS_JSON)
+        updated, added = import_missing_emails(cfg, labels_data, label, emails)
+
+        if not added:
+            return (
+                no_update,
+                cfg,
+                no_update,
+                None,
+                f"No new emails imported for {label}.",
+            )
+
+        stl_rows = config_to_table(updated)
+        analysis = {
+            "sorting": check_alphabetization(updated),
+            "case_dups": check_case_and_duplicates(updated),
+        }
+        msg = f"Imported {len(added)} emails into {label}."
+        return stl_rows, updated, analysis, None, msg
 
     @app.callback(
         Output("status", "children", allow_duplicate=True),

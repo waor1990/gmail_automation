@@ -225,3 +225,56 @@ def compute_label_differences(cfg: dict, labels_data: dict) -> dict:
 
     output["comparison_summary"]["total_missing_emails"] = total_missing
     return output
+
+
+def import_missing_emails(
+    cfg: dict, labels_data: dict, label: str, emails: List[str]
+) -> Tuple[dict, List[str]]:
+    """Merge missing emails for a label into the config.
+
+    Args:
+        cfg: Current working configuration.
+        labels_data: Source labels data containing metadata.
+        label: Label to import emails into.
+        emails: Missing emails for the label.
+
+    Returns:
+        Tuple of updated configuration and list of added emails.
+    """
+
+    import json
+
+    updated = json.loads(json.dumps(cfg))
+    stl = updated.setdefault("SENDER_TO_LABELS", {})
+    target_groups = stl.setdefault(label, [])
+
+    existing = {
+        e.casefold() for grp in target_groups for e in (grp.get("emails") or [])
+    }
+    added: List[str] = []
+
+    source_groups = (labels_data.get("SENDER_TO_LABELS") or {}).get(label) or []
+
+    for src in source_groups:
+        meta = {k: src.get(k) for k in ("read_status", "delete_after_days") if k in src}
+        to_add = [e for e in (src.get("emails") or []) if e in emails]
+        to_add = [e for e in to_add if e.casefold() not in existing]
+        if not to_add:
+            continue
+
+        for tgt in target_groups:
+            if tgt.get("read_status") == meta.get("read_status") and tgt.get(
+                "delete_after_days"
+            ) == meta.get("delete_after_days"):
+                tgt.setdefault("emails", []).extend(to_add)
+                existing.update(e.casefold() for e in to_add)
+                added.extend(to_add)
+                break
+        else:
+            new_group = {"emails": to_add}
+            new_group.update(meta)
+            target_groups.append(new_group)
+            existing.update(e.casefold() for e in to_add)
+            added.extend(to_add)
+
+    return updated, added
