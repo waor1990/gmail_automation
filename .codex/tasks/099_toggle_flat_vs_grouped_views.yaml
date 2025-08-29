@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=../.vscode/schemas/codex-task.schema.json
+version: 1
+task:
+  id: "099"
+  title: "Toggle Between Flat Table and Grouped Tree Views"
+  priority: High
+  status: todo
+  labels: [dashboard, ux]
+  summary: >-
+    Add a user toggle to switch between the current flat table editor and a
+    grouped tree view (label → group → email), maintaining edit safety and data
+    integrity in both modes.
+  details: |
+    Introduce a UI toggle that renders either the existing flat table or a new
+    grouped tree representation of `SENDER_TO_LABELS`. Ensure edits in either
+    view synchronize back to the same working config and preserve existing
+    validation and sorting behaviors.
+
+    - Add a toggle control (e.g., radio buttons) near the STL editor header.
+    - Implement a read-only prototype tree view (label > group > emails) using
+      Dash components; then add minimal editing affordances (add/remove email).
+    - Keep `table_to_config`/`config_to_table` as the single conversion surface;
+      do not duplicate transformation logic.
+    - Ensure merge/split group operations remain available in Advanced Mode.
+  acceptance_criteria:
+    - "A visible toggle switches between Flat and Grouped views without errors"
+    - "Edits in either view persist to store-config and reflect in the other"
+    - "Advanced Mode merge/split works in Flat; Grouped mode respects groups"
+    - "No data loss when switching views repeatedly"
+  references:
+    - "scripts/dashboard/layout.py:96"
+    - "scripts/dashboard/group_ops.py:1"
+    - "scripts/dashboard/callbacks.py:1"
+    - "scripts/dashboard/transforms.py:1"
+    - "scripts/dashboard/TODO_dashboard.md"
+    - "issues/generated/099_🔀_Toggle_Between_Flat_Table_and_Grouped_Tree_Views.md"
+  estimate: 1-2 days
+  out_of_scope:
+    - Drag-and-drop reordering across labels (future enhancement).
+    - Bulk cross-label moves or collision resolution UI (separate task).
+  how_to_verify:
+    - "Launch dashboard: python -m scripts.dashboard"
+    - "Locate the SENDER_TO_LABELS Editor and confirm a new 'View' toggle is present"
+    - "Switch to Grouped view; verify label → group → emails tree"
+    - "Add/remove an email in Grouped view; confirm it reflects correctly"
+    - "Switch back to Flat view and verify the change is visible"
+    - "Use Advanced Mode to merge/split in Flat view; switch to Grouped and confirm boundaries"
+    - "Switch views multiple times and confirm no data loss or errors occur"
+  plan:
+    - "Add toggle control near STL editor header (layout.py)"
+    - "Implement grouped tree renderer (read-only → minimal edits)"
+    - "Sync edits back to store-config via table_to_config/config_to_table"
+    - "Ensure Advanced Mode operations are preserved in Flat view"
+  commands:
+    - "python -m scripts.dashboard --launch"

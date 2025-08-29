@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=../.vscode/schemas/codex-task.schema.json
+version: 1
+task:
+  id: "100"
+  title: "Centralize Analysis Logic (run_full_analysis)"
+  priority: High
+  status: todo
+  labels: [dashboard, ux]
+  summary: >-
+    Reduce redundancy across dashboard modules by introducing a consolidated
+    `run_full_analysis(cfg)` helper that returns sorting, case/dups, diffs, and
+    projected changes in a single, consistent schema.
+  details: |
+    The analysis flow (sorting checks, case/dups, projections, and diff) is
+    recomputed in multiple places (`callbacks.py`, `reports.py`, and on load).
+    Create a single function (e.g., in `analysis.py` or a new
+    `analysis_helpers.py`) that performs the full analysis and returns a
+    normalized structure consumed by both UI and report generation.
+
+    - Define `run_full_analysis(cfg)` returning:
+      - `sorting_issues`, `case_dups`, `projected_changes`, `diff`,
+        `projected_diff_summary`.
+    - Refactor call sites in `callbacks.py` and `reports.py` to use it.
+    - Ensure no functionality loss in existing UI sections and exports.
+    - Add minimal tests around the helper (unit-level) if patterns exist.
+  acceptance_criteria:
+    - "A single helper computes the full analysis without side effects"
+    - "callbacks.py and reports.py call the helper instead of duplicating logic"
+    - "ECAQ and Diff exports produce identical content as before"
+    - "No regressions in UI metrics, issues lists, or projections"
+  references:
+    - "scripts/dashboard/callbacks.py:1"
+    - "scripts/dashboard/reports.py:1"
+    - "scripts/dashboard/analysis.py:1"
+    - "scripts/dashboard/TODO_dashboard.md"
+    - "issues/generated/100_🔁_Centralize_Analysis_Logic.md"
+  estimate: 0.5-1.0 day
+  out_of_scope:
+    - Performance optimization beyond code deduplication.
+    - Any changes to on-disk report formats.
+  how_to_verify:
+    - "Implement helper and refactor call sites; run: python -m scripts.dashboard --dev test"
+    - "Generate reports before and after change: python -m scripts.dashboard --report all; compare outputs"
+    - "Launch dashboard: python -m scripts.dashboard and verify metrics, issues, and projections render"
+    - "Trigger Fix All, Export ECAQ, and Export Diff; confirm outputs are identical in content to baseline"
+    - "Review code to ensure callbacks.py and reports.py now delegate to the helper"
+  plan:
+    - "Draft run_full_analysis(cfg) returning sorting, case/dups, projected changes, diff"
+    - "Refactor callbacks.py/report paths to use the helper"
+    - "Re-run tests and regenerate reports to compare outputs"
+  commands:
+    - "python -m scripts.dashboard --dev test"
+    - "python -m scripts.dashboard --report all"
+    - "python -m scripts.dashboard --launch"

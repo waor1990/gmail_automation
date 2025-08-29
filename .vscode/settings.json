@@ -11,5 +11,11 @@
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.diagnosticSeverityOverrides": {
     "reportMissingTypeStubs": "none"
+  },
+  "yaml.schemas": {
+
+    ".vscode/schemas/codex-task.schema.json": [
+      ".codex/tasks/*.yaml"
+    ]
   }
 }

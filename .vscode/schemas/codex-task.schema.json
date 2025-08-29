@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/codex-task.schema.json",
+  "title": "Codex Task File",
+  "type": "object",
+  "required": ["version", "task"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "task": {
+      "type": "object",
+      "required": ["id", "title", "priority", "status"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": ["string", "integer"] },
+        "title": { "type": "string" },
+        "priority": { "type": "string", "enum": ["High", "Medium", "Low"] },
+        "status": { "type": "string", "enum": ["todo", "in_progress", "done"] },
+        "labels": { "type": "array", "items": { "type": "string" } },
+        "summary": { "type": "string" },
+        "details": { "type": "string" },
+        "acceptance_criteria": { "type": "array", "items": { "type": "string" } },
+        "references": { "type": "array", "items": { "type": "string" } },
+        "estimate": { "type": "string" },
+        "out_of_scope": { "type": "array", "items": { "type": "string" } },
+        "how_to_verify": { "type": "array", "items": { "type": "string" } },
+        "plan": { "type": "array", "items": { "type": "string" } },
+        "commands": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
