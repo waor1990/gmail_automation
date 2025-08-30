@@ -1,0 +1,30 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
+  "python.analysis.extraPaths": [
+    "src"
+  ],
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingTypeStubs": "none"
+  },
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-issue-forms.json": [
+      ".codex/tasks/*.yaml"
+    ]
+  },
+  "files.associations": {
+    "*.toml": "toml"
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml",
+    "editor.formatOnSave": true
+  },
+  "evenBetterToml.schema.associations": {
+    "config.toml": "${workspaceFolder}/schemas/codex-config.schema.json"
+  }
+}
