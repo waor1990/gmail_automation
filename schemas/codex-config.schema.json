@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/codex-config.schema.json",
+  "title": "Codex CLI Config",
+  "description": "Schema for Codex CLI repository configuration (config.toml, mapped via Taplo/VS Code).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "root": { "type": "string" }
+      },
+      "required": ["name", "root"]
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tasks_dir": { "type": "string" },
+        "issue_templates_dir": { "type": "string" }
+      },
+      "required": ["tasks_dir"]
+    },
+    "assistant": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "personality": { "type": "string" },
+        "verbosity": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "use_plans": { "type": "boolean" },
+        "preamble_before_tool_calls": { "type": "boolean" }
+      },
+      "required": ["personality", "verbosity"]
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["none", "openai", "azure-openai", "anthropic"]
+        },
+        "model": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+        "max_output_tokens": { "type": "integer", "minimum": 0 },
+        "fallback": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["provider"]
+    },
+    "openai": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base_url": { "type": "string" },
+        "api_key_env": { "type": "string" },
+        "timeout_seconds": { "type": "integer", "minimum": 0 },
+        "retries": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow_shell": { "type": "boolean" },
+        "apply_patch_enabled": { "type": "boolean" },
+        "update_plan_enabled": { "type": "boolean" },
+        "prefer_search": { "type": "string", "enum": ["rg", "grep"] },
+        "max_read_lines": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "sandbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "filesystem": {
+          "type": "string",
+          "enum": ["read-only", "workspace-write", "danger-full-access"]
+        },
+        "network": { "type": "string", "enum": ["enabled", "restricted"] },
+        "approvals": {
+          "type": "string",
+          "enum": ["never", "on-failure", "on-request", "untrusted"]
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ignore_globs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pre_commit": { "type": "boolean" },
+        "pre_commit_cmd": { "type": "string" },
+        "pytest": { "type": "boolean" },
+        "pytest_cmd": { "type": "string" }
+      }
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exclude_generated": { "type": "boolean" }
+      }
+    },
+    "issue_forms": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_url": { "type": "string" },
+        "mirror_to_github": { "type": "boolean" }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "level": { "type": "string", "enum": ["debug", "info", "warn", "error"] }
+      }
+    },
+    "env": {
+      "type": "object",
+      "description": "Optional environment variable defaults; values are strings.",
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "required": ["version", "project", "paths", "assistant", "model"]
+}

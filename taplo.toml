@@ -1,0 +1,10 @@
+[formatting]
+indent_string = "  "
+reorder_keys = false
+align_entries = false
+trailing_newline = true
+
+# You can scope rules per file if needed, e.g.:
+# [[formatting.overrides]]
+# include = ["*.toml"]
+# indent_string = "\t"

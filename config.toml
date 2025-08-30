@@ -1,0 +1,91 @@
+# Codex CLI configuration for this repository
+# Adjust values as needed. Comments explain common options.
+
+version = "1"
+
+[project]
+# Human-friendly name for this workspace
+name = "gmail_automation"
+# Project root relative to this file
+root = "."
+
+[paths]
+# Location of GitHub Issue Form task specs used by Codex workflows
+tasks_dir = ".codex/tasks"
+# Optional: where mirrored Issue Forms would live if published
+# issue_templates_dir = ".github/ISSUE_TEMPLATE"
+
+[assistant]
+# Default persona and verbosity for Codex responses in this repo
+personality = "concise-friendly"
+verbosity = 4            # 1=minimal, 10=very detailed
+use_plans = true         # Use the planning tool for multi-step tasks
+preamble_before_tool_calls = true
+
+[model]
+# Disable external API model calls by default (no spend).
+provider = "none"         # Set to "openai" to enable
+model = ""               # e.g., "o4-mini", "gpt-4o" when enabled
+enabled = false
+temperature = 0.0
+max_output_tokens = 0
+# To re-enable, set provider/model and remove enabled=false/max_output_tokens=0
+
+[openai]
+# OpenAI API settings retained for future use (ignored when provider="none")
+base_url = "https://api.openai.com/v1"
+api_key_env = "OPENAI_API_KEY"
+timeout_seconds = 120
+retries = 3
+
+[tools]
+allow_shell = true
+apply_patch_enabled = true
+update_plan_enabled = true
+prefer_search = "rg"      # Prefer ripgrep for searching
+max_read_lines = 250       # Read files in chunks to avoid truncation
+
+[sandbox]
+# Defaults for local runs; the harness may override these.
+filesystem = "workspace-write"   # "read-only" | "workspace-write" | "danger-full-access"
+network = "enabled"              # "enabled" | "restricted"
+approvals = "on-failure"         # "never" | "on-failure" | "on-request" | "untrusted"
+
+[files]
+# Ignore patterns to keep secrets and build artifacts out of scope
+ignore_globs = [
+  ".env",
+  ".env.*",
+  "**/secrets.*",
+  "**/*.pyc",
+  "**/__pycache__/**",
+  "node_modules/**",
+  "dist/**",
+  "build/**",
+  "coverage/**",
+  ".pytest_cache/**",
+  ".mypy_cache/**",
+]
+
+[validation]
+# Commands Codex may run to validate changes when appropriate
+pre_commit = true
+pre_commit_cmd = "pre-commit run --files"
+pytest = true
+pytest_cmd = "pytest -q"
+
+[git]
+exclude_generated = true
+
+[issue_forms]
+# Your task YAMLs use this schema; kept here for reference
+schema_url = "https://json.schemastore.org/github-issue-forms.json"
+mirror_to_github = true
+
+[logging]
+level = "info"   # "debug" | "info" | "warn" | "error"
+
+[env]
+# Uncomment and set if applicable. Prefer environment variables over hardcoding.
+# OPENAI_API_KEY = ""
+# ANTHROPIC_API_KEY = ""
