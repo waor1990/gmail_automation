@@ -10,10 +10,12 @@ to generate a configuration file. It runs completely separate from the main
 `gmail_automation` package.
 
 Usage:
-    python scripts/extract_gmail_labels.py [--output OUTPUT_FILE] [--batch-size BATCH_SIZE]
+    python scripts/extract_gmail_labels.py [--output OUTPUT_FILE]
+    [--batch-size BATCH_SIZE]
 
 Example:
-    python scripts/extract_gmail_labels.py --output config/my_labels.json --batch-size 10
+    python scripts/extract_gmail_labels.py --output config/my_labels.json \
+        --batch-size 10
 """
 
 import sys
@@ -24,7 +26,7 @@ import json
 import re
 import time
 import random
-from datetime import datetime
+from typing import Any
 
 # Add the src directory to Python path so we can import our modules
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,9 +35,9 @@ src_dir = os.path.join(root_dir, "src")
 sys.path.insert(0, src_dir)
 
 # Import required modules
-from gmail_automation.gmail_service import get_credentials, build_service
-from gmail_automation.config import check_files_existence
-from googleapiclient.errors import HttpError
+from gmail_automation.gmail_service import get_credentials, build_service  # noqa: E402
+from gmail_automation.config import check_files_existence  # noqa: E402
+from googleapiclient.errors import HttpError  # noqa: E402
 
 
 def setup_logging(verbose=False):
@@ -71,15 +73,17 @@ def retry_api_call(func, max_retries=3, base_delay=2):
             # Check if it's a retryable error
             if error.resp.status in [500, 502, 503, 504]:
                 delay = base_delay * (2**attempt) + random.uniform(0, 1)
+                delay_str = "{:.1f}".format(delay)
                 logging.warning(
-                    f"API error {error.resp.status} (attempt {attempt + 1}/{max_retries + 1}). "
-                    f"Retrying in {delay:.1f} seconds..."
+                    f"API error {error.resp.status}"
+                    f" (attempt {attempt + 1}/{max_retries + 1})."
+                    f" Retrying in {delay_str} seconds..."
                 )
                 time.sleep(delay)
             else:
                 # Non-retryable error, re-raise immediately
                 raise
-        except Exception as error:
+        except Exception:
             # Non-HTTP errors, re-raise immediately
             raise
 
@@ -94,7 +98,8 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
     Args:
         service: Gmail API service object
         user_id: Gmail user ID (default: 'me')
-        output_file: Path to save the configuration file (default: config/gmail_labels_data.json)
+        output_file: Path to save the configuration file
+            (default: config/gmail_labels_data.json)
         batch_size: Number of labels to process in each batch (default: 5)
 
     Returns:
@@ -124,13 +129,16 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
         logging.info(f"Found {len(user_labels)} user labels to process")
 
         # Initialize the configuration structure
-        config_data = {"SENDER_TO_LABELS": {}}
+        config_data: dict[str, dict[str, list[dict[str, Any]]]] = {
+            "SENDER_TO_LABELS": {}
+        }
 
         # Process labels in batches
         for i in range(0, len(user_labels), batch_size):
             batch = user_labels[i : i + batch_size]
             logging.info(
-                f"Processing batch {i//batch_size + 1}/{(len(user_labels) + batch_size - 1)//batch_size}"
+                f"Processing batch {i//batch_size + 1}/"
+                f"{(len(user_labels) + batch_size - 1)//batch_size}"
             )
 
             for label in batch:
@@ -180,14 +188,14 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
                                     if header["name"].lower() == "from":
                                         from_value = header["value"]
 
-                                        # Extract email address from "Name <email>" format
+                                        # Extract email address from "Name <email>"
                                         email_match = re.search(
                                             r"<([^>]+)>", from_value
                                         )
                                         if email_match:
                                             email_address = email_match.group(1)
                                         else:
-                                            # Handle case where email is just "email@domain.com"
+                                            # Handle emails like "email@domain.com"
                                             email_address = from_value.strip()
 
                                         if email_address and "@" in email_address:
@@ -195,7 +203,8 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
                                         break
                         except HttpError as thread_error:
                             logging.warning(
-                                f"Skipping thread {thread['id']} due to error: {thread_error}"
+                                f"Skipping thread {thread['id']} due to error: "
+                                f"{thread_error}"
                             )
                             continue
 
@@ -211,7 +220,8 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
                             }
                         ]
                         logging.info(
-                            f"Label '{label_name}': found {len(email_addresses)} unique email addresses"
+                            f"Label '{label_name}': {len(email_addresses)} unique "
+                            "emails"
                         )
                     else:
                         logging.info(f"Label '{label_name}': no emails found")
@@ -255,7 +265,10 @@ def main():
     parser.add_argument(
         "--output",
         "-o",
-        help="Output file path for the extracted configuration (default: config/gmail_labels_data.json)",
+        help=(
+            "Output file path for the extracted configuration "
+            "(default: config/gmail_labels_data.json)"
+        ),
         default=None,
     )
     parser.add_argument(
