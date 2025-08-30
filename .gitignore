@@ -70,6 +70,9 @@ venv.bak/
 # Editor/IDE
 .idea/
 .vscode/
+# Allow specific VS Code TOML configs to be tracked
+!.vscode/settings.json
+!.vscode/extensions.json
 .ropeproject/
 .spyproject/
 
