@@ -20,6 +20,7 @@ config/*
 # Python cache
 __pycache__/
 *.py[cod]
+*$py.class
 
 # Runtime files
 data/last_run.txt
@@ -29,10 +30,56 @@ data/sender_last_run.json
 # Binary executables
 tools/jq.exe
 
-*.hintrc
 
 # Coverage reports
 .coverage
 coverage.xml
+htmlcov/
+.coverage.*
 
 .fake
+
+# Test and type checker caches
+.pytest_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Additional virtualenv names
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Environment files
+.env
+.env.*
+.python-version
+
+# Editor/IDE
+.idea/
+.vscode/
+.ropeproject/
+.spyproject/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Jupyter
+.ipynb_checkpoints/
+
+# General caches
+.cache/

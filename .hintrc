@@ -1,0 +1,11 @@
+{
+  "extends": [
+    "development"
+  ],
+  "hints": {
+    "meta-viewport": "off",
+    "axe/name-role-value": "off",
+    "meta-charset-utf-8": "off",
+    "compat-api/css": "off"
+  }
+}
