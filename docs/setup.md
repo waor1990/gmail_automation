@@ -9,6 +9,12 @@ This document explains how to configure and run the Gmail Automation script.
    pip install -r requirements-dev.txt
    ```
 
+   On Windows, you can also use the convenience launcher at the repo root:
+
+   ```bat
+   enter_env.bat             # detects PS/cmd/Git Bash; opens new window for cmd
+   ```
+
    You can also run `python -m scripts.setup` to create a virtual
    environment and install the dependencies automatically (it also
    upgrades `pip`, installs from `requirements-dev.txt`, and can

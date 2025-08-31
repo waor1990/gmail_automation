@@ -43,10 +43,11 @@ source .venv/Scripts/activate     # Git Bash on Windows
 \.venv\Scripts\activate.bat      # cmd.exe
 ```
 
-Windows convenience launcher:
+Windows convenience launchers:
 
 ```bat
-scripts\enter_venv.cmd   # opens a new Command Prompt with the venv activated
+enter_env.bat             # detects your shell; opens new window for cmd
+scripts\enter_venv.cmd   # fallback: opens a new Command Prompt with the venv
 ```
 
 You can skip activation by invoking the venv’s Python directly for one-off

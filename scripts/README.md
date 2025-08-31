@@ -10,7 +10,7 @@ Available commands:
 
 - `setup` – create the virtual environment
 - `maintenance` – validate secrets, hooks, run checks/tests
-- `enter_venv` – open a new Command Prompt with the venv activated (Windows)
+- `enter_env` – detect shell and activate venv (Windows; opens a new cmd window)
 - `create_issues` – open GitHub issues from files
 - `resolve_issue` – close an issue and archive its file
 - `clean_git_history` – remove sensitive files from history
@@ -22,8 +22,10 @@ deprecation notice.
 
 Windows convenience:
 
-- From any shell, run `scripts\enter_venv.cmd` to create the venv if missing
-  and open a new Command Prompt already activated at the repo root.
+- From any shell at the repo root, run `enter_env.bat` to create the venv if
+  missing and launch an appropriate shell with the environment activated
+  (PowerShell, cmd.exe, or Git Bash). If detection fails, it falls back to
+  `scripts\enter_venv.cmd` which opens a Command Prompt already activated.
 
 Outdated package maintenance:
 
