@@ -37,6 +37,24 @@ def _render_coverage(total: int, missing: int) -> str:
     return bar
 
 
+def _group_changes_by_label(changes: List[str]) -> Dict[str, List[str]]:
+    """Group projected change strings by label name.
+
+    Args:
+        changes: List of change descriptions from analysis.
+
+    Returns:
+        Mapping of label -> list of change strings.
+    """
+
+    groups: Dict[str, List[str]] = {}
+    for c in changes:
+        m = re.search(r"SENDER_TO_LABELS\.([^\.\[]+)", c)
+        label = m.group(1) if m else "Unknown"
+        groups.setdefault(label, []).append(c)
+    return groups
+
+
 def register_callbacks(app):
     def _render_grouped_tree(rows: List[Dict[str, str]]):
         grouped = rows_to_grouped(rows)
@@ -409,8 +427,23 @@ def register_callbacks(app):
         )
 
         changes = analysis.get("projected_changes") or []
-        proj_list = ul(changes)
-        projected = html.Div([html.H4("Projected Changes After Fix All"), proj_list])
+        grouped = _group_changes_by_label(changes)
+        proj_items = [
+            html.Details(
+                [
+                    html.Summary(lbl, title="\n".join(items)),
+                    html.Ul([html.Li(x) for x in items]),
+                ],
+                style={"marginBottom": "4px"},
+            )
+            for lbl, items in sorted(grouped.items())
+        ]
+        projected = html.Div(
+            [
+                html.H4("Projected Changes After Fix All"),
+                html.Div(proj_items),
+            ]
+        )
         return metrics, issues, projected
 
     @app.callback(
@@ -470,6 +503,7 @@ def register_callbacks(app):
             )
 
         changes = analysis.get("projected_changes") or []
+        grouped = _group_changes_by_label(changes)
         proj_diff = analysis.get("projected_diff")
         assert proj_diff is not None
 
@@ -510,6 +544,17 @@ def register_callbacks(app):
             if info.get("missing_emails_count", 0) > 0
         ][:10]
 
+        change_details = [
+            html.Details(
+                [
+                    html.Summary(lbl, title="\n".join(items)),
+                    html.Ul([html.Li(x) for x in items]),
+                ],
+                style={"marginBottom": "4px"},
+            )
+            for lbl, items in sorted(grouped.items())
+        ]
+
         proj_div = html.Div(
             [
                 html.H4("Projected Changes After Fix All"),
@@ -530,12 +575,7 @@ def register_callbacks(app):
                     ],
                     style={"marginBottom": "6px"},
                 ),
-                html.Details(
-                    [
-                        html.Summary("Changed locations"),
-                        html.Ul([html.Li(c) for c in changes] or [html.Li("None")]),
-                    ]
-                ),
+                html.Div(change_details),
                 html.Details(
                     [
                         html.Summary("Top labels by remaining missing emails"),
