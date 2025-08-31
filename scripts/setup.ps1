@@ -1,2 +1,2 @@
-Write-Warning "Deprecated: use 'python -m scripts.setup'"
+# Run the setup helper.
 python -m scripts.setup $args

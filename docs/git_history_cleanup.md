@@ -19,16 +19,7 @@ Run the cleanup with:
 ```bash
 python -m scripts.clean_git_history --dry-run
 ```
-
-Legacy shims are available:
-
-```powershell
-.\scripts\clean_git_history.ps1
-```
-
-```bash
-./scripts/clean_git_history.sh
-```
+Run the command above from any shell.
 
 ## Prerequisites
 

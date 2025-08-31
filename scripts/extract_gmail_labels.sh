@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-echo "Deprecated: use 'python -m scripts.extract_gmail_labels'" >&2
+# Run the extract_gmail_labels helper.
 python -m scripts.extract_gmail_labels "$@"

@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-echo "Deprecated: use 'python -m scripts.create_issues'" >&2
+# Run the create_issues helper.
 python -m scripts.create_issues "$@"

@@ -1,2 +1,2 @@
-Write-Warning "Deprecated: use 'python -m scripts.validate_no_secrets'"
+# Run the validate_no_secrets helper.
 python -m scripts.validate_no_secrets $args

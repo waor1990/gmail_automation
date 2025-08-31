@@ -17,8 +17,7 @@ Available commands:
 - `validate_no_secrets` – check for sensitive files before committing
 - `extract_gmail_labels` – export Gmail labels to JSON
 
-Legacy `.sh` and `.ps1` shims forward to these modules and print a
-deprecation notice.
+Shell and PowerShell shims forward to these modules for convenience.
 
 Windows convenience:
 

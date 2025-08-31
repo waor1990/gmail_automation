@@ -26,13 +26,7 @@ python -m scripts.setup                     # create venv, upgrade pip, install 
 python -m scripts.setup --install-hooks     # also install pre-commit hooks
 ```
 
-Examples for other shells:
-
-```bash
-./scripts/setup.sh        # Git Bash
-.\scripts\setup.ps1       # PowerShell
-scripts\setup.cmd         # cmd.exe
-```
+The same command works in Git Bash, PowerShell, or cmd.exe.
 
 Activate the environment with:
 

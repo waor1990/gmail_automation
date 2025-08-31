@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-echo "Deprecated: use 'python -m scripts.validate_no_secrets'" >&2
+# Run the validate_no_secrets helper.
 python -m scripts.validate_no_secrets "$@"

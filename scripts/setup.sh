@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-echo "Deprecated: use 'python -m scripts.setup'" >&2
+# Run the setup helper.
 python -m scripts.setup "$@"

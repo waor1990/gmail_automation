@@ -18,14 +18,8 @@ This document explains how to configure and run the Gmail Automation script.
    You can also run `python -m scripts.setup` to create a virtual
    environment and install the dependencies automatically (it also
    upgrades `pip`, installs from `requirements-dev.txt`, and can
-   optionally install pre-commit hooks with `--install-hooks`). Legacy shims
-   are provided for convenience:
-
-   ```bash
-   ./scripts/setup.sh        # Git Bash
-   .\scripts\setup.ps1       # PowerShell
-   scripts\setup.cmd         # cmd.exe
-   ```
+   optionally install pre-commit hooks with `--install-hooks`). The
+   command works in Git Bash, PowerShell, or cmd.exe.
 
    Activate the virtual environment with:
 

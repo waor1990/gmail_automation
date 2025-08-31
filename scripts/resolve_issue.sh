@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-echo "Deprecated: use 'python -m scripts.resolve_issue'" >&2
+# Run the resolve_issue helper.
 python -m scripts.resolve_issue "$@"

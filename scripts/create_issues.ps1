@@ -1,2 +1,2 @@
-Write-Warning "Deprecated: use 'python -m scripts.create_issues'"
+# Run the create_issues helper.
 python -m scripts.create_issues $args

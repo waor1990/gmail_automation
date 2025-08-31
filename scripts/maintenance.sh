@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-echo "Deprecated: use 'python -m scripts.maintenance'" >&2
+# Run the maintenance helper.
 python -m scripts.maintenance "$@"

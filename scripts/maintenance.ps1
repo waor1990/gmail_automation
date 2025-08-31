@@ -1,2 +1,2 @@
-Write-Warning "Deprecated: use 'python -m scripts.maintenance'"
+# Run the maintenance helper.
 python -m scripts.maintenance $args

@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-echo "Deprecated: use 'python -m scripts.clean_git_history'" >&2
+# Run the clean_git_history helper.
 python -m scripts.clean_git_history "$@"

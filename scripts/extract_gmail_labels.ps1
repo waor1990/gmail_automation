@@ -1,2 +1,2 @@
-Write-Warning "Deprecated: use 'python -m scripts.extract_gmail_labels'"
+# Run the extract_gmail_labels helper.
 python -m scripts.extract_gmail_labels $args

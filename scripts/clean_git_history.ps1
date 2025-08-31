@@ -1,2 +1,2 @@
-Write-Warning "Deprecated: use 'python -m scripts.clean_git_history'"
+# Run the clean_git_history helper.
 python -m scripts.clean_git_history $args

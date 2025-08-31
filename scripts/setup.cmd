@@ -1,3 +1,3 @@
 @echo off
-echo Deprecated: use "py -m scripts.setup" 1>&2
+REM Run the setup helper.
 py -m scripts.setup %*
