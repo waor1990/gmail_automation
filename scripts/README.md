@@ -36,3 +36,8 @@ Outdated package maintenance:
   - `python -m scripts.maintenance --outdated --upgrade pandas plotly`
 - List only (no prompt, no upgrades):
   - `python -m scripts.maintenance --outdated --no-input`
+
+Compatibility checks:
+
+- Verify installed packages have compatible dependencies:
+  - `python -m scripts.maintenance --check-compat`

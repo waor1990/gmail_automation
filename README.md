@@ -78,6 +78,9 @@ python -m scripts.maintenance --run-hooks
 # Run the test suite
 python -m scripts.maintenance --tests
 
+# Check for dependency conflicts
+python -m scripts.maintenance --check-compat
+
 # List outdated packages and choose to upgrade all/some interactively
 python -m scripts.maintenance --outdated
 

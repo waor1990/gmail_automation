@@ -7,6 +7,7 @@ Provides convenient commands to keep the repo healthy:
 - Run pre-commit across the codebase
 - Run test suite
 - Show outdated Python packages
+- Check package compatibility
 
 Use the project virtual environment for all actions when possible.
 """
@@ -64,6 +65,31 @@ def precommit_run_all(python: str, dry_run: bool) -> None:
 def pytest_run(python: str, dry_run: bool) -> None:
     LOGGER.info("running test suite")
     run([python, "-m", "pytest"], dry_run)
+
+
+def check_package_compatibility(python: str, dry_run: bool) -> bool:
+    """Run ``pip check`` to verify installed packages are compatible.
+
+    Returns ``True`` when all dependencies are satisfied, ``False`` otherwise.
+    """
+    LOGGER.info("checking package compatibility")
+    cmd = [python, "-m", "pip", "check"]
+    if dry_run:
+        LOGGER.debug("dry-run: %s", " ".join(cmd))
+        return True
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    output = result.stdout.strip()
+    if result.returncode == 0:
+        print("All packages are compatible.")
+        return True
+    if output:
+        print(output)
+    return False
 
 
 def fetch_outdated(python: str, dry_run: bool) -> list[dict[str, Any]]:
@@ -128,6 +154,11 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument("--tests", action="store_true")
     group.add_argument("--outdated", action="store_true")
     group.add_argument(
+        "--check-compat",
+        action="store_true",
+        help="verify installed packages have compatible dependencies",
+    )
+    group.add_argument(
         "--upgrade-all",
         action="store_true",
         help="when listing outdated, upgrade all without prompting",
@@ -171,6 +202,8 @@ def main(argv: list[str] | None = None) -> int:
         precommit_run_all(python, args.dry_run)
     if args.tests:
         pytest_run(python, args.dry_run)
+    if args.check_compat:
+        check_package_compatibility(python, args.dry_run)
     if args.outdated:
         items = fetch_outdated(python, args.dry_run)
         print_outdated_table(items)
@@ -179,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
         names = [i.get("name", "") for i in items]
         names = [n for n in names if n]
 
+        upgraded = False
         if args.upgrade is not None and len(args.upgrade) > 0:
             # Upgrade only the specified subset
             sel = [n for n in args.upgrade if n in names]
@@ -188,8 +222,10 @@ def main(argv: list[str] | None = None) -> int:
                     "requested packages not listed as outdated: %s", ", ".join(missing)
                 )
             upgrade_packages(python, sel, args.dry_run)
+            upgraded = bool(sel)
         elif args.upgrade_all:
             upgrade_packages(python, names, args.dry_run)
+            upgraded = bool(names)
         elif not args.no_input and sys.stdin.isatty() and not args.dry_run and items:
             # Interactive prompt
             print()
@@ -197,13 +233,18 @@ def main(argv: list[str] | None = None) -> int:
             choice = input().strip().lower()
             if choice.startswith("a"):
                 upgrade_packages(python, names, args.dry_run)
+                upgraded = bool(names)
             elif choice.startswith("s"):
                 print("Enter package names to upgrade (space-separated):", end=" ")
                 line = input().strip()
                 sel = [n for n in line.split() if n in names]
                 upgrade_packages(python, sel, args.dry_run)
+                upgraded = bool(sel)
             else:
                 print("No packages upgraded.")
+
+        if upgraded:
+            check_package_compatibility(python, args.dry_run)
 
     return 0
 
