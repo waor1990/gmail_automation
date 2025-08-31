@@ -101,9 +101,9 @@ def print_outdated_table(items: list[dict[str, Any]]) -> None:
     print("-" * len(header))
     for i in items:
         print(
-            f"{i.get('name','').ljust(name_w)}  "
-            f"{i.get('version','').ljust(ver_w)}  "
-            f"{i.get('latest_version','').ljust(lat_w)}"
+            f"{i.get('name', '').ljust(name_w)}  "
+            f"{i.get('version', '').ljust(ver_w)}  "
+            f"{i.get('latest_version', '').ljust(lat_w)}"
         )
 
 
