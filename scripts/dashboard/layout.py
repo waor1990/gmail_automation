@@ -339,5 +339,6 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
             dcc.Store(id="store-diff", data=diff),
             dcc.Store(id="store-pending", data=pending),
             dcc.Store(id="store-log-runs"),
+            dcc.Store(id="store-log-selection", storage_type="local"),
         ],
     )

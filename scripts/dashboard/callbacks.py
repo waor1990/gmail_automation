@@ -637,37 +637,49 @@ def register_callbacks(app):
 
     @app.callback(
         Output("ddl-log-files", "options"),
+        Output("ddl-log-files", "value"),
         Input("btn-load-logs", "n_clicks"),
-        prevent_initial_call=True,
+        Input("store-log-selection", "data"),
     )
-    def on_load_logs(_n):
+    def on_load_logs(_n, selection):
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
         files = sorted(
             LOGS_DIR.glob("*.log"),
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         )[:5]
-        return [{"label": f.name, "value": f.name} for f in files]
+        options = [{"label": f.name, "value": f.name} for f in files]
+        value = None
+        if selection:
+            stored = selection.get("filename")
+            if stored in {opt["value"] for opt in options}:
+                value = stored
+        return options, value
 
     @app.callback(
         Output("ddl-log-runs", "options"),
         Output("ddl-log-runs", "value"),
         Output("store-log-runs", "data"),
         Output("log-content", "children", allow_duplicate=True),
+        Output("store-log-selection", "data"),
         Input("btn-view-log", "n_clicks"),
+        Input("store-log-selection", "data"),
         State("ddl-log-files", "value"),
-        prevent_initial_call=True,
     )
-    def on_view_log(_n, filename):
+    def on_view_log(_n, selection, filename):
+        ctx = callback_context
+        trigger = getattr(ctx, "triggered_id", None)
+        if trigger == "store-log-selection" and selection:
+            filename = selection.get("filename")
         if not filename:
-            return [], None, {}, "No log file selected."
+            return [], None, {}, "No log file selected.", no_update
         path = LOGS_DIR / filename
         if not path.exists():
-            return [], None, {}, f"Log file not found: {filename}"
+            return [], None, {}, f"Log file not found: {filename}", no_update
         try:
             text = path.read_text(encoding="utf-8")
         except Exception as exc:  # pragma: no cover - rare file errors
-            return [], None, {}, f"Error reading log: {exc}"
+            return [], None, {}, f"Error reading log: {exc}", no_update
 
         runs: List[str] = []
         current: List[str] = []
@@ -692,21 +704,32 @@ def register_callbacks(app):
             data[str(idx)] = segment
 
         if not options:
-            return [], None, {}, "No runs found in log."
+            return [], None, {}, "No runs found in log.", no_update
 
         first_id = options[0]["value"]
-        return options, first_id, data, data[first_id]
+        run_id = first_id
+        if selection and selection.get("run_id") in data:
+            run_id = selection["run_id"]
+        store_data = {"filename": filename, "run_id": run_id}
+        return options, run_id, data, data[run_id], store_data
 
     @app.callback(
         Output("log-content", "children", allow_duplicate=True),
+        Output("store-log-selection", "data"),
         Input("ddl-log-runs", "value"),
+        Input("store-log-selection", "data"),
         State("store-log-runs", "data"),
-        prevent_initial_call=True,
+        State("ddl-log-files", "value"),
     )
-    def on_select_run(run_id, runs):
+    def on_select_run(run_id, selection, runs, filename):
+        ctx = callback_context
+        trigger = getattr(ctx, "triggered_id", None)
+        if trigger == "store-log-selection" and selection:
+            run_id = selection.get("run_id")
         if not run_id or not runs:
-            return "No run selected."
-        return runs.get(run_id, "Run not found.")
+            return "No run selected.", no_update
+        store_data = {"filename": filename, "run_id": run_id}
+        return runs.get(run_id, "Run not found."), store_data
 
     # Recompute and store pending senders whenever config changes
     @app.callback(
