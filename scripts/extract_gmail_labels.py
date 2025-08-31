@@ -28,16 +28,20 @@ import time
 import random
 from typing import Any
 
+# Import required modules
+from gmail_automation.gmail_service import get_credentials, build_service
+from gmail_automation.config import check_files_existence
+from googleapiclient.errors import HttpError
+
+# noqa: E402
+# noqa: E402
+# noqa: E402
+
 # Add the src directory to Python path so we can import our modules
 script_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(script_dir)
 src_dir = os.path.join(root_dir, "src")
 sys.path.insert(0, src_dir)
-
-# Import required modules
-from gmail_automation.gmail_service import get_credentials, build_service  # noqa: E402
-from gmail_automation.config import check_files_existence  # noqa: E402
-from googleapiclient.errors import HttpError  # noqa: E402
 
 
 def setup_logging(verbose=False):
