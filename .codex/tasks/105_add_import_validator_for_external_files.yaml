@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-issue-forms.json
+name: "Task 105: Add Import Validator for External Files"
+description: "Allow importing CSV or JSON files with schema validation"
+title: "[Task 105] Add Import Validator for External Files"
+labels:
+  - dashboard
+  - ux
+  - "priority: Medium"
+  - "status: in-progress"
+  - "task:105"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Summary
+        Users can upload external CSV or JSON files and receive validation
+        feedback before data is imported into the dashboard.
+  - type: markdown
+    attributes:
+      value: |
+        ## Details
+        Implement a reusable validator that parses uploaded files and ensures
+        required fields are present. Support JSON lists of objects and CSV with
+        headers.
+  - type: checkboxes
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: "Validator supports CSV and JSON uploads"
+        - label: "Missing fields produce human-readable errors"
+        - label: "Unit tests cover valid and invalid scenarios"
+  - type: markdown
+    attributes:
+      value: |
+        ## Plan
+        - Add `validate_import_file` utility
+        - Write tests exercising success and failure cases
+        - Integrate utility into dashboard upload flow (future work)
+  - type: markdown
+    attributes:
+      value: |
+        ## References
+        - scripts/dashboard/utils_io.py
+        - tests/test_dashboard_import_validator.py
+        - scripts/dashboard/TODO_dashboard.md
