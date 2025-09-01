@@ -112,6 +112,86 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
             html.Div(
                 style=section_style,
                 children=[
+                    html.H2("Email Collision Viewer"),
+                    html.Div(
+                        "Emails assigned to multiple labels.",
+                        style={
+                            "fontSize": "12px",
+                            "color": "#a00",
+                            "marginBottom": "4px",
+                        },
+                    ),
+                    html.Div(
+                        (
+                            "Select an action for each email. Choose 'Reassign' and "
+                            "pick the target label, 'Remove' to delete it from all "
+                            "labels, or 'Split' to keep it in all labels."
+                        ),
+                        style={
+                            "fontSize": "12px",
+                            "color": "#555",
+                            "marginBottom": "4px",
+                        },
+                    ),
+                    dash_table.DataTable(
+                        id="tbl-collisions",
+                        columns=[
+                            {"name": "email", "id": "email"},
+                            {"name": "labels", "id": "labels"},
+                            {
+                                "name": "action ▾",
+                                "id": "action",
+                                "presentation": "dropdown",
+                            },
+                            {
+                                "name": "to label ▾",
+                                "id": "to_label",
+                                "presentation": "dropdown",
+                            },
+                        ],
+                        data=[],
+                        editable=True,
+                        dropdown={
+                            "action": {
+                                "options": [
+                                    {"label": "Reassign", "value": "reassign"},
+                                    {"label": "Remove", "value": "remove"},
+                                    {"label": "Split", "value": "split"},
+                                ]
+                            }
+                        },
+                        dropdown_conditional=[],
+                        tooltip_header={
+                            "action": (
+                                "Reassign \u2192 move to one label; "
+                                "Remove \u2192 delete from labels; "
+                                "Split \u2192 keep in all labels"
+                            )
+                        },
+                        tooltip_delay=0,
+                        tooltip_duration=None,
+                        page_size=15,
+                        style_table={"maxHeight": "200px", "overflowY": "auto"},
+                        style_cell={
+                            "fontFamily": "monospace",
+                            "fontSize": "12px",
+                        },
+                        style_data_conditional=[
+                            {"if": {"column_id": "action"}, "cursor": "pointer"},
+                            {"if": {"column_id": "to_label"}, "cursor": "pointer"},
+                        ],
+                    ),
+                    html.Button(
+                        "Apply Resolutions",
+                        id="btn-apply-collisions",
+                        n_clicks=0,
+                        style={"marginTop": "8px"},
+                    ),
+                ],
+            ),
+            html.Div(
+                style=section_style,
+                children=[
                     html.H2("SENDER_TO_LABELS Editor"),
                     html.P(
                         [
