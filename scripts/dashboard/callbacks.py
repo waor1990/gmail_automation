@@ -2,6 +2,7 @@ from dash import html, dcc, no_update, callback_context, ctx
 from dash import Input, Output, State
 import re
 from typing import Dict, List
+from .collisions import resolve_collisions
 from .analysis import (
     load_config,
     normalize_case_and_dups,
@@ -397,7 +398,17 @@ def register_callbacks(app):
                         style={"marginLeft": "12px"},
                     )
                 )
-            dup_div = html.Div(fixed_blocks)
+        dup_div = html.Div(fixed_blocks)
+
+        cross_blocks = []
+        for item in cd.get("cross_label_duplicates", []):
+            labels = [
+                loc.split(".")[1].split("[")[0] for loc in item.get("locations", [])
+            ]
+            cross_blocks.append(
+                html.Div(f"{item['email']}: {', '.join(sorted(set(labels)))}")
+            )
+        cross_div = html.Div(cross_blocks) if cross_blocks else html.Div("None")
 
         issues = html.Div(
             [
@@ -407,6 +418,8 @@ def register_callbacks(app):
                 case_list,
                 html.H4("Duplicate issues"),
                 dup_div,
+                html.H4("Cross-label duplicates"),
+                cross_div,
             ]
         )
 
@@ -415,6 +428,9 @@ def register_callbacks(app):
                 html.Div(f"Lists not alphabetized: {len(sorting)}"),
                 html.Div(f"Case issues: {len(cd['case_issues'])}"),
                 html.Div(f"Duplicate sets: {len(cd['duplicate_issues'])}"),
+                html.Div(
+                    f"Cross-label duplicates: {len(cd['cross_label_duplicates'])}"
+                ),
             ]
         )
 
@@ -437,6 +453,35 @@ def register_callbacks(app):
             ]
         )
         return metrics, issues, projected
+
+    @app.callback(
+        Output("tbl-collisions", "data"),
+        Output("tbl-collisions", "dropdown_conditional"),
+        Input("store-analysis", "data"),
+    )
+    def on_collisions(analysis):
+        if not analysis:
+            return [], []
+        cd = analysis.get("case_dups", {})
+        collisions = []
+        dropdowns = []
+        for i, item in enumerate(cd.get("cross_label_duplicates", [])):
+            labels = sorted(
+                {loc.split(".")[1].split("[")[0] for loc in item.get("locations", [])}
+            )
+            collisions.append(
+                {"email": item["email"], "labels": ", ".join(labels), "action": ""}
+            )
+            opts = [
+                {"label": f"Reassign to {lbl}", "value": "reassign:" + lbl}
+                for lbl in labels
+            ]
+            opts.append({"label": "Split", "value": "split"})
+            opts.append({"label": "Remove", "value": "remove"})
+            dropdowns.append(
+                {"if": {"row_index": i, "column_id": "action"}, "options": opts}
+            )
+        return collisions, dropdowns
 
     @app.callback(
         Output("diff-summary", "children"),
@@ -633,6 +678,41 @@ def register_callbacks(app):
         analysis = run_full_analysis(updated)
         msg = f"Imported {len(added)} emails into {label}."
         return stl_rows, updated, analysis, None, msg
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("store-config", "data", allow_duplicate=True),
+        Output("store-analysis", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input("btn-apply-collisions", "n_clicks"),
+        State("tbl-collisions", "data"),
+        State("store-config", "data"),
+        prevent_initial_call=True,
+    )
+    def on_apply_collisions(_n, rows, cfg):
+        if not cfg or not rows:
+            return no_update, no_update, no_update, "No config loaded."
+        resolutions = [
+            {
+                "email": r["email"],
+                "labels": r["labels"].split(", "),
+                "action": r.get("action", ""),
+            }
+            for r in rows
+            if r.get("action")
+        ]
+        if not resolutions:
+            return (
+                no_update,
+                no_update,
+                no_update,
+                "No collision actions selected.",
+            )
+        updated, changes = resolve_collisions(cfg, resolutions)
+        stl_rows = config_to_table(updated)
+        analysis = run_full_analysis(updated)
+        msg = "; ".join(changes) if changes else "No changes made."
+        return stl_rows, updated, analysis, msg
 
     @app.callback(
         Output("status", "children", allow_duplicate=True),

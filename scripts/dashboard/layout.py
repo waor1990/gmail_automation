@@ -112,6 +112,46 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
             html.Div(
                 style=section_style,
                 children=[
+                    html.H2("Email Collision Viewer"),
+                    html.Div(
+                        "Emails assigned to multiple labels.",
+                        style={
+                            "fontSize": "12px",
+                            "color": "#a00",
+                            "marginBottom": "4px",
+                        },
+                    ),
+                    dash_table.DataTable(
+                        id="tbl-collisions",
+                        columns=[
+                            {"name": "email", "id": "email"},
+                            {"name": "labels", "id": "labels"},
+                            {
+                                "name": "action",
+                                "id": "action",
+                                "presentation": "dropdown",
+                            },
+                        ],
+                        data=[],
+                        dropdown_conditional=[],
+                        page_size=15,
+                        style_table={"maxHeight": "200px", "overflowY": "auto"},
+                        style_cell={
+                            "fontFamily": "monospace",
+                            "fontSize": "12px",
+                        },
+                    ),
+                    html.Button(
+                        "Apply Resolutions",
+                        id="btn-apply-collisions",
+                        n_clicks=0,
+                        style={"marginTop": "8px"},
+                    ),
+                ],
+            ),
+            html.Div(
+                style=section_style,
+                children=[
                     html.H2("SENDER_TO_LABELS Editor"),
                     html.P(
                         [
