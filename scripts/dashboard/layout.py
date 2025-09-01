@@ -121,6 +121,18 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                             "marginBottom": "4px",
                         },
                     ),
+                    html.Div(
+                        (
+                            "Select an action for each email: 'Reassign' moves the "
+                            "email to a single label, 'Remove' deletes it from all "
+                            "labels, and 'Split' keeps it in all labels."
+                        ),
+                        style={
+                            "fontSize": "12px",
+                            "color": "#555",
+                            "marginBottom": "4px",
+                        },
+                    ),
                     dash_table.DataTable(
                         id="tbl-collisions",
                         columns=[
@@ -134,6 +146,15 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         ],
                         data=[],
                         dropdown_conditional=[],
+                        tooltip_header={
+                            "action": (
+                                "Reassign \u2192 move to one label; "
+                                "Remove \u2192 delete from labels; "
+                                "Split \u2192 keep in all labels"
+                            )
+                        },
+                        tooltip_delay=0,
+                        tooltip_duration=None,
                         page_size=15,
                         style_table={"maxHeight": "200px", "overflowY": "auto"},
                         style_cell={
