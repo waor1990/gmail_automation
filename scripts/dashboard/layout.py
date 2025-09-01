@@ -123,9 +123,9 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                     ),
                     html.Div(
                         (
-                            "Select an action for each email: 'Reassign' moves the "
-                            "email to a single label, 'Remove' deletes it from all "
-                            "labels, and 'Split' keeps it in all labels."
+                            "Select an action for each email. Choose 'Reassign' and "
+                            "pick the target label, 'Remove' to delete it from all "
+                            "labels, or 'Split' to keep it in all labels."
                         ),
                         style={
                             "fontSize": "12px",
@@ -143,8 +143,22 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 "id": "action",
                                 "presentation": "dropdown",
                             },
+                            {
+                                "name": "to label",
+                                "id": "to_label",
+                                "presentation": "dropdown",
+                            },
                         ],
                         data=[],
+                        dropdown={
+                            "action": {
+                                "options": [
+                                    {"label": "Reassign", "value": "reassign"},
+                                    {"label": "Remove", "value": "remove"},
+                                    {"label": "Split", "value": "split"},
+                                ]
+                            }
+                        },
                         dropdown_conditional=[],
                         tooltip_header={
                             "action": (

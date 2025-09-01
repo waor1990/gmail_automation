@@ -470,16 +470,18 @@ def register_callbacks(app):
                 {loc.split(".")[1].split("[")[0] for loc in item.get("locations", [])}
             )
             collisions.append(
-                {"email": item["email"], "labels": ", ".join(labels), "action": ""}
+                {
+                    "email": item["email"],
+                    "labels": ", ".join(labels),
+                    "action": "",
+                    "to_label": "",
+                }
             )
-            opts = [
-                {"label": f"Reassign to {lbl}", "value": "reassign:" + lbl}
-                for lbl in labels
-            ]
-            opts.append({"label": "Split", "value": "split"})
-            opts.append({"label": "Remove", "value": "remove"})
             dropdowns.append(
-                {"if": {"row_index": i, "column_id": "action"}, "options": opts}
+                {
+                    "if": {"row_index": i, "column_id": "to_label"},
+                    "options": [{"label": lbl, "value": lbl} for lbl in labels],
+                }
             )
         return collisions, dropdowns
 
@@ -692,15 +694,23 @@ def register_callbacks(app):
     def on_apply_collisions(_n, rows, cfg):
         if not cfg or not rows:
             return no_update, no_update, no_update, "No config loaded."
-        resolutions = [
-            {
-                "email": r["email"],
-                "labels": r["labels"].split(", "),
-                "action": r.get("action", ""),
-            }
-            for r in rows
-            if r.get("action")
-        ]
+        resolutions = []
+        for r in rows:
+            act = r.get("action")
+            if not act:
+                continue
+            if act == "reassign":
+                target = r.get("to_label")
+                if not target:
+                    continue
+                act = "reassign:" + target
+            resolutions.append(
+                {
+                    "email": r["email"],
+                    "labels": r["labels"].split(", "),
+                    "action": act,
+                }
+            )
         if not resolutions:
             return (
                 no_update,
