@@ -1,7 +1,7 @@
 from dash import html, dcc, no_update, callback_context, ctx
 from dash import Input, Output, State
 import re
-from typing import Dict, List
+from typing import Any, Dict, List, Tuple
 from .analysis import (
     load_config,
     normalize_case_and_dups,
@@ -52,6 +52,147 @@ def _group_changes_by_label(changes: List[str]) -> Dict[str, List[str]]:
         label = m.group(1) if m else "Unknown"
         groups.setdefault(label, []).append(c)
     return groups
+
+
+def _prepare_diff_outputs(
+    cfg: Dict[str, Any], analysis: Dict[str, Any]
+) -> Tuple[html.Div, List[Dict[str, Any]], Dict[str, Any], html.Div]:
+    """Build diff table and projection displays.
+
+    Args:
+        cfg: Current configuration mapping.
+        analysis: Result from :func:`run_full_analysis` for ``cfg``.
+
+    Returns:
+        Tuple containing rendered summary div, diff table rows, raw diff dict,
+        and projected-change div.
+    """
+
+    diff = analysis.get("diff")
+    if diff is None:
+        return html.Div(), [], {}, html.Div()
+
+    summary = diff["comparison_summary"]
+    rows: List[Dict[str, Any]] = []
+    for label, info in diff["missing_emails_by_label"].items():
+        missing_items = "".join(f"<li>{email}</li>" for email in info["missing_emails"])
+        missing_html = (
+            "<details><summary>"
+            f"{info['missing_emails_count']} missing emails"
+            "</summary>"
+            f"<ul>{missing_items}</ul></details>"
+        )
+        action_btn = (
+            '<button title="Import all missing emails for this label" '
+            'style="padding:2px 6px; font-size:12px;">'
+            "Import missing"
+            "</button>"
+        )
+        total = info["total_emails_in_source"]
+        missing = info["missing_emails_count"]
+        coverage_html = _render_coverage(total, missing)
+        exists_icon = "✅" if info["label_exists_in_target"] else "❌"
+
+        rows.append(
+            {
+                "label": label,
+                "exists_in_target": exists_icon,
+                "total_in_source": total,
+                "missing_count": missing,
+                "coverage": coverage_html,
+                "missing_emails": missing_html,
+                "actions": action_btn,
+            }
+        )
+
+    changes = analysis.get("projected_changes") or []
+    grouped = _group_changes_by_label(changes)
+    proj_diff = analysis.get("projected_diff")
+    assert proj_diff is not None
+
+    case_fixes = sum(1 for c in changes if "(fixed case)" in c)
+    removed_dup_counts = [
+        int(m.group(1))
+        for c in changes
+        for m in [re.search(r"removed (\\d+) duplicates", c)]
+        if m
+    ]
+    removed_dups_total = sum(removed_dup_counts)
+    sorted_lists_count = sum(
+        1 for c in changes if "(fixed case)" not in c and "duplicates" not in c
+    )
+
+    def extract_label(c: str) -> str | None:
+        m = re.search(r"SENDER_TO_LABELS\\.([^\\[\]]+)\\[", c)
+        return m.group(1) if m else None
+
+    labels_affected = sorted({lbl for c in changes if (lbl := extract_label(c))})
+
+    before_missing = summary["total_missing_emails"]
+    after_missing = proj_diff["comparison_summary"]["total_missing_emails"]
+    delta_missing = after_missing - before_missing
+
+    items = list((proj_diff.get("missing_emails_by_label") or {}).items())
+    items.sort(key=lambda kv: kv[1].get("missing_emails_count", 0), reverse=True)
+    top_labels = [
+        html.Li(
+            f"{lbl}: {info['missing_emails_count']} remaining"
+            + (" (new label)" if not info.get("label_exists_in_target") else "")
+        )
+        for lbl, info in items
+        if info.get("missing_emails_count", 0) > 0
+    ][:10]
+
+    change_details = [
+        html.Details(
+            [
+                html.Summary(lbl, title="\n".join(items)),
+                html.Ul([html.Li(x) for x in items]),
+            ],
+            style={"marginBottom": "4px"},
+        )
+        for lbl, items in sorted(grouped.items())
+    ]
+
+    proj_div = html.Div(
+        [
+            html.H4("Projected Changes After Fix All"),
+            html.Div(
+                [
+                    html.Div(f"Before (missing emails): {before_missing}"),
+                    html.Div(f"After (missing emails): {after_missing}"),
+                    html.Div(f"Delta: {delta_missing:+d}"),  # noqa: E231
+                ],
+                style={"marginBottom": "6px"},
+            ),
+            html.Div(
+                [
+                    html.Div(f"Case fixes: {case_fixes}"),
+                    html.Div(f"Duplicates removed: {removed_dups_total}"),
+                    html.Div(f"Sorted lists: {sorted_lists_count}"),
+                    html.Div(f"Labels affected: {len(labels_affected)}"),
+                ],
+                style={"marginBottom": "6px"},
+            ),
+            html.Div(change_details),
+            html.Details(
+                [
+                    html.Summary("Top labels by remaining missing emails"),
+                    html.Ul(top_labels or [html.Li("None")]),
+                ]
+            ),
+        ]
+    )
+
+    summary_div = html.Div(
+        [
+            html.Div(f"Source labels: {summary['total_labels_in_source']}"),
+            html.Div(f"Target labels: {summary['total_labels_in_target']}"),
+            html.Div(f"Total missing emails: {summary['total_missing_emails']}"),
+        ]
+    )
+
+    return summary_div, rows, diff, proj_div
 
 
 def register_callbacks(app):
@@ -129,6 +270,10 @@ def register_callbacks(app):
         Output("tbl-stl", "data", allow_duplicate=True),
         Output("store-config", "data", allow_duplicate=True),
         Output("store-analysis", "data", allow_duplicate=True),
+        Output("diff-summary", "children", allow_duplicate=True),
+        Output("tbl-diff", "data", allow_duplicate=True),
+        Output("store-diff", "data", allow_duplicate=True),
+        Output("diff-projected", "children", allow_duplicate=True),
         Output("status", "children", allow_duplicate=True),
         Input("btn-fix-case", "n_clicks"),
         Input("btn-fix-dups", "n_clicks"),
@@ -139,7 +284,16 @@ def register_callbacks(app):
     )
     def on_fix(n_case, n_dups, n_sort, n_all, cfg):
         if not cfg:
-            return no_update, no_update, no_update, "No config loaded."
+            return (
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                "No config loaded.",
+            )
 
         # Determine which button fired
         action = ctx.triggered_id if ctx.triggered_id is not None else ""
@@ -152,10 +306,15 @@ def register_callbacks(app):
 
         stl_rows = config_to_table(tmp)
         analysis = run_full_analysis(tmp)
+        summary, diff_rows, diff_obj, proj_div = _prepare_diff_outputs(tmp, analysis)
         return (
             stl_rows,
             tmp,
             analysis,
+            summary,
+            diff_rows,
+            diff_obj,
+            proj_div,
             f"Applied: {action.replace('btn-', '').replace('-', ' ')}",
         )
 
@@ -439,159 +598,22 @@ def register_callbacks(app):
         return metrics, issues, projected
 
     @app.callback(
-        Output("diff-summary", "children"),
-        Output("tbl-diff", "data"),
-        Output("store-diff", "data"),
-        Output("diff-projected", "children"),
+        Output("diff-summary", "children", allow_duplicate=True),
+        Output("tbl-diff", "data", allow_duplicate=True),
+        Output("store-diff", "data", allow_duplicate=True),
+        Output("diff-projected", "children", allow_duplicate=True),
         Output("status", "children", allow_duplicate=True),
         Input("store-config", "data"),
         prevent_initial_call="initial_duplicate",
     )
     def on_diff(cfg):
-        from dash import html
-
         if not cfg:
             return "", [], None, "", "No config loaded."
         if not LABELS_JSON.exists():
             return "", [], None, "", "Missing config/gmail_labels_data.json"
         analysis = run_full_analysis(cfg)
-        diff = analysis["diff"]
-        assert diff is not None
-        summary = diff["comparison_summary"]
-        rows = []
-        for label, info in diff["missing_emails_by_label"].items():
-            missing_items = "".join(
-                f"<li>{email}</li>" for email in info["missing_emails"]
-            )
-            missing_html = (
-                "<details><summary>"
-                f"{info['missing_emails_count']} missing emails"
-                "</summary>"
-                f"<ul>{missing_items}</ul></details>"
-            )
-            # Render a real button inside the cell
-            # DataTable will still report clicks via active_cell
-            action_btn = (
-                '<button title="Import all missing emails for this label" '
-                'style="padding:2px 6px; font-size:12px;">'
-                "Import missing"
-                "</button>"
-            )
-            total = info["total_emails_in_source"]
-            missing = info["missing_emails_count"]
-            coverage_html = _render_coverage(total, missing)
-            exists_icon = "✅" if info["label_exists_in_target"] else "❌"
-
-            rows.append(
-                {
-                    "label": label,
-                    "exists_in_target": exists_icon,
-                    "total_in_source": total,
-                    "missing_count": missing,
-                    "coverage": coverage_html,
-                    "missing_emails": missing_html,
-                    "actions": action_btn,
-                }
-            )
-
-        changes = analysis.get("projected_changes") or []
-        grouped = _group_changes_by_label(changes)
-        proj_diff = analysis.get("projected_diff")
-        assert proj_diff is not None
-
-        # Build a richer projection summary
-        import re
-
-        case_fixes = sum(1 for c in changes if "(fixed case)" in c)
-        removed_dup_counts = [
-            int(m.group(1))
-            for c in changes
-            for m in [re.search(r"removed (\\d+) duplicates", c)]
-            if m
-        ]
-        removed_dups_total = sum(removed_dup_counts)
-        sorted_lists_count = sum(
-            1 for c in changes if "(fixed case)" not in c and "duplicates" not in c
-        )
-
-        def extract_label(c: str) -> str | None:
-            m = re.search(r"SENDER_TO_LABELS\\.([^\\[]+)\\[", c)
-            return m.group(1) if m else None
-
-        labels_affected = sorted({lbl for c in changes if (lbl := extract_label(c))})
-
-        before_missing = summary["total_missing_emails"]
-        after_missing = proj_diff["comparison_summary"]["total_missing_emails"]
-        delta_missing = after_missing - before_missing
-
-        # Top labels by remaining missing emails (limit to 10 for readability)
-        items = list((proj_diff.get("missing_emails_by_label") or {}).items())
-        items.sort(key=lambda kv: kv[1].get("missing_emails_count", 0), reverse=True)
-        top_labels = [
-            html.Li(
-                f"{lbl}: {info['missing_emails_count']} remaining"
-                + (" (new label)" if not info.get("label_exists_in_target") else "")
-            )
-            for lbl, info in items
-            if info.get("missing_emails_count", 0) > 0
-        ][:10]
-
-        change_details = [
-            html.Details(
-                [
-                    html.Summary(lbl, title="\n".join(items)),
-                    html.Ul([html.Li(x) for x in items]),
-                ],
-                style={"marginBottom": "4px"},
-            )
-            for lbl, items in sorted(grouped.items())
-        ]
-
-        proj_div = html.Div(
-            [
-                html.H4("Projected Changes After Fix All"),
-                html.Div(
-                    [
-                        html.Div(f"Before (missing emails): {before_missing}"),
-                        html.Div(f"After (missing emails): {after_missing}"),
-                        html.Div(f"Delta: {delta_missing:+d}"),  # noqa: E231
-                    ],
-                    style={"marginBottom": "6px"},
-                ),
-                html.Div(
-                    [
-                        html.Div(f"Case fixes: {case_fixes}"),
-                        html.Div(f"Duplicates removed: {removed_dups_total}"),
-                        html.Div(f"Sorted lists: {sorted_lists_count}"),
-                        html.Div(f"Labels affected: {len(labels_affected)}"),
-                    ],
-                    style={"marginBottom": "6px"},
-                ),
-                html.Div(change_details),
-                html.Details(
-                    [
-                        html.Summary("Top labels by remaining missing emails"),
-                        html.Ul(top_labels or [html.Li("None")]),
-                    ]
-                ),
-            ]
-        )
-
-        return (
-            html.Div(
-                [
-                    html.Div(f"Source labels: {summary['total_labels_in_source']}"),
-                    html.Div(f"Target labels: {summary['total_labels_in_target']}"),
-                    html.Div(
-                        f"Total missing emails: {summary['total_missing_emails']}"
-                    ),
-                ]
-            ),
-            rows,
-            diff,
-            proj_div,
-            "Differences computed.",
-        )
+        summary, rows, diff, proj_div = _prepare_diff_outputs(cfg, analysis)
+        return summary, rows, diff, proj_div, "Differences computed."
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
