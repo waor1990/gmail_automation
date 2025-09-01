@@ -139,17 +139,18 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                             {"name": "email", "id": "email"},
                             {"name": "labels", "id": "labels"},
                             {
-                                "name": "action",
+                                "name": "action ▾",
                                 "id": "action",
                                 "presentation": "dropdown",
                             },
                             {
-                                "name": "to label",
+                                "name": "to label ▾",
                                 "id": "to_label",
                                 "presentation": "dropdown",
                             },
                         ],
                         data=[],
+                        editable=True,
                         dropdown={
                             "action": {
                                 "options": [
@@ -175,6 +176,10 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                             "fontFamily": "monospace",
                             "fontSize": "12px",
                         },
+                        style_data_conditional=[
+                            {"if": {"column_id": "action"}, "cursor": "pointer"},
+                            {"if": {"column_id": "to_label"}, "cursor": "pointer"},
+                        ],
                     ),
                     html.Button(
                         "Apply Resolutions",
