@@ -146,8 +146,9 @@ def run_dev(action: str) -> None:
 
 def main() -> None:
     args = parse_args()
-    # Default behavior: launch the dashboard if no options provided.
-    if not args.report and not args.launch and not args.refresh and not args.dev:
+    # Default behavior: launch the dashboard only if no actionable options are provided.
+    # Do NOT auto-launch when running non-interactive actions like --import-missing.
+    if not any([args.report, args.launch, args.refresh, args.dev, args.import_missing]):
         args.launch = True
 
     if args.refresh:
@@ -179,6 +180,7 @@ def main() -> None:
                 )
             else:
                 print(f"No new emails imported for {args.import_missing}.")
+        # If no further actions requested, exit after import.
         if not args.report and not args.launch and not args.dev:
             return
 

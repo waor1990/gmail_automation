@@ -6,7 +6,7 @@ labels:
   - dashboard
   - ux
   - "priority: High"
-  - "status: todo"
+  - "status: done"
   - "task:095"
 body:
   - type: markdown

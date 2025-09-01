@@ -6,7 +6,7 @@ labels:
   - dashboard
   - ux
   - "priority: Medium"
-  - "status: in-progress"
+  - "status: done"
   - "task:105"
 body:
   - type: markdown
