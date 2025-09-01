@@ -1,20 +1,19 @@
 @echo off
 
-:: Check if already in a virtual environment
+:: Exit if we're already in a virtual environment
 if not "%VIRTUAL_ENV%"=="" (
     echo Already in a virtual environment: %VIRTUAL_ENV%
     goto :eof
 )
 
-:: Check if .venv directory exists, if not create it
-echo Checking for .venv...
-if not exist .venv (
-    echo .venv not found. Creating a new virtual environment...
-    python -m venv .venv
-    if errorlevel 1 (
-        echo Failed to create virtual environment.
-        goto :eof
-    )
+:: Ensure the project virtual environment exists and is set up
+if not exist .venv\Scripts\activate.bat (
+    echo [info] Setting up virtual environment and dependencies...
+    call scripts\setup.cmd || goto :eof
+)
+if not exist .venv\Scripts\activate.bat (
+    echo [error] Activation script not found. Setup may have failed.
+    goto :eof
 )
 
 :: Detect shell and activate appropriately

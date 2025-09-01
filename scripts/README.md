@@ -10,7 +10,6 @@ Available commands:
 
 - `setup` – create the virtual environment
 - `maintenance` – validate secrets, hooks, run checks/tests
-- `enter_env` – detect shell and activate venv (Windows; opens a new cmd window)
 - `create_issues` – open GitHub issues from files
 - `resolve_issue` – close an issue and archive its file
 - `clean_git_history` – remove sensitive files from history
@@ -21,10 +20,10 @@ Shell and PowerShell shims forward to these modules for convenience.
 
 Windows convenience:
 
-- From any shell at the repo root, run `enter_env.bat` to create the venv if
-  missing and launch an appropriate shell with the environment activated
-  (PowerShell, cmd.exe, or Git Bash). If detection fails, it falls back to
-  `scripts\enter_venv.cmd` which opens a Command Prompt already activated.
+- From any shell at the repo root, run `enter_env.bat`. It uses the `setup`
+  helper to create the virtual environment and install dependencies if
+  missing, then launches an appropriate shell with the environment activated
+  (PowerShell, cmd.exe, or Git Bash).
 
 Outdated package maintenance:
 

@@ -9,10 +9,10 @@ This document explains how to configure and run the Gmail Automation script.
    pip install -r requirements-dev.txt
    ```
 
-   On Windows, you can also use the convenience launcher at the repo root:
+   On Windows, run the convenience launcher at the repo root:
 
    ```bat
-   enter_env.bat             # detects PS/cmd/Git Bash; opens new window for cmd
+   enter_env.bat             # sets up the venv and opens an activated shell
    ```
 
    You can also run `python -m scripts.setup` to create a virtual
@@ -21,7 +21,7 @@ This document explains how to configure and run the Gmail Automation script.
    optionally install pre-commit hooks with `--install-hooks`). The
    command works in Git Bash, PowerShell, or cmd.exe.
 
-   Activate the virtual environment with:
+   If activating manually, use:
 
    ```bash
    source .venv/bin/activate         # Linux/macOS

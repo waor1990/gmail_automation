@@ -26,9 +26,10 @@ python -m scripts.setup                     # create venv, upgrade pip, install 
 python -m scripts.setup --install-hooks     # also install pre-commit hooks
 ```
 
-The same command works in Git Bash, PowerShell, or cmd.exe.
+The same command works in Git Bash, PowerShell, or cmd.exe. On Windows,
+`enter_env.bat` wraps this setup step and opens an activated shell.
 
-Activate the environment with:
+Activate the environment manually with:
 
 ```bash
 source .venv/bin/activate         # Linux/macOS
@@ -37,11 +38,10 @@ source .venv/Scripts/activate     # Git Bash on Windows
 \.venv\Scripts\activate.bat      # cmd.exe
 ```
 
-Windows convenience launchers:
+Windows convenience launcher:
 
 ```bat
-enter_env.bat             # detects your shell; opens new window for cmd
-scripts\enter_venv.cmd   # fallback: opens a new Command Prompt with the venv
+enter_env.bat             # sets up the venv and opens an activated shell
 ```
 
 You can skip activation by invoking the venv’s Python directly for one-off
