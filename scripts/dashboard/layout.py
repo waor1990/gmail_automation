@@ -1,4 +1,8 @@
-from dash import html, dcc, dash_table
+"""Layout definition for the Gmail Automation dashboard."""
+
+from dash import dcc, dash_table, html
+
+from .theme import get_theme_style
 
 
 def make_layout(stl_rows, analysis, diff, cfg, pending):
@@ -27,19 +31,47 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
             html.Button("Export ECAQ Report", id="btn-export-report", n_clicks=0),
             html.Button("Export Differences JSON", id="btn-export-diff", n_clicks=0),
             html.Button("Refresh Reports", id="btn-refresh-reports", n_clicks=0),
+            html.Button("Switch to Dark Mode", id="btn-toggle-theme", n_clicks=0),
+        ],
+    )
+
+    defaults_panel = html.Div(
+        id="defaults-panel",
+        style={
+            "display": "flex",
+            "gap": "8px",
+            "alignItems": "center",
+            "marginBottom": "16px",
+        },
+        children=[
+            html.Span("Defaults:"),
+            dcc.Checklist(
+                id="default-read-status",
+                options=[{"label": "mark read", "value": "read"}],
+                value=[],
+            ),
+            dcc.Input(
+                id="default-delete-days",
+                type="number",
+                placeholder="delete_after_days",
+                style={"width": "120px"},
+            ),
         ],
     )
 
     return html.Div(
-        style={
-            "fontFamily": "Arial, sans-serif",
-            "padding": "20px",
-            "maxWidth": "1200px",
-            "margin": "0 auto",
-        },
+        id="app-root",
+        style=get_theme_style("light"),
         children=[
+            dcc.Store(id="store-theme", storage_type="local", data={"theme": "light"}),
+            dcc.Store(
+                id="store-defaults",
+                storage_type="local",
+                data={"read_status": False, "delete_after_days": None},
+            ),
             html.H1("Gmail Email Configuration Dashboard"),
             control_row,
+            defaults_panel,
             html.Div(
                 id="status", style={"marginBottom": "16px", "whiteSpace": "pre-wrap"}
             ),
@@ -98,12 +130,14 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         style_data_conditional=[
                             {
                                 "if": {"filter_query": "{status} = '🔴'"},
-                                "backgroundColor": "#ffe5e5",
+                                "style": {"backgroundColor": "#ffe5e5"},
                             },
                             {
                                 "if": {"column_id": "status"},
-                                "textAlign": "center",
-                                "width": "30px",
+                                "style": {
+                                    "textAlign": "center",
+                                    "width": "30px",
+                                },
                             },
                         ],
                     ),
@@ -177,8 +211,14 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                             "fontSize": "12px",
                         },
                         style_data_conditional=[
-                            {"if": {"column_id": "action"}, "cursor": "pointer"},
-                            {"if": {"column_id": "to_label"}, "cursor": "pointer"},
+                            {
+                                "if": {"column_id": "action"},
+                                "style": {"cursor": "pointer"},
+                            },
+                            {
+                                "if": {"column_id": "to_label"},
+                                "style": {"cursor": "pointer"},
+                            },
                         ],
                     ),
                     html.Button(

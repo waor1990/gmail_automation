@@ -1,5 +1,6 @@
-from dash import html, dcc, no_update, callback_context, ctx
-from dash import Input, Output, State
+"""Dash callback definitions for the dashboard."""
+
+from dash import Input, Output, State, callback_context, ctx, dcc, html, no_update
 import re
 from typing import Any, Dict, List, Tuple
 from .collisions import resolve_collisions
@@ -12,9 +13,23 @@ from .analysis import (
 )
 from .analysis_helpers import run_full_analysis
 from .transforms import config_to_table, table_to_config, rows_to_grouped
-from .utils_io import write_json, backup_file, read_json
+from .utils_io import backup_file, read_json, write_json
 from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
 from .group_ops import merge_selected, split_selected
+from .theme import get_theme_style
+
+
+def make_empty_stl_row(defaults: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Return a blank SENDER_TO_LABELS row using provided defaults."""
+
+    defaults = defaults or {}
+    return {
+        "label": "",
+        "group_index": None,
+        "email": "",
+        "read_status": defaults.get("read_status", False),
+        "delete_after_days": defaults.get("delete_after_days"),
+    }
 
 
 def _render_coverage(total: int, missing: int) -> str:
@@ -364,22 +379,26 @@ def register_callbacks(app):
             return "Updated: config/gmail_config-final.json (no backup)"
 
     @app.callback(
+        Output("store-defaults", "data"),
+        Input("default-read-status", "value"),
+        Input("default-delete-days", "value"),
+    )
+    def update_defaults(read_value, delete_days):
+        return {
+            "read_status": "read" in (read_value or []),
+            "delete_after_days": delete_days if delete_days not in (None, "") else None,
+        }
+
+    @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
         Input("btn-add-stl-row", "n_clicks"),
         State("tbl-stl", "data"),
+        State("store-defaults", "data"),
         prevent_initial_call=True,
     )
-    def add_stl_row(_n, rows):
+    def add_stl_row(_n, rows, defaults):
         rows = rows or []
-        rows.append(
-            {
-                "label": "",
-                "group_index": None,
-                "email": "",
-                "read_status": False,
-                "delete_after_days": None,
-            }
-        )
+        rows.append(make_empty_stl_row(defaults))
         return rows
 
     @app.callback(
@@ -446,6 +465,21 @@ def register_callbacks(app):
         if mode == "grouped":
             return {"display": "none"}, {"display": "block"}
         return {"display": "block"}, {"display": "none"}
+
+    @app.callback(
+        Output("store-theme", "data"),
+        Output("app-root", "style"),
+        Output("btn-toggle-theme", "children"),
+        Input("btn-toggle-theme", "n_clicks"),
+        State("store-theme", "data"),
+    )
+    def on_toggle_theme(n, data):
+        theme = (data or {}).get("theme", "light")
+        if n:
+            theme = "dark" if theme == "light" else "light"
+        style = get_theme_style(theme)
+        label = "Switch to Light Mode" if theme == "dark" else "Switch to Dark Mode"
+        return {"theme": theme}, style, label
 
     # Grouped-tree Add callback temporarily disabled due to Dash wildcard
     # constraints across multi-output callbacks. Controls are no-ops for now.
