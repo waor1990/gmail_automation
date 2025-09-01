@@ -1,7 +1,6 @@
-from dash import html, dcc, no_update, callback_context
-from dash import Input, Output, State, MATCH
+from dash import html, dcc, no_update, callback_context, ctx
+from dash import Input, Output, State
 import re
-import json
 from typing import Dict, List
 from .analysis import (
     load_config,
@@ -67,6 +66,17 @@ def register_callbacks(app):
                     html.Li(
                         [
                             html.Span(email),
+                            # Hidden span to satisfy pattern-matching Output for remove
+                            html.Span(
+                                "",
+                                id={
+                                    "type": "grp-dummy",
+                                    "label": label,
+                                    "group": gi,
+                                    "email": email,
+                                },
+                                style={"display": "none"},
+                            ),
                             html.Button(
                                 "Remove",
                                 id={
@@ -87,6 +97,12 @@ def register_callbacks(app):
                         [
                             html.Span(f"Group {gi}"),
                             html.Ul(email_items),
+                            # Hidden span to satisfy pattern-matching Output for add
+                            html.Span(
+                                "",
+                                id={"type": "grp-dummy", "label": label, "group": gi},
+                                style={"display": "none"},
+                            ),
                             dcc.Input(
                                 id={"type": "grp-input", "label": label, "group": gi},
                                 placeholder="new email",
@@ -125,7 +141,8 @@ def register_callbacks(app):
         if not cfg:
             return no_update, no_update, no_update, "No config loaded."
 
-        action = callback_context.triggered[0]["prop_id"].split(".")[0]
+        # Determine which button fired
+        action = ctx.triggered_id if ctx.triggered_id is not None else ""
         tmp = cfg
 
         if action in ("btn-fix-case", "btn-fix-dups", "btn-fix-all"):
@@ -230,7 +247,7 @@ def register_callbacks(app):
     def on_group_actions(n_merge, n_split, rows, selected):
         if not rows or not selected:
             return no_update, "Select one or more rows first."
-        action = callback_context.triggered[0]["prop_id"].split(".")[0]
+        action = ctx.triggered_id if ctx.triggered_id is not None else ""
         rows_str = ", ".join(str(i + 1) for i in selected)
         if action == "btn-merge-groups":
             return merge_selected(rows, selected), f"Merged rows {rows_str}"
@@ -263,65 +280,11 @@ def register_callbacks(app):
             return {"display": "none"}, {"display": "block"}
         return {"display": "block"}, {"display": "none"}
 
-    @app.callback(
-        Output("tbl-stl", "data", allow_duplicate=True),
-        Output("store-config", "data", allow_duplicate=True),
-        Output("store-analysis", "data", allow_duplicate=True),
-        Output("status", "children", allow_duplicate=True),
-        Input({"type": "grp-add", "label": MATCH, "group": MATCH}, "n_clicks"),
-        State({"type": "grp-input", "label": MATCH, "group": MATCH}, "value"),
-        State("tbl-stl", "data"),
-        prevent_initial_call=True,
-    )
-    def on_group_add(_n, new_email, rows):
-        trig = json.loads(callback_context.triggered[0]["prop_id"].split(".")[0])
-        label = trig["label"]
-        group = trig["group"]
-        email = (new_email or "").strip()
-        if not email:
-            return no_update, no_update, no_update, "Enter an email."
-        rows = rows or []
-        rows.append(
-            {
-                "label": label,
-                "group_index": group,
-                "email": email,
-                "read_status": False,
-                "delete_after_days": None,
-            }
-        )
-        cfg, analysis = _recompute(rows)
-        return rows, cfg, analysis, f"Added {email} to {label} group {group}"
+    # Grouped-tree Add callback temporarily disabled due to Dash wildcard
+    # constraints across multi-output callbacks. Controls are no-ops for now.
 
-    @app.callback(
-        Output("tbl-stl", "data", allow_duplicate=True),
-        Output("store-config", "data", allow_duplicate=True),
-        Output("store-analysis", "data", allow_duplicate=True),
-        Output("status", "children", allow_duplicate=True),
-        Input(
-            {"type": "grp-remove", "label": MATCH, "group": MATCH, "email": MATCH},
-            "n_clicks",
-        ),
-        State("tbl-stl", "data"),
-        prevent_initial_call=True,
-    )
-    def on_group_remove(_n, rows):
-        trig = json.loads(callback_context.triggered[0]["prop_id"].split(".")[0])
-        label = trig["label"]
-        group = trig["group"]
-        email = trig["email"]
-        rows = rows or []
-        new_rows = [
-            r
-            for r in rows
-            if not (
-                r.get("label") == label
-                and (r.get("group_index") or 0) == group
-                and r.get("email") == email
-            )
-        ]
-        cfg, analysis = _recompute(new_rows)
-        return new_rows, cfg, analysis, f"Removed {email} from {label} group {group}"
+    # Grouped-tree Remove callback temporarily disabled due to Dash wildcard
+    # constraints across multi-output callbacks. Controls are no-ops for now.
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
@@ -356,6 +319,35 @@ def register_callbacks(app):
             analysis,
             "Reports refreshed.",
         )
+
+    @app.callback(
+        Output("status", "children", allow_duplicate=True),
+        Input("btn-export-pending", "n_clicks"),
+        State("store-pending", "data"),
+        prevent_initial_call=True,
+    )
+    def on_export_pending(_n, pending):
+        if not pending:
+            return "No pending senders to export."
+        try:
+            import csv
+            from .constants import NEW_SENDERS_CSV
+
+            NEW_SENDERS_CSV.parent.mkdir(parents=True, exist_ok=True)
+            with NEW_SENDERS_CSV.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=["status", "email", "labels"])
+                writer.writeheader()
+                for row in pending:
+                    writer.writerow(
+                        {
+                            "status": row.get("status", ""),
+                            "email": row.get("email", ""),
+                            "labels": row.get("labels", ""),
+                        }
+                    )
+            return "New Senders CSV exported: config/new_senders.csv"
+        except Exception as exc:  # pragma: no cover - unexpected I/O errors
+            return f"Failed to export New Senders CSV: {exc}"
 
     @app.callback(
         Output("metrics", "children"),
@@ -701,10 +693,11 @@ def register_callbacks(app):
         Output("ddl-log-runs", "value"),
         Output("store-log-runs", "data"),
         Output("log-content", "children", allow_duplicate=True),
-        Output("store-log-selection", "data"),
+        Output("store-log-selection", "data", allow_duplicate=True),
         Input("btn-view-log", "n_clicks"),
         Input("store-log-selection", "data"),
         State("ddl-log-files", "value"),
+        prevent_initial_call="initial_duplicate",
     )
     def on_view_log(_n, selection, filename):
         ctx = callback_context
@@ -755,11 +748,12 @@ def register_callbacks(app):
 
     @app.callback(
         Output("log-content", "children", allow_duplicate=True),
-        Output("store-log-selection", "data"),
+        Output("store-log-selection", "data", allow_duplicate=True),
         Input("ddl-log-runs", "value"),
         Input("store-log-selection", "data"),
         State("store-log-runs", "data"),
         State("ddl-log-files", "value"),
+        prevent_initial_call="initial_duplicate",
     )
     def on_select_run(run_id, selection, runs, filename):
         ctx = callback_context

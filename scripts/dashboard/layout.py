@@ -65,6 +65,16 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                             "marginBottom": "4px",
                         },
                     ),
+                    html.Button(
+                        "Export New Senders CSV",
+                        id="btn-export-pending",
+                        n_clicks=0,
+                        style={"marginBottom": "8px"},
+                        title=(
+                            "Save the current New Senders list to "
+                            "config/new_senders.csv"
+                        ),
+                    ),
                     dcc.Dropdown(
                         id="ddl-pending-labels",
                         options=[],
@@ -85,8 +95,6 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         style_cell={"fontFamily": "monospace", "fontSize": "12px"},
                         sort_action="native",
                         filter_action="native",
-                        export_format="csv",
-                        export_headers="display",
                         style_data_conditional=[
                             {
                                 "if": {"filter_query": "{status} = '🔴'"},

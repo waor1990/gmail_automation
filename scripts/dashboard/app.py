@@ -29,7 +29,8 @@ def _prepare_initial_data():
 
 def main():
     cfg, stl_rows, analysis, diff, pending = _prepare_initial_data()
-    app = Dash(__name__)
+    # Allow callbacks that reference components created dynamically
+    app = Dash(__name__, suppress_callback_exceptions=True)
     app.title = "Gmail Config Dashboard"
     app.layout = make_layout(stl_rows, analysis, diff, cfg, pending)
     register_callbacks(app)
