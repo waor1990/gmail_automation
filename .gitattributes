@@ -1,0 +1,27 @@
+# Enforce consistent line endings across platforms
+
+# Default: treat text as text and store LF in repo
+* text=auto eol=lf
+
+# Common text formats that should be LF
+*.py   text eol=lf
+*.sh   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.txt  text eol=lf
+
+# Windows script files should use CRLF in working tree
+*.ps1  text eol=crlf
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+
+# Mark common binary types (no EOL conversion)
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
