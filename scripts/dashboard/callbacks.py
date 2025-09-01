@@ -377,28 +377,19 @@ def register_callbacks(app):
         case_list = ul([i["location"] for i in cd["case_issues"]])
 
         dup_blocks = []
-        for i in cd["duplicate_issues"]:
+        for i in cd.get("duplicate_issues", []):
             dup_count = i["original_count"] - i["unique_count"]
-            lines = [html.Div(f"{i['location']} ({dup_count} duplicates)")]
-            lines.extend([html.Div(f"• {d}") for d in i["duplicates"]])
-            dup_blocks.append(html.Div(lines, style={"marginLeft": "12px"}))
-        dup_div = html.Div(dup_blocks) if dup_blocks else html.Div("None")
-        # Rebuild duplicates block using proper lists (replace placeholder bell char)
-        if cd.get("duplicate_issues"):
-            fixed_blocks = []
-            for i in cd["duplicate_issues"]:
-                dup_count = i["original_count"] - i["unique_count"]
-                items = [html.Li(d) for d in i["duplicates"]]
-                fixed_blocks.append(
-                    html.Div(
-                        [
-                            html.Div(f"{i['location']} ({dup_count} duplicates)"),
-                            html.Ul(items) if items else html.Ul([html.Li("None")]),
-                        ],
-                        style={"marginLeft": "12px"},
-                    )
+            items = [html.Li(d) for d in i["duplicates"]]
+            dup_blocks.append(
+                html.Div(
+                    [
+                        html.Div(f"{i['location']} ({dup_count} duplicates)"),
+                        html.Ul(items) if items else html.Ul([html.Li("None")]),
+                    ],
+                    style={"marginLeft": "12px"},
                 )
-        dup_div = html.Div(fixed_blocks)
+            )
+        dup_div = html.Div(dup_blocks) if dup_blocks else html.Div("None")
 
         cross_blocks = []
         for item in cd.get("cross_label_duplicates", []):
