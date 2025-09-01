@@ -198,6 +198,13 @@ def _prepare_diff_outputs(
 
 def register_callbacks(app):
     def _render_grouped_tree(rows: List[Dict[str, str]]):
+        def _group_label(gi: int) -> str:
+            if gi == 0:
+                return "Mark Read"
+            if gi == 1:
+                return "Mark Unread"
+            return f"Group {gi}"
+
         grouped = rows_to_grouped(rows)
         items = []
         for label in sorted(grouped):
@@ -237,7 +244,7 @@ def register_callbacks(app):
                 group_items.append(
                     html.Li(
                         [
-                            html.Span(f"Group {gi}"),
+                            html.Span(_group_label(gi)),
                             html.Ul(email_items),
                             # Hidden span to satisfy pattern-matching Output for add
                             html.Span(

@@ -221,7 +221,7 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 columns=[
                                     {"name": "label", "id": "label"},
                                     {
-                                        "name": "group_index",
+                                        "name": "group (0=Mark Read, 1=Mark Unread)",
                                         "id": "group_index",
                                         "type": "numeric",
                                     },
@@ -267,7 +267,8 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                         n_clicks=0,
                                         title=(
                                             "Toggle visibility of grouping controls "
-                                            "and the group_index column"
+                                            "and the group column "
+                                            "(0=Mark Read, 1=Mark Unread)"
                                         ),
                                     ),
                                     html.Button(
