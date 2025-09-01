@@ -130,12 +130,14 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         style_data_conditional=[
                             {
                                 "if": {"filter_query": "{status} = '🔴'"},
-                                "backgroundColor": "#ffe5e5",
+                                "style": {"backgroundColor": "#ffe5e5"},
                             },
                             {
                                 "if": {"column_id": "status"},
-                                "textAlign": "center",
-                                "width": "30px",
+                                "style": {
+                                    "textAlign": "center",
+                                    "width": "30px",
+                                },
                             },
                         ],
                     ),
@@ -209,8 +211,14 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                             "fontSize": "12px",
                         },
                         style_data_conditional=[
-                            {"if": {"column_id": "action"}, "cursor": "pointer"},
-                            {"if": {"column_id": "to_label"}, "cursor": "pointer"},
+                            {
+                                "if": {"column_id": "action"},
+                                "style": {"cursor": "pointer"},
+                            },
+                            {
+                                "if": {"column_id": "to_label"},
+                                "style": {"cursor": "pointer"},
+                            },
                         ],
                     ),
                     html.Button(
