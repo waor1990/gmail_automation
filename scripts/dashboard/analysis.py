@@ -1,8 +1,11 @@
+"""Static and semantic analysis utilities for dashboard data."""
+
 from typing import Any, Dict, List, Tuple, Set
 from gmail_automation.config import (
     DEFAULT_LAST_RUN_TIME,
     get_sender_last_run_times,
 )
+
 from .utils_io import read_json
 from .constants import CONFIG_JSON
 
@@ -12,6 +15,7 @@ def load_config() -> Dict[str, Any]:
         raise FileNotFoundError("Missing config/gmail_config-final.json")
     data: Dict[str, Any] = read_json(CONFIG_JSON)
     data.setdefault("SENDER_TO_LABELS", {})
+    data.setdefault("IGNORED_EMAILS", [])
     return data
 
 
@@ -204,14 +208,17 @@ def compute_label_differences(cfg: dict, labels_data: dict) -> dict:
     }
 
     total_missing = 0
+    ignored = {e.casefold() for e in cfg.get("IGNORED_EMAILS", [])}
     for label_name, entries in (labels_data.get("SENDER_TO_LABELS") or {}).items():
         label_emails_fold: Dict[str, str] = {}
         for entry in entries or []:
             for e in entry.get("emails") or []:
                 cf = e.casefold()
+                if cf in ignored:
+                    continue
                 label_emails_fold.setdefault(cf, e)
 
-        missing_folds = sorted(set(label_emails_fold) - cfg_emails)
+        missing_folds = sorted(set(label_emails_fold) - cfg_emails - ignored)
         missing = [label_emails_fold[m] for m in missing_folds]
         exists_in_target = label_name in (cfg.get("SENDER_TO_LABELS") or {})
         if missing or not exists_in_target:

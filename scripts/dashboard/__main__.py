@@ -9,7 +9,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .analysis import load_config, import_missing_emails
+from .constants import CONFIG_JSON, DIFF_JSON, LABELS_JSON
 from .reports import write_ECAQ_report, write_diff_json
+from .utils_io import read_json, write_json
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,6 +37,14 @@ def parse_args() -> argparse.Namespace:
         "--refresh",
         action="store_true",
         help="Run the Gmail automation module before other actions.",
+    )
+    parser.add_argument(
+        "--import-missing",
+        metavar="LABEL",
+        help=(
+            "Import missing emails for LABEL from the latest diff JSON and update "
+            "the working config."
+        ),
     )
     parser.add_argument(
         "--dev",
@@ -141,6 +152,33 @@ def main() -> None:
 
     if args.refresh:
         subprocess.run([sys.executable, "-m", "gmail_automation"], check=True)
+        if not args.report and not args.launch and not args.dev:
+            return
+
+    if args.import_missing:
+        cfg = load_config()
+        if not DIFF_JSON.exists() or not LABELS_JSON.exists():
+            raise FileNotFoundError(
+                "Missing diff or labels data. Run with --report diff first."
+            )
+        diff = read_json(DIFF_JSON)
+        labels_data = read_json(LABELS_JSON)
+        info = (diff.get("missing_emails_by_label") or {}).get(args.import_missing, {})
+        emails = info.get("missing_emails") or []
+        if not emails:
+            print(f"No missing emails found for {args.import_missing}.")
+        else:
+            updated, added = import_missing_emails(
+                cfg, labels_data, args.import_missing, emails
+            )
+            if added:
+                write_json(updated, CONFIG_JSON)
+                print(
+                    f"Imported {len(added)} emails into {args.import_missing} "
+                    "and updated config."
+                )
+            else:
+                print(f"No new emails imported for {args.import_missing}.")
         if not args.report and not args.launch and not args.dev:
             return
 
