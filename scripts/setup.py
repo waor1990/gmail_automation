@@ -13,6 +13,8 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import shutil
+import time
 import subprocess
 import sys
 from pathlib import Path
@@ -27,12 +29,48 @@ def run(cmd: list[str], dry_run: bool) -> None:
     subprocess.run(cmd, check=True)
 
 
+def _is_valid_venv(venv: Path) -> bool:
+    cfg = venv / "pyvenv.cfg"
+    py = venv_python(venv)
+    return cfg.exists() and py.exists()
+
+
+def _safe_rmtree(path: Path) -> None:
+    if not path.exists():
+        return
+
+    def _onerror(func, p, exc_info):  # pragma: no cover - best-effort cleanup
+        try:
+            os.chmod(p, 0o700)
+        except Exception:
+            pass
+        try:
+            func(p)
+        except Exception:
+            pass
+
+    shutil.rmtree(path, onerror=_onerror)
+
+
 def create_venv(venv: Path, dry_run: bool) -> None:
     if venv.exists():
-        LOGGER.info("virtual environment exists at %s", venv)
-        return
+        if _is_valid_venv(venv):
+            LOGGER.info("virtual environment exists at %s", venv)
+            return
+        LOGGER.warning("found invalid venv at %s; recreating", venv)
+        if not dry_run:
+            _safe_rmtree(venv)
     LOGGER.info("creating virtual environment at %s", venv)
-    run([sys.executable, "-m", "venv", str(venv)], dry_run)
+    try:
+        run([sys.executable, "-m", "venv", str(venv)], dry_run)
+    except subprocess.CalledProcessError as exc:
+        if os.name == "nt" and not dry_run:
+            LOGGER.warning("venv creation failed (%s); retrying after cleanup", exc)
+            _safe_rmtree(venv)
+            time.sleep(0.5)
+            run([sys.executable, "-m", "venv", str(venv)], dry_run)
+        else:
+            raise
 
 
 def venv_python(venv: Path) -> Path:

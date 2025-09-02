@@ -20,10 +20,10 @@ Shell and PowerShell shims forward to these modules for convenience.
 
 Windows convenience:
 
-- From any shell at the repo root, run `enter_env.bat`. It uses the `setup`
-  helper to create the virtual environment and install dependencies if
-  missing, then launches an appropriate shell with the environment activated
-  (PowerShell, cmd.exe, or Git Bash).
+- From any shell at the repo root, run `scripts\setup.cmd`. It creates or
+  updates the virtual environment and installs dependencies as needed, then
+  launches an appropriate shell with the environment activated (PowerShell,
+  cmd.exe, or Git Bash).
 
 Outdated package maintenance:
 

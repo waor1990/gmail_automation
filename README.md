@@ -27,7 +27,8 @@ python -m scripts.setup --install-hooks     # also install pre-commit hooks
 ```
 
 The same command works in Git Bash, PowerShell, or cmd.exe. On Windows,
-`enter_env.bat` wraps this setup step and opens an activated shell.
+`scripts\setup.cmd` wraps this setup step, prepares the virtual environment,
+and opens an activated shell.
 
 Activate the environment manually with:
 
@@ -41,7 +42,7 @@ source .venv/Scripts/activate     # Git Bash on Windows
 Windows convenience launcher:
 
 ```bat
-enter_env.bat             # sets up the venv and opens an activated shell
+scripts\setup.cmd         # creates/updates the venv and opens an activated shell
 ```
 
 You can skip activation by invoking the venv’s Python directly for one-off

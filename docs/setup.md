@@ -12,7 +12,7 @@ This document explains how to configure and run the Gmail Automation script.
    On Windows, run the convenience launcher at the repo root:
 
    ```bat
-   enter_env.bat             # sets up the venv and opens an activated shell
+   scripts\setup.cmd         # creates/updates the venv and opens an activated shell
    ```
 
    You can also run `python -m scripts.setup` to create a virtual
