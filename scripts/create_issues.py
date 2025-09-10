@@ -115,10 +115,35 @@ def create_issue(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Create GitHub issues from files")
-    parser.add_argument("--issues-dir", default="issues")
-    parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--log-level", default="INFO")
+    parser = argparse.ArgumentParser(
+        description=("Create GitHub issues from local .md/.txt files."),
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python3 scripts/create_issues.py --dry-run\n"
+            "  python3 scripts/create_issues.py --issues-dir my_issues\n"
+        ),
+    )
+    parser.add_argument(
+        "--issues-dir",
+        default=None,
+        metavar="ISSUES_DIR",
+        help=(
+            "Directory with issue files. Default: 'issues' if it exists,\n"
+            "otherwise the current directory."
+        ),
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=("Preview actions; do not create or move files."),
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
+        help=("Logging level (default: INFO)."),
+    )
     args = parser.parse_args(argv)
 
     logs_path = Path("logs")
@@ -135,7 +160,13 @@ def main(argv: list[str] | None = None) -> int:
         ],
     )
 
-    issues_path = Path(args.issues_dir)
+    # Determine issues directory: prefer explicit flag; otherwise use 'issues' if it
+    # exists, else fall back to the current directory (useful when running from
+    # within the issues/ folder).
+    if args.issues_dir is None:
+        issues_path = Path("issues") if Path("issues").is_dir() else Path.cwd()
+    else:
+        issues_path = Path(args.issues_dir)
     generated_path = issues_path / "generated"
     generated_path.mkdir(exist_ok=True)
 
