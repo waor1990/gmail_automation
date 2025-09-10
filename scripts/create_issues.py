@@ -95,7 +95,12 @@ def create_issue(
 ) -> str | None:
     cmd = ["gh", "issue", "create", "--title", title, "--body", body]
 
+    # Deduplicate labels while preserving order
+    labels_unique: list[str] = []
     for label in issue_meta["labels"]:
+        if label not in labels_unique:
+            labels_unique.append(label)
+    for label in labels_unique:
         cmd += ["--label", label]
 
     for assignee in issue_meta["assignees"]:
@@ -115,10 +120,35 @@ def create_issue(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Create GitHub issues from files")
-    parser.add_argument("--issues-dir", default="issues")
-    parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--log-level", default="INFO")
+    parser = argparse.ArgumentParser(
+        description=("Create GitHub issues from local .md/.txt files."),
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python3 scripts/create_issues.py --dry-run\n"
+            "  python3 scripts/create_issues.py --issues-dir my_issues\n"
+        ),
+    )
+    parser.add_argument(
+        "--issues-dir",
+        default=None,
+        metavar="ISSUES_DIR",
+        help=(
+            "Directory with issue files. Default: 'issues' if it exists,\n"
+            "otherwise the current directory."
+        ),
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=("Preview actions; do not create or move files."),
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
+        help=("Logging level (default: INFO)."),
+    )
     args = parser.parse_args(argv)
 
     logs_path = Path("logs")
@@ -135,7 +165,13 @@ def main(argv: list[str] | None = None) -> int:
         ],
     )
 
-    issues_path = Path(args.issues_dir)
+    # Determine issues directory: prefer explicit flag; otherwise use 'issues' if it
+    # exists, else fall back to the current directory (useful when running from
+    # within the issues/ folder).
+    if args.issues_dir is None:
+        issues_path = Path("issues") if Path("issues").is_dir() else Path.cwd()
+    else:
+        issues_path = Path(args.issues_dir)
     generated_path = issues_path / "generated"
     generated_path.mkdir(exist_ok=True)
 
@@ -148,6 +184,21 @@ def main(argv: list[str] | None = None) -> int:
             continue
 
         title, body, issue_meta = parse_issue_file(file)
+
+        if args.dry_run:
+            meta_bits = []
+            if issue_meta["labels"]:
+                meta_bits.append(f"labels={issue_meta['labels']}")
+            if issue_meta["assignees"]:
+                meta_bits.append(f"assignees={issue_meta['assignees']}")
+            if issue_meta["projects"]:
+                meta_bits.append(f"projects={issue_meta['projects']}")
+            if issue_meta["milestone"]:
+                meta_bits.append(f"milestone={issue_meta['milestone']}")
+            meta_str = f" ({', '.join(meta_bits)})" if meta_bits else ""
+            LOGGER.info(
+                "dry-run: would create issue '%s' from %s%s", title, file, meta_str
+            )
 
         if issue_exists(title, args.dry_run):
             LOGGER.info("skipping existing issue %s", title)
@@ -166,6 +217,11 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 file.rename(destination)
                 LOGGER.info("moved %s to %s", file, destination)
+
+        elif args.dry_run:
+            # Preview the move that would occur after successful creation
+            destination = generated_path / file.name
+            LOGGER.info("dry-run: would move %s to %s", file, destination)
 
     return 0
 

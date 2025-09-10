@@ -5,4 +5,4 @@ These changes are to be implemented in the Dash dashboard.
 - Add an alternative **Grouped Tree** visualization for the **Differences View**.
 
 **Priority**: Low
-**Labels**: dashboard, feature
+**Labels**: dashboard, enhancement, Low
