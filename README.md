@@ -191,6 +191,19 @@ python -m scripts.dashboard --report all
 
 # Refresh data, export the diff report, then launch the dashboard
 python -m scripts.dashboard --refresh --report diff --launch
+
+# Launch the dashboard on a different port/host
+python -m scripts.dashboard --port 8051                  # change port
+python -m scripts.dashboard --host 0.0.0.0 --port 8060   # bind all interfaces
+
+# Alternatively, use environment variables
+# Bash
+PORT=8052 python -m scripts.dashboard
+DASH_PORT=8053 python -m scripts.dashboard
+
+# PowerShell
+$env:PORT=8054; python -m scripts.dashboard
+$env:DASH_PORT=8055; python -m scripts.dashboard
 ```
 
 Use the optional `--refresh` flag to run the automation module before other

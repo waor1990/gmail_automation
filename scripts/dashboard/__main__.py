@@ -61,6 +61,24 @@ def parse_args() -> argparse.Namespace:
         ],
         help="Run development utility commands.",
     )
+    parser.add_argument(
+        "--host",
+        default=None,
+        help=(
+            "Host interface for the dashboard (default: 127.0.0.1; env: DASH_HOST/HOST)"
+        ),
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help=("Port for the dashboard (default: 8050; env: DASH_PORT/PORT)"),
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable Dash debug mode when launching the dashboard.",
+    )
     return parser.parse_args()
 
 
@@ -202,7 +220,7 @@ def main() -> None:
     if args.launch:
         from .app import main as launch_dashboard
 
-        launch_dashboard()
+        launch_dashboard(host=args.host, port=args.port, debug=args.debug)
 
 
 if __name__ == "__main__":  # pragma: no cover - entry point
