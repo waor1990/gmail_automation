@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
+    runs-on: windows-latest
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
@@ -21,10 +21,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Get pip cache dir
+        id: pip-cache
+        run: echo "dir=$(python -m pip cache dir)" >> "$GITHUB_OUTPUT"
+
       - name: Cache pip dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
+          path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
