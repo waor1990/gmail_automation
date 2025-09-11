@@ -1,4 +1,5 @@
 """Tests for dashboard group operations."""
+
 from scripts.dashboard.group_ops import merge_selected, split_selected
 
 
