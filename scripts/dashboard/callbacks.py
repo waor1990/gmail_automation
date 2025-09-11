@@ -1,5 +1,7 @@
 """Dash callback definitions for the dashboard."""
 
+from __future__ import annotations
+
 from dash import Input, Output, State, callback_context, ctx, dcc, html, no_update
 import re
 from typing import Any, Dict, List, Tuple
