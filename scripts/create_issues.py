@@ -4,14 +4,15 @@
 from __future__ import annotations
 from typing import TypedDict, Optional
 import argparse
-import logging
 import subprocess
 from pathlib import Path
 import json
 import shlex
 import re
 
-LOGGER = logging.getLogger(__name__)
+from gmail_automation.logging_utils import get_logger, setup_logging
+
+LOGGER = get_logger(__name__)
 EXCLUDED_FILES = {"AGENTS.md"}
 
 
@@ -156,14 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     log_file_path = logs_path / "create_issues.log"
 
     # Set up both console and file logging
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper(), logging.INFO),
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(log_file_path, encoding="utf-8"),
-            logging.StreamHandler(),
-        ],
-    )
+    setup_logging(level=args.log_level, log_file=log_file_path)
 
     # Determine issues directory: prefer explicit flag; otherwise use 'issues' if it
     # exists, else fall back to the current directory (useful when running from

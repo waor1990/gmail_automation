@@ -5,8 +5,9 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
-import logging
 import subprocess
+
+from gmail_automation.logging_utils import get_logger, setup_logging
 
 PATTERNS = [
     "client_secret_*.json",
@@ -17,7 +18,7 @@ PATTERNS = [
     "*.log",
 ]
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 def run_git(args: list[str]) -> list[str]:
@@ -37,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args(argv)
 
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
+    setup_logging(level=args.log_level)
     problems = False
 
     staged = run_git(["diff", "--cached", "--name-only"])

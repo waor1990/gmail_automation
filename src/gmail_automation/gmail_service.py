@@ -1,7 +1,6 @@
-import logging
+import os
 import random
 import time
-import os
 from typing import Any, Dict, Set, cast
 
 import httplib2
@@ -10,6 +9,7 @@ from googleapiclient.errors import HttpError
 from oauth2client import client, file, tools
 
 from .config import check_files_existence
+from .logging_utils import get_logger
 
 SCOPES = "https://mail.google.com/"
 APPLICATION_NAME = "Email Automation"
@@ -17,6 +17,8 @@ APPLICATION_NAME = "Email Automation"
 # Cache dictionaries
 message_details_cache: Dict[str, Dict[str, Any]] = {}
 processed_queries: Set[str] = set()
+
+logger = get_logger(__name__)
 
 
 def get_credentials():
@@ -32,7 +34,7 @@ def get_credentials():
     credentials = store.get()
 
     if not credentials or credentials.invalid:
-        logging.warning("No valid credentials, initiating OAuth flow.")
+        logger.warning("No valid credentials, initiating OAuth flow.")
         flow = client.flow_from_clientsecrets(client_secret, SCOPES)
         flow.user_agent = APPLICATION_NAME
         # Pass empty flags to avoid conflict with CLI argument parser
@@ -44,13 +46,16 @@ def get_credentials():
         flags.auth_host_port = [8080, 8090]
         flags.logging_level = "ERROR"
         credentials = tools.run_flow(flow, store, flags)
-        logging.info("New credentials obtained via OAuth flow.")
+        logger.info("New credentials obtained via OAuth flow.")
     else:
         try:
             credentials.refresh(httplib2.Http())
-            logging.info("Credentials successfully refreshed.")
+            logger.info("Credentials successfully refreshed.")
         except client.HttpAccessTokenRefreshError as e:
-            logging.error(f"Failed to refresh token: {e}. Re-initiating OAuth flow.")
+            logger.error(
+                f"Failed to refresh token: {e}. Re-initiating OAuth flow.",
+                exc_info=True,
+            )
             flow = client.flow_from_clientsecrets(client_secret, SCOPES)
             flow.user_agent = APPLICATION_NAME
             # Pass empty flags to avoid conflict with CLI argument parser
@@ -62,8 +67,8 @@ def get_credentials():
             flags.auth_host_port = [8080, 8090]
             flags.logging_level = "ERROR"
             credentials = tools.run_flow(flow, store, flags)
-            logging.info("New credentials obtained after refresh failure.")
-    logging.debug(f"Final Credentials Status: Invalid = {credentials.invalid}")
+            logger.info("New credentials obtained after refresh failure.")
+    logger.debug(f"Final Credentials Status: Invalid = {credentials.invalid}")
     return credentials
 
 
@@ -72,13 +77,13 @@ def build_service(credentials):
 
 
 def list_labels(service):
-    logging.debug("Listing labels.")
+    logger.debug("Listing labels.")
     try:
         results = service.users().labels().list(userId="me").execute()
         labels = results.get("labels", [])
         return {label["name"]: label["id"] for label in labels}
     except HttpError as error:
-        logging.error(f"An error occurred while listing labels: {error}")
+        logger.error(f"An error occurred while listing labels: {error}", exc_info=True)
         return {}
 
 
@@ -95,7 +100,7 @@ def execute_request_with_backoff(request, max_retries=5):
         except HttpError as error:
             if error.resp.status in [429, 403]:
                 wait_time = min((2**retry) + random.uniform(0, 1), 64)
-                logging.warning(
+                logger.warning(
                     "Rate limit exceeded. Retrying in %.2f seconds...",
                     wait_time,
                 )
@@ -103,12 +108,12 @@ def execute_request_with_backoff(request, max_retries=5):
             elif (
                 error.resp.status == 400 and error._get_reason() == "failedPrecondition"
             ):
-                logging.error(f"Precondition check failed: {error}")
+                logger.error(f"Precondition check failed: {error}", exc_info=True)
                 return None
             else:
-                logging.error(f"An error occurred: {error}")
+                logger.error(f"An error occurred: {error}", exc_info=True)
                 raise
-    logging.error("Max number of retries exceeded.")
+    logger.error("Max number of retries exceeded.")
     raise HttpError("Max retries exceeded", content="Max retries exceeded")
 
 
@@ -125,7 +130,7 @@ def batch_fetch_messages(service, user_id, msg_ids):
                 messages[msg_id] = message
                 message_details_cache[msg_id] = message
             except HttpError as error:
-                logging.error(f"Error during batch fetch: {error}")
+                logger.error(f"Error during batch fetch: {error}", exc_info=True)
     return messages
 
 
@@ -133,7 +138,7 @@ def fetch_emails_to_label(service, user_id, query):
     try:
         messages = []
         response = service.users().messages().list(userId=user_id, q=query).execute()
-        logging.debug(f"API Response: {response}")
+        logger.debug(f"API Response: {response}")
         if "messages" in response:
             messages.extend(response["messages"])
         while "nextPageToken" in response:
@@ -144,18 +149,18 @@ def fetch_emails_to_label(service, user_id, query):
                 .list(userId=user_id, q=query, pageToken=page_token)
                 .execute()
             )
-            logging.debug(f"API Response for next page: {response}")
+            logger.debug(f"API Response for next page: {response}")
             if "messages" in response:
                 messages.extend(response["messages"])
         return messages
     except HttpError as error:
-        logging.error(f"An error occurred while fetching emails: {error}")
+        logger.error(f"An error occurred while fetching emails: {error}", exc_info=True)
         return []
 
 
 def fetch_emails_to_label_optimized(service, user_id, query):
     if query in processed_queries:
-        logging.debug(f"Query already processed: {query}")
+        logger.debug(f"Query already processed: {query}")
         return []
     processed_queries.add(query)
     return fetch_emails_to_label(service, user_id, query)
@@ -175,7 +180,10 @@ def modify_message(service, user_id, msg_id, label_ids, remove_ids, mark_read):
             ).execute()
         return message
     except HttpError as error:
-        logging.error(f"An error occurred while modifying message {msg_id}: {error}")
+        logger.error(
+            f"An error occurred while modifying message {msg_id}: {error}",
+            exc_info=True,
+        )
         return None
 
 
@@ -204,7 +212,7 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
         root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
         output_file = os.path.join(root_dir, "config", "gmail_labels_data.json")
 
-    logging.info("Starting Gmail labels extraction...")
+    logger.info("Starting Gmail labels extraction...")
 
     try:
         # Get all user labels (excluding system labels)
@@ -219,7 +227,7 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
             and not label["name"].startswith(("CATEGORY_", "CHAT"))
         ]
 
-        logging.info(f"Found {len(user_labels)} user labels to process")
+        logger.info(f"Found {len(user_labels)} user labels to process")
 
         # Initialize the configuration structure
         config_data: Dict[str, Dict[str, list[dict[str, Any]]]] = {
@@ -229,7 +237,7 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
         # Process labels in batches
         for i in range(0, len(user_labels), batch_size):
             batch = user_labels[i : i + batch_size]
-            logging.info(
+            logger.info(
                 "Processing batch %s/%s",
                 i // batch_size + 1,
                 (len(user_labels) + batch_size - 1) // batch_size,
@@ -239,7 +247,7 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
                 label_name = label["name"]
                 label_id = label["id"]
 
-                logging.info(f"Processing label: {label_name}")
+                logger.info(f"Processing label: {label_name}")
 
                 # Get all threads with this label
                 threads_result = (
@@ -298,13 +306,13 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
                             ),  # Sort for consistency
                         }
                     ]
-                    logging.info(
+                    logger.info(
                         "Label '%s': found %s unique email addresses",
                         label_name,
                         len(email_addresses),
                     )
                 else:
-                    logging.info(f"Label '{label_name}': no emails found")
+                    logger.info(f"Label '{label_name}': no emails found")
 
             # Add a small delay between batches to be nice to the API
             if i + batch_size < len(user_labels):
@@ -315,16 +323,18 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
 
-        logging.info(f"Configuration saved to: {output_file}")
-        logging.info(
-            f"Total labels with emails: {len(config_data['SENDER_TO_LABELS'])}"
-        )
+        logger.info(f"Configuration saved to: {output_file}")
+        logger.info(f"Total labels with emails: {len(config_data['SENDER_TO_LABELS'])}")
 
         return config_data
 
     except HttpError as error:
-        logging.error(f"An error occurred while extracting labels: {error}")
+        logger.error(
+            f"An error occurred while extracting labels: {error}", exc_info=True
+        )
         return None
     except Exception as error:
-        logging.error(f"Unexpected error during label extraction: {error}")
+        logger.error(
+            f"Unexpected error during label extraction: {error}", exc_info=True
+        )
         return None

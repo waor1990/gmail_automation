@@ -21,12 +21,13 @@ Example:
 import sys
 import os
 import argparse
-import logging
 import json
 import re
 import time
 import random
 from typing import Any
+
+from gmail_automation.logging_utils import get_logger, setup_logging
 
 # Import required modules
 from gmail_automation.gmail_service import get_credentials, build_service
@@ -43,15 +44,7 @@ root_dir = os.path.dirname(script_dir)
 src_dir = os.path.join(root_dir, "src")
 sys.path.insert(0, src_dir)
 
-
-def setup_logging(verbose=False):
-    """Setup logging for the extraction script."""
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
+LOGGER = get_logger(__name__)
 
 
 def retry_api_call(func, max_retries=3, base_delay=2):
@@ -78,7 +71,7 @@ def retry_api_call(func, max_retries=3, base_delay=2):
             if error.resp.status in [500, 502, 503, 504]:
                 delay = base_delay * (2**attempt) + random.uniform(0, 1)
                 delay_str = "{:.1f}".format(delay)
-                logging.warning(
+                LOGGER.warning(
                     f"API error {error.resp.status}"
                     f" (attempt {attempt + 1}/{max_retries + 1})."
                     f" Retrying in {delay_str} seconds..."
@@ -112,11 +105,11 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
     if output_file is None:
         output_file = os.path.join(root_dir, "config", "gmail_labels_data.json")
 
-    logging.info("Starting Gmail labels extraction...")
+    LOGGER.info("Starting Gmail labels extraction...")
 
     try:
         # Get all user labels (excluding system labels)
-        logging.info("Fetching Gmail labels...")
+        LOGGER.info("Fetching Gmail labels...")
         labels_result = retry_api_call(
             lambda: service.users().labels().list(userId=user_id).execute()
         )
@@ -130,7 +123,7 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
             and not label["name"].startswith(("CATEGORY_", "CHAT"))
         ]
 
-        logging.info(f"Found {len(user_labels)} user labels to process")
+        LOGGER.info(f"Found {len(user_labels)} user labels to process")
 
         # Initialize the configuration structure
         config_data: dict[str, dict[str, list[dict[str, Any]]]] = {
@@ -140,7 +133,7 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
         # Process labels in batches
         for i in range(0, len(user_labels), batch_size):
             batch = user_labels[i : i + batch_size]
-            logging.info(
+            LOGGER.info(
                 f"Processing batch {i//batch_size + 1}/"
                 f"{(len(user_labels) + batch_size - 1)//batch_size}"
             )
@@ -149,7 +142,7 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
                 label_name = label["name"]
                 label_id = label["id"]
 
-                logging.info(f"Processing label: {label_name}")
+                LOGGER.info(f"Processing label: {label_name}")
 
                 try:
                     # Get all threads with this label (with retry logic)
@@ -206,7 +199,7 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
                                             email_addresses.add(email_address)
                                         break
                         except HttpError as thread_error:
-                            logging.warning(
+                            LOGGER.warning(
                                 f"Skipping thread {thread['id']} due to error: "
                                 f"{thread_error}"
                             )
@@ -223,22 +216,22 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
                                 ),  # Sort for consistency
                             }
                         ]
-                        logging.info(
+                        LOGGER.info(
                             f"Label '{label_name}': {len(email_addresses)} unique "
                             "emails"
                         )
                     else:
-                        logging.info(f"Label '{label_name}': no emails found")
+                        LOGGER.info(f"Label '{label_name}': no emails found")
 
                 except HttpError as label_error:
-                    logging.warning(
+                    LOGGER.warning(
                         f"Skipping label '{label_name}' due to error: {label_error}"
                     )
                     continue
 
             # Add a small delay between batches to be nice to the API
             if i + batch_size < len(user_labels):
-                logging.debug("Waiting between batches...")
+                LOGGER.debug("Waiting between batches...")
                 time.sleep(2)  # Increased delay for better API compliance
 
         # Save the configuration to file
@@ -246,18 +239,20 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
 
-        logging.info(f"Configuration saved to: {output_file}")
-        logging.info(
-            f"Total labels with emails: {len(config_data['SENDER_TO_LABELS'])}"
-        )
+        LOGGER.info(f"Configuration saved to: {output_file}")
+        LOGGER.info(f"Total labels with emails: {len(config_data['SENDER_TO_LABELS'])}")
 
         return config_data
 
     except HttpError as error:
-        logging.error(f"An error occurred while extracting labels: {error}")
+        LOGGER.error(
+            f"An error occurred while extracting labels: {error}", exc_info=True
+        )
         return None
     except Exception as error:
-        logging.error(f"Unexpected error during label extraction: {error}")
+        LOGGER.error(
+            f"Unexpected error during label extraction: {error}", exc_info=True
+        )
         return None
 
 
@@ -292,17 +287,17 @@ def main():
     args = parser.parse_args()
 
     # Setup logging
-    setup_logging(verbose=args.verbose)
+    setup_logging(level="DEBUG" if args.verbose else "INFO")
 
-    logging.info("Gmail Labels Extraction Script")
-    logging.info("=" * 40)
+    LOGGER.info("Gmail Labels Extraction Script")
+    LOGGER.info("=" * 40)
 
     try:
         # Check that required files exist
         check_files_existence()
 
         # Get credentials and build service
-        logging.info("Authenticating with Gmail API...")
+        LOGGER.info("Authenticating with Gmail API...")
         credentials = get_credentials()
         service = build_service(credentials)
 
@@ -315,27 +310,27 @@ def main():
         )
 
         if result:
-            logging.info("=" * 40)
-            logging.info("Label extraction completed successfully!")
+            LOGGER.info("=" * 40)
+            LOGGER.info("Label extraction completed successfully!")
             total_labels = len(result.get("SENDER_TO_LABELS", {}))
-            logging.info(
+            LOGGER.info(
                 f"Extracted {total_labels} labels with associated email addresses."
             )
 
             output_path = args.output or os.path.join(
                 root_dir, "config", "gmail_labels_data.json"
             )
-            logging.info(f"Configuration saved to: {output_path}")
-            logging.info(
+            LOGGER.info(f"Configuration saved to: {output_path}")
+            LOGGER.info(
                 "\nYou can now use this configuration file with your Gmail automation."
             )
             return 0
         else:
-            logging.error("Label extraction failed.")
+            LOGGER.error("Label extraction failed.")
             return 1
 
     except Exception as error:
-        logging.error(f"Script failed: {error}")
+        LOGGER.error(f"Script failed: {error}", exc_info=True)
         return 1
 
 

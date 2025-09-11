@@ -1,11 +1,14 @@
 import json
-import logging
 import os
 from datetime import datetime, timezone
 from typing import Dict, Iterable
 
 from zoneinfo import ZoneInfo
 from dateutil import parser
+
+from .logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 def validate_and_normalize_config(config):
@@ -25,7 +28,7 @@ def validate_and_normalize_config(config):
                 try:
                     rule["delete_after_days"] = int(rule["delete_after_days"])
                 except (ValueError, TypeError):
-                    logging.warning(f"Invalid delete_after_days for {category}: {rule}")
+                    logger.warning(f"Invalid delete_after_days for {category}: {rule}")
                     rule["delete_after_days"] = float("inf")
     return config
 
@@ -36,22 +39,22 @@ def load_configuration(config_path: str | None = None):
     if config_path is None:
         config_path = f"{root_dir}/config/gmail_config-final.json"
     config_path = os.path.abspath(config_path)
-    logging.debug(f"Attempting to load configuration from: {config_path}")
+    logger.info(f"Loading configuration from: {config_path}")
     if not os.path.exists(config_path):
-        logging.error(f"Configuration file: '{config_path}' does not exist.")
+        logger.error(f"Configuration file: '{config_path}' does not exist.")
         return {}
     with open(config_path, encoding="utf-8") as f:
         config = json.load(f)
     required_keys = ["SENDER_TO_LABELS"]
     missing = [key for key in required_keys if key not in config]
     if missing:
-        logging.error(
+        logger.error(
             "Missing required configuration keys: %s in %s",
             ", ".join(missing),
             config_path,
         )
         return {}
-    logging.debug("Configuration loaded successfully.")
+    logger.debug("Configuration loaded successfully.")
     return validate_and_normalize_config(config)
 
 
@@ -81,16 +84,16 @@ def check_files_existence(client_secret_file: str | None = None):
     last_run = os.path.join(data_dir, "last_run.txt")
 
     if not os.path.exists(client_secret_file):
-        logging.error(f"Client secret file: '{client_secret_file}' does not exist.")
+        logger.error(f"Client secret file: '{client_secret_file}' does not exist.")
     else:
-        logging.debug(f"Found client secret file: '{client_secret_file}'.")
+        logger.debug(f"Found client secret file: '{client_secret_file}'.")
 
     if not os.path.exists(last_run):
-        logging.debug(
+        logger.debug(
             f"Last run file: '{last_run}' does not exist. Will use default time."
         )
     else:
-        logging.debug(f"Found last run file: '{last_run}'.")
+        logger.debug(f"Found last run file: '{last_run}'.")
     return client_secret_file, last_run
 
 
@@ -112,7 +115,10 @@ def unix_to_readable(unix_timestamp: float) -> str:
         )
         return dt.strftime("%m/%d/%Y, %I:%M %p %Z")
     except (ValueError, TypeError, OSError) as e:
-        logging.error(f"Error converting timestamp {unix_timestamp}: {e}")
+        logger.error(
+            f"Error converting timestamp {unix_timestamp}: {e}",
+            exc_info=True,
+        )
         return "Invalid timestamp"
 
 
@@ -128,7 +134,7 @@ def get_last_run_time():
     last_run_file = os.path.join(data_dir, "last_run.txt")
 
     if not os.path.exists(last_run_file):
-        logging.info(
+        logger.info(
             "No last run file found. Using default last run time: %s",
             unix_to_readable(DEFAULT_LAST_RUN_TIME),
         )
@@ -141,11 +147,12 @@ def get_last_run_time():
                 last_run_timestamp = float(last_run_time_str)
             except ValueError:
                 last_run_timestamp = parser.isoparse(last_run_time_str).timestamp()
-            logging.info(f"Got last run time: {unix_to_readable(last_run_timestamp)}")
+            logger.info(f"Got last run time: {unix_to_readable(last_run_timestamp)}")
             return last_run_timestamp
     except (ValueError, TypeError) as e:
-        logging.error(
-            f"Error parsing last run time: {e}. Using default last run time instead."
+        logger.error(
+            f"Error parsing last run time: {e}. Using default last run time instead.",
+            exc_info=True,
         )
         return DEFAULT_LAST_RUN_TIME
 
@@ -158,7 +165,7 @@ def update_last_run_time(current_time):
     last_run_file = os.path.join(data_dir, "last_run.txt")
     with open(last_run_file, "w", encoding="utf-8") as f:
         f.write(str(current_time))
-    logging.debug(f"Updated last run time: {unix_to_readable(current_time)}")
+    logger.debug(f"Updated last run time: {unix_to_readable(current_time)}")
 
 
 def get_sender_last_run_times(senders: Iterable[str]) -> Dict[str, float]:

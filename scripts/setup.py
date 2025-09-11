@@ -11,7 +11,6 @@ Enhancements:
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 import shutil
 import time
@@ -19,7 +18,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-LOGGER = logging.getLogger(__name__)
+from gmail_automation.logging_utils import get_logger, setup_logging
+
+LOGGER = get_logger(__name__)
 
 
 def run(cmd: list[str], dry_run: bool) -> None:
@@ -135,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args(argv)
 
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
+    setup_logging(level=args.log_level)
     venv = Path(args.venv)
     create_venv(venv, args.dry_run)
     if not args.check:

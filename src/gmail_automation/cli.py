@@ -1,9 +1,7 @@
 import argparse
-import logging
 import os
-import sys
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
+from pathlib import Path
 from typing import Dict, Optional, Set, Tuple
 
 from dateutil import parser
@@ -29,6 +27,7 @@ from .gmail_service import (
     fetch_emails_to_label_optimized,
     modify_message,
 )
+from .logging_utils import get_logger, setup_logging
 
 message_details_cache: Dict[
     str, Tuple[Optional[str], Optional[str], Optional[str], Optional[bool]]
@@ -48,99 +47,7 @@ TZINFOS: dict[str, ZoneInfo] = {
 }
 
 
-def setup_logging(verbose: bool = False, log_level: str = "INFO"):
-    logging.debug("Setting up logging")
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    root_dir = os.path.abspath(os.path.join(script_dir, os.pardir, os.pardir))
-
-    logs_dir = os.path.join(root_dir, "logs")
-    os.makedirs(logs_dir, exist_ok=True)
-    info_log_file_path = os.path.join(logs_dir, "gmail_automation_info.log")
-    remove_old_logs(info_log_file_path)
-    debug_log_file_path = os.path.join(logs_dir, "gmail_automation_debug.log")
-    remove_old_logs_debug(debug_log_file_path)
-
-    info_file_handler = logging.FileHandler(info_log_file_path, encoding="utf-8")
-    info_file_handler.setLevel(logging.INFO)
-    info_file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    pacific = ZoneInfo("America/Los_Angeles")
-
-    def _to_pacific(ts: float | None) -> time.struct_time:
-        return datetime.fromtimestamp(ts or 0.0, pacific).timetuple()
-
-    info_file_formatter.converter = _to_pacific
-    info_file_handler.setFormatter(info_file_formatter)
-
-    debug_file_handler = logging.FileHandler(debug_log_file_path, encoding="utf-8")
-    debug_file_handler.setLevel(logging.DEBUG)
-    debug_file_formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s",
-    )
-    debug_file_formatter.converter = _to_pacific
-    debug_file_handler.setFormatter(debug_file_formatter)
-
-    # Determine console logging level: verbose flag overrides log_level
-    if verbose:
-        console_level = logging.DEBUG
-    else:
-        console_level = getattr(logging, log_level.upper(), logging.INFO)
-
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(console_level)
-    stream_formatter = logging.Formatter("%(message)s")
-    stream_handler.setFormatter(stream_formatter)
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-
-    if logger.hasHandlers():
-        logger.handlers.clear()
-
-    logger.addHandler(info_file_handler)
-    logger.addHandler(debug_file_handler)
-    logger.addHandler(stream_handler)
-
-    logging.debug("Logging setup completed")
-
-
-def remove_old_logs(log_file_path):
-    if not os.path.exists(log_file_path):
-        return
-
-    cutoff_date = datetime.now(ZoneInfo("UTC")) - timedelta(days=60)
-    with open(log_file_path, "r", encoding="utf-8") as file:
-        lines = file.readlines()
-    with open(log_file_path, "w", encoding="utf-8") as file:
-        for line in lines:
-            try:
-                log_date_str = line.split(" - ")[0]
-                log_date = parser.parse(log_date_str, tzinfos=TZINFOS)
-                if log_date.tzinfo is None:
-                    log_date = log_date.replace(tzinfo=ZoneInfo("UTC"))
-                if log_date >= cutoff_date:
-                    file.write(line)
-            except (ValueError, IndexError):
-                file.write(line)
-
-
-def remove_old_logs_debug(log_file_path):
-    if not os.path.exists(log_file_path):
-        return
-
-    cutoff_date = datetime.now(ZoneInfo("UTC")) - timedelta(days=7)
-    with open(log_file_path, "r", encoding="utf-8") as file:
-        lines = file.readlines()
-    with open(log_file_path, "w", encoding="utf-8") as file:
-        for line in lines:
-            try:
-                log_date_str = line.split(" - ")[0]
-                log_date = parser.parse(log_date_str, tzinfos=TZINFOS)
-                if log_date.tzinfo is None:
-                    log_date = log_date.replace(tzinfo=ZoneInfo("UTC"))
-                if log_date >= cutoff_date:
-                    file.write(line)
-            except (ValueError, IndexError):
-                file.write(line)
+logger = get_logger(__name__)
 
 
 def parse_args(argv=None):
@@ -169,6 +76,11 @@ def parse_args(argv=None):
         help="Set the logging level (default: INFO)",
     )
     parser.add_argument(
+        "--log-file",
+        default=None,
+        help="Optional path to a log file",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"gmail_automation {__version__}",
@@ -193,7 +105,10 @@ def parse_email_date(date_str: str) -> Optional[datetime]:
             parsed_date = parsed_date.replace(tzinfo=ZoneInfo("America/Los_Angeles"))
         return parsed_date.astimezone(ZoneInfo("America/Los_Angeles"))
     except Exception as e:
-        logging.error(f"Error parsing date string '{date_str}': {e}")
+        logger.error(
+            f"Error parsing date string '{date_str}': {e}",
+            exc_info=True,
+        )
         return None
 
 
@@ -228,7 +143,7 @@ def get_message_details(service, user_id, msg_id):
             or "payload" not in message
             or "headers" not in message["payload"]
         ):
-            logging.error(f"Invalid message structure for ID {msg_id}: {message}")
+            logger.error(f"Invalid message structure for ID {msg_id}: {message}")
             return None, None, None, None
         headers = message["payload"]["headers"]
         subject = parse_header(headers, "subject")
@@ -238,12 +153,12 @@ def get_message_details(service, user_id, msg_id):
         details = {"subject": subject, "date": date_str, "sender": sender}
         validation = validate_details(details, ["subject", "date", "sender"])
         if validation["missing_details"]:
-            logging.error(
+            logger.error(
                 "Missing details for message ID %s: %s",
                 msg_id,
                 validation["missing_details"],
             )
-            logging.info(
+            logger.info(
                 "Available details for message ID %s: %s",
                 msg_id,
                 validation["available_details"],
@@ -253,7 +168,10 @@ def get_message_details(service, user_id, msg_id):
         formatted_date = date.strftime("%m/%d/%Y, %I:%M %p %Z") if date else None
         return subject, formatted_date, sender, is_unread
     except Exception as e:
-        logging.error(f"Error getting message details for ID {msg_id}: {e}")
+        logger.error(
+            f"Error getting message details for ID {msg_id}: {e}",
+            exc_info=True,
+        )
         return None, None, None, None
 
 
@@ -262,12 +180,12 @@ def get_message_details_cached(service, user_id, msg_id):
         cached = message_details_cache.get(msg_id)
         if isinstance(cached, tuple) and len(cached) == 4:
             return cached
-        logging.warning(f"Invalid cache format for message ID {msg_id}: {cached}")
+        logger.warning(f"Invalid cache format for message ID {msg_id}: {cached}")
     subject, date, sender, is_unread = get_message_details(service, user_id, msg_id)
     if subject is not None and date is not None and sender is not None:
         message_details_cache[msg_id] = (subject, date, sender, is_unread)
         return subject, date, sender, is_unread
-    logging.error(
+    logger.error(
         (
             "Caching incomplete details for message ID %s: "
             "(subject=%s, date=%s, sender=%s)"
@@ -316,22 +234,22 @@ def process_email(
         service, user_id, msg_id
     )
     if not subject or not date or not sender:
-        logging.debug(f"Missing details for message ID: {msg_id}. Skipping")
+        logger.debug(f"Missing details for message ID: {msg_id}. Skipping")
         return False
 
     if msg_id in current_run_processed_ids:
-        logging.debug(f"Email ID {msg_id} already processed in this run. Skipping.")
+        logger.debug(f"Email ID {msg_id} already processed in this run. Skipping.")
         return False
 
     if delete_after_days is not None:
-        logging.debug(f"Attempting to parse date: '{date}' for message ID: {msg_id}")
+        logger.debug(f"Attempting to parse date: '{date}' for message ID: {msg_id}")
         try:
             email_date = parse_email_date(date)
             if email_date is not None:
                 current_time = datetime.now(ZoneInfo("America/Los_Angeles"))
                 days_diff = (current_time - email_date).days
                 if days_diff >= delete_after_days:
-                    logging.info(
+                    logger.info(
                         (
                             "Deleting email from '%s' with subject '%s' dated '%s' "
                             "as it is older than %s days."
@@ -342,16 +260,16 @@ def process_email(
                         delete_after_days,
                     )
                     if dry_run:
-                        logging.info("Dry run enabled; email not deleted.")
+                        logger.info("Dry run enabled; email not deleted.")
                     else:
                         try:
                             service.users().messages().delete(
                                 userId=user_id, id=msg_id
                             ).execute()
-                            logging.info(f"Email deleted successfully: {msg_id}")
+                            logger.info(f"Email deleted successfully: {msg_id}")
                         except HttpError as delete_error:
                             if delete_error.resp.status == 403:
-                                logging.warning(
+                                logger.warning(
                                     (
                                         "Insufficient permissions to delete email %s. "
                                         "Email was labeled but not deleted. "
@@ -361,12 +279,13 @@ def process_email(
                                     msg_id,
                                 )
                             else:
-                                logging.error(
-                                    f"Failed to delete email {msg_id}: {delete_error}"
+                                logger.error(
+                                    f"Failed to delete email {msg_id}: {delete_error}",
+                                    exc_info=True,
                                 )
                     return True
                 else:
-                    logging.debug(
+                    logger.debug(
                         (
                             "Email from '%s' is only %s days old, not deleting "
                             "(threshold: %s days)"
@@ -376,7 +295,10 @@ def process_email(
                         delete_after_days,
                     )
         except Exception as e:
-            logging.error(f"Error parsing date for message ID {msg_id}: {e}")
+            logger.error(
+                f"Error parsing date for message ID {msg_id}: {e}",
+                exc_info=True,
+            )
             return False
 
     current_labels = (
@@ -390,7 +312,7 @@ def process_email(
     label_id_to_add = existing_labels.get(label)
     if label_id_to_add not in current_labels:
         if dry_run:
-            logging.info(
+            logger.info(
                 "Dry run: would modify email from '%s' with label '%s'",
                 sender,
                 label,
@@ -400,7 +322,7 @@ def process_email(
                 service, user_id, msg_id, [label_id_to_add], ["INBOX"], mark_read
             )
             processed_email_ids.add(msg_id)
-            logging.info(
+            logger.info(
                 (
                     "Email from '%s' dated '%s' with subject '%s' was modified "
                     "with label '%s', marked as read: '%s' "
@@ -438,7 +360,7 @@ def process_emails_by_criteria(
     any_emails_processed = False
 
     if not messages:
-        logging.info(
+        logger.info(
             "No emails found for %s: '%s' for label: '%s'.",
             criterion_type,
             criterion_value,
@@ -452,7 +374,7 @@ def process_emails_by_criteria(
     for msg_id in msg_ids:
         message_data = batched_messages.get(msg_id)
         if not message_data:
-            logging.error(
+            logger.error(
                 "Message ID %s was not located in batch fetch.",
                 msg_id,
             )
@@ -462,11 +384,11 @@ def process_emails_by_criteria(
             service, user_id, msg_id
         )
         if not subject or not date or not sender:
-            logging.debug(f"Missing details for message ID: {msg_id}. Skipping.")
+            logger.debug(f"Missing details for message ID: {msg_id}. Skipping.")
             skipped_emails_count += 1
             continue
         if msg_id in processed_email_ids or msg_id in current_run_processed_ids:
-            logging.debug(f"Skipping already processed email ID: {msg_id}")
+            logger.debug(f"Skipping already processed email ID: {msg_id}")
             skipped_emails_count += 1
             continue
         if process_email(
@@ -492,7 +414,7 @@ def process_emails_by_criteria(
         else:
             skipped_emails_count += 1
 
-    logging.debug(
+    logger.debug(
         "Processed %s emails and skipped %s emails for %s: '%s' with label '%s'.",
         modified_emails_count,
         skipped_emails_count,
@@ -537,10 +459,10 @@ def process_emails_for_labeling(
 
     any_emails_processed = False
 
-    logging.info("Processing sender categories:")
+    logger.info("Processing sender categories:")
     for sender_category, sender_info in config.get("SENDER_TO_LABELS", {}).items():
         if sender_category not in existing_labels:
-            logging.warning(
+            logger.warning(
                 (
                     f"The label '{sender_category}' does not exist. Existing labels: "
                     f"{list(existing_labels.keys())}"
@@ -583,19 +505,21 @@ def process_emails_for_labeling(
 def main(argv=None):
     args = parse_args(argv)
     try:
-        setup_logging(verbose=args.verbose, log_level=args.log_level)
-        logging.info("-" * 72)
-        logging.debug("Script started")
-        logging.info("Starting Gmail_Automation.")
+        level = "DEBUG" if args.verbose else args.log_level
+        log_file = Path(args.log_file) if args.log_file else None
+        setup_logging(level=level, log_file=log_file)
+        logger.info("-" * 72)
+        logger.debug("Script started")
+        logger.info("Starting Gmail_Automation.")
 
         config = load_configuration(args.config)
         check_files_existence()
         if not config:
-            logging.error("Configuration could not be loaded. Exiting.")
+            logger.error("Configuration could not be loaded. Exiting.")
             return
 
         current_time = datetime.now(ZoneInfo("America/Los_Angeles")).timestamp()
-        logging.info(f"Current Time: {unix_to_readable(current_time)}")
+        logger.info(f"Current Time: {unix_to_readable(current_time)}")
 
         credentials = get_credentials()
         service = build_service(credentials)
@@ -628,16 +552,16 @@ def main(argv=None):
 
         if emails_processed and not args.dry_run:
             update_last_run_time(current_time)
-            logging.info(f"Last run time updated: {unix_to_readable(current_time)}")
+            logger.info(f"Last run time updated: {unix_to_readable(current_time)}")
         elif emails_processed:
-            logging.info("Dry run enabled; last run time not updated.")
+            logger.info("Dry run enabled; last run time not updated.")
         else:
-            logging.info("No emails processed, skipping last run time update.")
+            logger.info("No emails processed, skipping last run time update.")
 
-        logging.info("Script completed")
+        logger.info("Script completed")
 
     except HttpError as error:
-        logging.error(f"An error occured: {error}", exc_info=True)
+        logger.error(f"An error occured: {error}", exc_info=True)
 
 
 if __name__ == "__main__":

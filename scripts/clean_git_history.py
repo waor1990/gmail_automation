@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import subprocess
+
+from gmail_automation.logging_utils import get_logger, setup_logging
 
 PATTERNS = [
     "client_secret_*.json",
@@ -23,7 +24,7 @@ PATTERNS = [
     "data/processed_email_ids.txt",
 ]
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 def run(cmd: list[str], dry_run: bool) -> None:
@@ -40,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args(argv)
 
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
+    setup_logging(level=args.log_level)
     if not args.dry_run and not args.yes:
         parser.error("Refusing to run without --yes (use --dry-run to preview)")
 

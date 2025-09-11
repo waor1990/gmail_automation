@@ -15,7 +15,6 @@ Use the project virtual environment for all actions when possible.
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 import subprocess
 from pathlib import Path
@@ -23,7 +22,9 @@ import json
 import sys
 from typing import Any, cast
 
-LOGGER = logging.getLogger(__name__)
+from gmail_automation.logging_utils import get_logger, setup_logging
+
+LOGGER = get_logger(__name__)
 
 
 def run(cmd: list[str], dry_run: bool) -> None:
@@ -180,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     args = parser.parse_args(argv)
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
+    setup_logging(level=args.log_level)
 
     venv = Path(args.venv)
     python = venv_python(venv)

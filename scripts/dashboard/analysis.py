@@ -1,19 +1,27 @@
 """Static and semantic analysis utilities for dashboard data."""
 
 from typing import Any, Dict, List, Tuple, Set
+
 from gmail_automation.config import (
     DEFAULT_LAST_RUN_TIME,
     get_sender_last_run_times,
 )
+from gmail_automation.logging_utils import get_logger
 
 from .utils_io import read_json
 from .constants import CONFIG_JSON
 
+logger = get_logger(__name__)
+
 
 def load_config() -> Dict[str, Any]:
+    logger.info("Loading dashboard configuration from %s", CONFIG_JSON)
     if not CONFIG_JSON.exists():
         raise FileNotFoundError("Missing config/gmail_config-final.json")
     data: Dict[str, Any] = read_json(CONFIG_JSON)
+    logger.debug(
+        "Configuration contains %s labels", len(data.get("SENDER_TO_LABELS", {}))
+    )
     data.setdefault("SENDER_TO_LABELS", {})
     data.setdefault("IGNORED_EMAILS", [])
     return data
@@ -56,6 +64,7 @@ def find_unprocessed_senders(cfg: dict) -> List[dict]:
                     "status": "🔴",
                 }
             )
+    logger.info("Found %s unprocessed senders", len(pending))
     return sorted(pending, key=lambda r: r["email"])
 
 

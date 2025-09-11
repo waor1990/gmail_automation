@@ -4,12 +4,13 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import shutil
 import subprocess
 from pathlib import Path
 
-LOGGER = logging.getLogger(__name__)
+from gmail_automation.logging_utils import get_logger, setup_logging
+
+LOGGER = get_logger(__name__)
 
 
 def run(cmd: list[str], dry_run: bool) -> None:
@@ -27,7 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args(argv)
 
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
+    setup_logging(level=args.log_level)
     issues_dir = Path(args.issues_dir)
     solved_dir = issues_dir / "solved"
     solved_dir.mkdir(exist_ok=True)

@@ -133,7 +133,7 @@ class TestIntegration(unittest.TestCase):
 
                                 self.assertEqual(result, config_data)
 
-    @patch("gmail_automation.cli.logging")
+    @patch("gmail_automation.cli.logger")
     def test_error_handling_integration(self, mock_logging):
         """Test that the system handles errors gracefully"""
         # Test with invalid configuration

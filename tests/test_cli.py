@@ -4,16 +4,13 @@ Unit tests for the CLI module
 
 import unittest
 import warnings
-from unittest.mock import patch, Mock, MagicMock
-from datetime import datetime
+from unittest.mock import patch, MagicMock
 from zoneinfo import ZoneInfo
 from dateutil.parser import UnknownTimezoneWarning
 from gmail_automation.cli import (
     parse_email_date,
     parse_header,
     validate_details,
-    setup_logging,
-    remove_old_logs,
     load_processed_email_ids,
     save_processed_email_ids,
     process_email,
@@ -167,57 +164,6 @@ class TestCLI(unittest.TestCase):
             # Verify that write was called for each ID
             self.assertEqual(mock_write.call_count, len(test_ids))
 
-    @patch("gmail_automation.cli.os.makedirs")
-    @patch("logging.FileHandler")
-    @patch("logging.StreamHandler")
-    @patch("logging.getLogger")
-    def test_setup_logging(
-        self, mock_get_logger, mock_stream_handler, mock_file_handler, mock_makedirs
-    ):
-        """Test logging setup"""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
-        mock_logger.hasHandlers.return_value = False
-
-        setup_logging()
-
-        # Verify that logging directory is created
-        mock_makedirs.assert_called()
-
-        # Verify that handlers are added to logger
-        self.assertEqual(mock_logger.addHandler.call_count, 3)  # info, debug, stream
-
-    @patch("gmail_automation.cli.os.path.exists")
-    @patch("builtins.open", create=True)
-    @patch("gmail_automation.cli.parser.parse")
-    @patch("gmail_automation.cli.datetime")
-    def test_remove_old_logs(self, mock_datetime, mock_parse, mock_open, mock_exists):
-        """Test removal of old log entries"""
-        mock_exists.return_value = True
-        mock_now = datetime(2023, 12, 1, tzinfo=ZoneInfo("UTC"))
-        mock_datetime.now.return_value = mock_now
-
-        # Mock log content with one old entry and one recent entry
-        old_date = datetime(2023, 9, 1, tzinfo=ZoneInfo("UTC"))
-        recent_date = datetime(2023, 11, 15, tzinfo=ZoneInfo("UTC"))
-
-        log_lines = [
-            f"{old_date.isoformat()} - INFO - Old log entry\n",
-            f"{recent_date.isoformat()} - INFO - Recent log entry\n",
-        ]
-
-        mock_parse.side_effect = [old_date, recent_date]
-
-        mock_file = mock_open.return_value.__enter__.return_value
-        mock_file.readlines.return_value = log_lines
-
-        remove_old_logs("test_log.log")
-
-        # Verify that only the recent entry is written back
-        write_calls = [call[0][0] for call in mock_file.write.call_args_list]
-        self.assertNotIn(log_lines[0], write_calls)
-        self.assertIn(log_lines[1], write_calls)
-
 
 class TestProcessEmail(unittest.TestCase):
     """Tests for the process_email function"""
@@ -238,7 +184,7 @@ class TestProcessEmail(unittest.TestCase):
             False,
         )
 
-        with patch("logging.info") as mock_logging_info:
+        with patch("gmail_automation.cli.logger.info") as mock_logging_info:
             result = process_email(
                 service,
                 "me",
