@@ -3,25 +3,32 @@
 This document explains how to configure and run the Gmail Automation script.
 
 1. Install Python 3.10 or newer.
-1. Clone this repository and install development dependencies:
+1. Clone this repository and bootstrap the development dependencies:
+
+   ```bat
+   setup.bat                     # Windows shortcut; forwards to scripts\setup.cmd
+   scripts\setup.cmd --install-hooks
+   ```
+
+   The command creates or refreshes `.venv`, upgrades pip, installs both
+   runtime and development dependencies, and optionally installs pre-commit
+   hooks. Use `scripts\setup.cmd --rebuild` if the virtual environment needs to
+   be recreated.
+
+   When you cannot spawn a new Windows shell (for example in CI), call the
+   underlying module directly from your current shell:
+
+   ```bash
+   python -m scripts.setup --install-hooks
+   ```
+
+   As a last resort you can install dependencies manually:
 
    ```bash
    pip install -r requirements-dev.txt
    ```
 
-   On Windows, run the convenience launcher at the repo root:
-
-   ```bat
-   scripts\setup.cmd         # creates/updates the venv and opens an activated shell
-   ```
-
-   You can also run `python -m scripts.setup` to create a virtual
-   environment and install the dependencies automatically (it also
-   upgrades `pip`, installs from `requirements-dev.txt`, and can
-   optionally install pre-commit hooks with `--install-hooks`). The
-   command works in Git Bash, PowerShell, or cmd.exe.
-
-   If activating manually, use:
+   Activate the environment manually only when needed:
 
    ```bash
    source .venv/bin/activate         # Linux/macOS

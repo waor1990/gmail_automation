@@ -18,12 +18,14 @@ Available commands:
 
 Shell and PowerShell shims forward to these modules for convenience.
 
-Windows convenience:
+Windows convenience (preferred):
 
-- From any shell at the repo root, run `scripts\setup.cmd`. It creates or
-  updates the virtual environment and installs dependencies as needed, then
-  launches an appropriate shell with the environment activated (PowerShell,
-  cmd.exe, or Git Bash).
+- Run `setup.bat` from the repo root. It simply forwards to `scripts\setup.cmd`,
+  so you can double-click it or type `setup` in Windows Explorer's address bar.
+- Call `scripts\setup.cmd` directly when you need to pass flags such as
+  `--install-hooks` or `--rebuild`. The script creates or updates the virtual
+  environment, installs dependencies, then launches an activated shell
+  (PowerShell, cmd.exe, or Git Bash).
 
 Outdated package maintenance:
 

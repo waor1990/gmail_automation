@@ -11,26 +11,27 @@ This repository contains a Python script that labels and organizes Gmail message
 - Packages listed in `requirements.txt`
 - Development tools listed in `requirements-dev.txt`
 
-Install development dependencies with:
+Use the setup helper to create the virtual environment, upgrade pip, and install both runtime and development dependencies (add --install-hooks to install pre-commit):
+
+```bat
+setup.bat                  # Windows shortcut; forwards to scripts\setup.cmd
+scripts\setup.cmd         # preferred entry point; accepts the same flags
+scripts\setup.cmd --install-hooks
+```
+
+The underlying module works from any shell, or from CI where spawning a new window is undesirable:
+
+```bash
+python -m scripts.setup --install-hooks
+```
+
+If you need to install manually, fall back to:
 
 ```bash
 pip install -r requirements-dev.txt
 ```
 
-You can also run the setup module which creates a Python virtual environment,
-upgrades pip, and installs both runtime and development dependencies
-automatically. Optionally install pre-commit hooks with `--install-hooks`:
-
-```bash
-python -m scripts.setup                     # create venv, upgrade pip, install deps
-python -m scripts.setup --install-hooks     # also install pre-commit hooks
-```
-
-The same command works in Git Bash, PowerShell, or cmd.exe. On Windows,
-`scripts\setup.cmd` wraps this setup step, prepares the virtual environment,
-and opens an activated shell.
-
-Activate the environment manually with:
+Activate the environment yourself when required:
 
 ```bash
 source .venv/bin/activate         # Linux/macOS
@@ -39,14 +40,7 @@ source .venv/Scripts/activate     # Git Bash on Windows
 \.venv\Scripts\activate.bat      # cmd.exe
 ```
 
-Windows convenience launcher:
-
-```bat
-scripts\setup.cmd         # creates/updates the venv and opens an activated shell
-```
-
-You can skip activation by invoking the venv’s Python directly for one-off
-commands, for example:
+You can also skip activation by invoking the venv's Python directly for one-off commands, for example:
 
 ```bat
 .\.venv\Scripts\python -m pytest

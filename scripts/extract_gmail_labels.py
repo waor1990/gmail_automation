@@ -25,6 +25,7 @@ import json
 import re
 import time
 import random
+import shutil
 from typing import Any
 
 from gmail_automation.logging_utils import get_logger, setup_logging
@@ -236,6 +237,17 @@ def extract_labels_to_config(service, user_id="me", output_file=None, batch_size
 
         # Save the configuration to file
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        if os.path.basename(output_file) == "email_differences_by_label.json":
+            backup_dir = os.path.join(root_dir, "config", "config-backups")
+            os.makedirs(backup_dir, exist_ok=True)
+            if os.path.exists(output_file):
+                timestamp = time.strftime("%Y%m%d-%H%M%S")
+                backup_name = f"email_differences_by_label_{timestamp}.json"
+                backup_path = os.path.join(backup_dir, backup_name)
+                shutil.move(output_file, backup_path)
+                LOGGER.info(f"Existing file moved to backup: {backup_path}")
+            else:
+                LOGGER.info("No existing email_differences_by_label.json to back up.")
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
 

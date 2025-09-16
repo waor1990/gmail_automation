@@ -1,4 +1,5 @@
 """Utilities for manipulating group indices in the dashboard table."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
