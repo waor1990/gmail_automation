@@ -22,6 +22,11 @@ import json
 import sys
 from typing import Any, cast
 
+from importlib import metadata
+from packaging.requirements import Requirement
+from packaging.version import InvalidVersion, Version
+from packaging.markers import default_environment
+
 from gmail_automation.logging_utils import get_logger, setup_logging
 
 LOGGER = get_logger(__name__)
@@ -134,11 +139,105 @@ def print_outdated_table(items: list[dict[str, Any]]) -> None:
         )
 
 
-def upgrade_packages(python: str, names: list[str], dry_run: bool) -> None:
+def _normalize_name(name: str) -> str:
+    return name.replace("-", "_").lower()
+
+
+def collect_conflicting_requirements(
+    info_by_name: dict[str, dict[str, Any]],
+) -> dict[str, list[str]]:
+    environment = dict(default_environment())
+    if "extra" not in environment:
+        environment["extra"] = ""
+    conflicts: dict[str, list[str]] = {}
+    latest_versions: dict[str, Version] = {}
+    display_names: dict[str, str] = {}
+    for display_name, metadata_info in info_by_name.items():
+        latest = metadata_info.get("latest_version")
+        if not latest:
+            continue
+        try:
+            latest_versions[_normalize_name(display_name)] = Version(str(latest))
+        except InvalidVersion:
+            continue
+        display_names[_normalize_name(display_name)] = display_name
+    if not latest_versions:
+        return conflicts
+    for dist in metadata.distributions():
+        requires = dist.requires or []
+        metadata_obj = cast("Any", dist.metadata)
+        dist_name = dist.name
+        meta_get = getattr(metadata_obj, "get", None)
+        if callable(meta_get):
+            for key in ("Name", "Summary", "name"):
+                value = meta_get(key)
+                if isinstance(value, str) and value:
+                    dist_name = value
+                    break
+        for req_str in requires:
+            try:
+                requirement = Requirement(req_str)
+            except Exception:
+                continue
+            normalized = _normalize_name(requirement.name)
+            if normalized not in latest_versions:
+                continue
+            marker = requirement.marker
+            if marker is not None:
+                try:
+                    if not marker.evaluate(environment):
+                        continue
+                except Exception:
+                    continue
+            specifier = requirement.specifier
+            if not specifier or specifier.contains(
+                latest_versions[normalized], prereleases=True
+            ):
+                continue
+            display = display_names[normalized]
+            message = f"{dist_name} requires {requirement.name}{specifier}"
+            existing = conflicts.setdefault(display, [])
+            if message not in existing:
+                existing.append(message)
+    return conflicts
+
+
+def upgrade_packages(
+    python: str,
+    names: list[str],
+    details: dict[str, dict[str, Any]],
+    dry_run: bool,
+) -> tuple[list[str], list[str]]:
+    upgraded: list[str] = []
+    failed: list[str] = []
     if not names:
-        return
+        return upgraded, failed
     LOGGER.info("upgrading %d package(s): %s", len(names), ", ".join(names))
-    run([python, "-m", "pip", "install", "--upgrade", *names], dry_run)
+    for name in names:
+        info = details.get(name, {})
+        current = info.get("version")
+        latest = info.get("latest_version")
+        if current and latest:
+            LOGGER.info("upgrading %s from %s to %s", name, current, latest)
+        else:
+            LOGGER.info("upgrading %s", name)
+        run([python, "-m", "pip", "install", "--upgrade", name], dry_run)
+        if dry_run:
+            continue
+        if check_package_compatibility(python, dry_run):
+            upgraded.append(name)
+            continue
+        LOGGER.error("compatibility issues detected after upgrading %s", name)
+        if current:
+            LOGGER.warning("reverting %s to %s", name, current)
+            run([python, "-m", "pip", "install", f"{name}=={current}"], dry_run)
+            check_package_compatibility(python, dry_run)
+        else:
+            LOGGER.warning(
+                "previous version unknown; cannot automatically revert %s", name
+            )
+        failed.append(name)
+    return upgraded, failed
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -210,10 +309,25 @@ def main(argv: list[str] | None = None) -> int:
         print_outdated_table(items)
 
         # Decide upgrade behavior
-        names = [i.get("name", "") for i in items]
-        names = [n for n in names if n]
+        info_by_name: dict[str, dict[str, Any]] = {}
+        for item in items:
+            name = item.get("name")
+            if name:
+                info_by_name[name] = item
+        names = list(info_by_name.keys())
+
+        conflicts = collect_conflicting_requirements(info_by_name)
+        if conflicts:
+            print()
+            print("Potential compatibility issues detected before upgrading:")
+            for conflict_name, messages in conflicts.items():
+                print(f"- {conflict_name}:")
+                for message in messages:
+                    print(f"    {message}")
+            print()
 
         upgraded = False
+        rolled_back: list[str] = []
         if args.upgrade is not None and len(args.upgrade) > 0:
             # Upgrade only the specified subset
             sel = [n for n in args.upgrade if n in names]
@@ -222,28 +336,46 @@ def main(argv: list[str] | None = None) -> int:
                 LOGGER.warning(
                     "requested packages not listed as outdated: %s", ", ".join(missing)
                 )
-            upgrade_packages(python, sel, args.dry_run)
-            upgraded = bool(sel)
+            successful, failed = upgrade_packages(
+                python, sel, info_by_name, args.dry_run
+            )
+            rolled_back.extend(failed)
+            upgraded = upgraded or bool(successful)
         elif args.upgrade_all:
-            upgrade_packages(python, names, args.dry_run)
-            upgraded = bool(names)
+            successful, failed = upgrade_packages(
+                python, names, info_by_name, args.dry_run
+            )
+            rolled_back.extend(failed)
+            upgraded = upgraded or bool(successful)
         elif not args.no_input and sys.stdin.isatty() and not args.dry_run and items:
             # Interactive prompt
             print()
             print("Update packages? [a]ll / [s]ome / [n]one:", end=" ")
             choice = input().strip().lower()
             if choice.startswith("a"):
-                upgrade_packages(python, names, args.dry_run)
-                upgraded = bool(names)
+                successful, failed = upgrade_packages(
+                    python, names, info_by_name, args.dry_run
+                )
+                rolled_back.extend(failed)
+                upgraded = upgraded or bool(successful)
             elif choice.startswith("s"):
                 print("Enter package names to upgrade (space-separated):", end=" ")
                 line = input().strip()
                 sel = [n for n in line.split() if n in names]
-                upgrade_packages(python, sel, args.dry_run)
-                upgraded = bool(sel)
+                successful, failed = upgrade_packages(
+                    python, sel, info_by_name, args.dry_run
+                )
+                rolled_back.extend(failed)
+                upgraded = upgraded or bool(successful)
             else:
                 print("No packages upgraded.")
 
+        if rolled_back:
+            unique_failures = list(dict.fromkeys(rolled_back))
+            LOGGER.warning(
+                "skipped upgrades due to compatibility errors: %s",
+                ", ".join(unique_failures),
+            )
         if upgraded:
             check_package_compatibility(python, args.dry_run)
 
