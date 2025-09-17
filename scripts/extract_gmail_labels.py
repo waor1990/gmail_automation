@@ -11,11 +11,12 @@ to generate a configuration file. It runs completely separate from the main
 
 Usage:
     python scripts/extract_gmail_labels.py [--output OUTPUT_FILE]
-    [--batch-size BATCH_SIZE]
+        [--batch-size BATCH_SIZE]
+        [--log-file LOG_FILE]
 
 Example:
     python scripts/extract_gmail_labels.py --output config/my_labels.json \
-        --batch-size 10
+        --batch-size 10 --log-file logs/extract_gmail_labels.log
 """
 
 import sys
@@ -26,6 +27,7 @@ import re
 import time
 import random
 import shutil
+from pathlib import Path
 from typing import Any
 
 from gmail_automation.logging_utils import get_logger, setup_logging
@@ -44,6 +46,8 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(script_dir)
 src_dir = os.path.join(root_dir, "src")
 sys.path.insert(0, src_dir)
+
+DEFAULT_LOG_FILE = Path(root_dir) / "logs" / "extract_gmail_labels.log"
 
 LOGGER = get_logger(__name__)
 
@@ -290,6 +294,15 @@ def main():
         help="Number of labels to process in each batch (default: 5)",
     )
     parser.add_argument(
+        "--log-file",
+        "-l",
+        help=(
+            "Log file path (defaults to logs/extract_gmail_labels.log "
+            "relative to the project root)"
+        ),
+        default=None,
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -298,8 +311,16 @@ def main():
 
     args = parser.parse_args()
 
+    if args.log_file:
+        log_file = Path(args.log_file).expanduser()
+    else:
+        log_file = DEFAULT_LOG_FILE
+
     # Setup logging
-    setup_logging(level="DEBUG" if args.verbose else "INFO")
+    setup_logging(
+        level="DEBUG" if args.verbose else "INFO",
+        log_file=log_file,
+    )
 
     LOGGER.info("Gmail Labels Extraction Script")
     LOGGER.info("=" * 40)
