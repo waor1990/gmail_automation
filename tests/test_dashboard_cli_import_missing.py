@@ -1,13 +1,17 @@
 import json
-import subprocess
 import sys
-from pathlib import Path
+import scripts.dashboard.analysis as dash_analysis
+import scripts.dashboard.constants as dash_constants
+import scripts.dashboard.__main__ as dash_main
+from scripts.dashboard import logging_setup
 
 
-def test_cli_import_missing(tmp_path):
-    repo_root = Path(__file__).resolve().parents[1]
-    config_dir = repo_root / "config"
+def test_cli_import_missing(monkeypatch, tmp_path):
+    logging_setup._reset_dashboard_logging_for_tests()
+
+    config_dir = tmp_path / "config"
     config_dir.mkdir(exist_ok=True)
+    logs_dir = tmp_path / "logs"
     config_path = config_dir / "gmail_config-final.json"
     labels_path = config_dir / "gmail_labels_data.json"
     diff_path = config_dir / "email_differences_by_label.json"
@@ -38,8 +42,19 @@ def test_cli_import_missing(tmp_path):
     labels_path.write_text(json.dumps(labels), encoding="utf-8")
     diff_path.write_text(json.dumps(diff), encoding="utf-8")
 
-    cmd = [sys.executable, "-m", "scripts.dashboard", "--import-missing", "Foo"]
-    subprocess.run(cmd, cwd=repo_root, check=True)
+    monkeypatch.setattr(dash_constants, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(dash_constants, "CONFIG_JSON", config_path)
+    monkeypatch.setattr(dash_constants, "LABELS_JSON", labels_path)
+    monkeypatch.setattr(dash_constants, "DIFF_JSON", diff_path)
+    monkeypatch.setattr(dash_constants, "LOGS_DIR", logs_dir)
+    monkeypatch.setattr(dash_analysis, "CONFIG_JSON", config_path)
+    monkeypatch.setattr(logging_setup, "LOGS_DIR", logs_dir)
+    monkeypatch.setattr(dash_main, "CONFIG_JSON", config_path)
+    monkeypatch.setattr(dash_main, "LABELS_JSON", labels_path)
+    monkeypatch.setattr(dash_main, "DIFF_JSON", diff_path)
+
+    monkeypatch.setattr(sys, "argv", ["scripts.dashboard", "--import-missing", "Foo"])
+    dash_main.main()
 
     updated = json.loads(config_path.read_text(encoding="utf-8"))
     group = updated["SENDER_TO_LABELS"]["Foo"][0]
