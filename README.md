@@ -117,8 +117,8 @@ $env:PORT=8054; python -m scripts.dashboard
 $env:DASH_PORT=8055; python -m scripts.dashboard
 ```
 
-Use the optional `--refresh` flag to run the automation module before other
-actions. The dashboard supports exporting:
+Use the optional `--refresh` flag to execute `python -m gmail_automation`
+before any report exports or UI launch. The dashboard supports exporting:
 
 - `config/ECAQ_Report.txt` – summary of email structure and quality
 - `config/email_differences_by_label.json` – missing emails per label
