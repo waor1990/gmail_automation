@@ -1,203 +1,105 @@
 # Testing and Development Guide
 
-This document explains how to run tests, linting, and code formatting for the Gmail Automation project.
+This guide summarizes the recommended checks, scripts, and workflows for
+maintaining Gmail Automation.
 
 ## Quick Start
 
-### Install Development Dependencies
+1. Ensure the virtual environment is prepared:
+
+   ```bash
+   python -m scripts.setup --install-hooks
+   ```
+
+   The setup helper upgrades pip, installs runtime + development dependencies,
+   and (optionally) configures pre-commit hooks.
+
+2. Run the full automated check suite:
+
+   ```bash
+   python -m scripts.dashboard --dev all
+   ```
+
+   This executes linting, format checks, type checking, and pytest in one pass.
+
+3. When working iteratively, the most common single commands are:
+
+   ```bash
+   python -m pytest
+   python -m scripts.dashboard --dev lint
+   python -m scripts.dashboard --dev format-check
+   python -m scripts.dashboard --dev mypy
+   ```
+
+## Test Matrix
+
+Pytest discovers tests in `tests/`. The suite covers configuration parsing,
+Dash helpers, Gmail service integrations (mocked), and CLI flows. Selected
+entry points:
+
+- `tests/test_cli.py` / `tests/test_cli_entry_point.py` - CLI parsing and module
+  execution
+- `tests/test_config.py` / `tests/test_sender_last_run.py` - configuration and
+  runtime state helpers
+- `tests/test_dashboard_*` - dashboard layout, callbacks, transforms, and
+  import tooling
+- `tests/test_gmail_service.py` / `tests/test_integration.py` - Gmail API logic
+  (network calls mocked)
+- `tests/test_logging_utils.py` / `tests/test_render_coverage.py` - logging
+  helpers and ancillary tools
+
+Run focused subsets with the usual pytest selectors, for example:
 
 ```bash
-# Install all dependencies including test and linting tools
-pip install -r requirements.txt
-```
-
-### Run All Checks
-
-```bash
-# Unified helper
-python -m scripts.dashboard --dev all
-
-# Manual commands
-python -m pytest                    # Run tests
-python -m flake8 src/ tests/        # Run linting
-python -m black --check src/ tests/ # Check formatting
-python -m mypy src/                 # Type checking
-```
-
-## Testing
-
-### Running Tests
-
-```bash
-# Run all tests
-python -m pytest
-
-# Run tests with coverage
-python -m pytest --cov=src/gmail_automation --cov-report=term-missing
-
-# Run specific test file
-python -m pytest tests/test_config.py
-
-# Run tests with verbose output
-python -m pytest -v
-
-# Run only unit tests (exclude integration tests)
+python -m pytest tests/test_dashboard_transforms.py -k diff
 python -m pytest -m "not integration"
+python -m pytest --cov=src/gmail_automation --cov-report=term-missing
 ```
 
-### Test Structure
+Coverage artifacts land in `htmlcov/` and `coverage.xml`.
 
-- `tests/test_config.py` - Tests for configuration handling
-- `tests/test_cli.py` - Tests for CLI functionality
-- `tests/test_gmail_service.py` - Tests for Gmail API service
-- `tests/test_integration.py` - Integration tests (marked with `@pytest.mark.integration`)
+## Code Quality Tooling
 
-### Coverage Reports
+- **Linting** - `python -m scripts.dashboard --dev lint`
+- **Formatting** - `python -m scripts.dashboard --dev format`
+- **Format check** - `python -m scripts.dashboard --dev format-check`
+- **Type checking** - `python -m scripts.dashboard --dev mypy`
+- **Cache cleanup** - `python -m scripts.dashboard --dev clean`
 
-Test coverage reports are generated in multiple formats:
-
-- Terminal output (with `--cov-report=term-missing`)
-- HTML report in `htmlcov/` directory
-- XML report as `coverage.xml`
-
-## Code Quality
-
-### Linting with Flake8
-
-```bash
-# Run linting on all code
-python -m flake8 src/ tests/
-
-# Configuration is in .flake8 file
-```
-
-### Code Formatting with Black
-
-```bash
-# Check if code needs formatting
-python -m black --check --diff src/ tests/
-
-# Format code automatically
-python -m black src/ tests/
-```
-
-### Type Checking with MyPy
-
-```bash
-# Run type checking
-python -m mypy src/
-
-# Configuration is in pyproject.toml under [tool.mypy]
-```
+`requirements-dev.txt` pins every tool used above.
 
 ## Pre-commit Hooks
 
-Install pre-commit hooks to automatically run checks before commits:
+Pre-commit is optional but recommended. After running the setup helper you can
+reinstall or update hooks with:
 
 ```bash
-# Install pre-commit
-pip install pre-commit
-
-# Install the hooks
-pre-commit install
-
-# Run hooks manually
-pre-commit run --all-files
+python -m scripts.maintenance --install-hooks
+python -m scripts.maintenance --autoupdate-hooks
+python -m scripts.maintenance --run-hooks
 ```
 
 ## Continuous Integration
 
-The project uses GitHub Actions for CI. The workflow:
+GitHub Actions executes `.github/workflows/ci.yml` on pushes and pull requests
+against `main` or `develop`. The workflow currently:
 
-1. Runs on Python 3.9, 3.10, and 3.11
-2. Installs dependencies
-3. Runs linting (flake8)
-4. Checks code formatting (black)
-5. Runs type checking (mypy)
-6. Runs tests with coverage
-7. Uploads coverage to Codecov
+1. runs on `windows-latest` with Python 3.12,
+2. caches pip downloads,
+3. installs `requirements-dev.txt`,
+4. lints with flake8,
+5. checks formatting with black,
+6. runs mypy (non-blocking for now),
+7. executes pytest with coverage, and
+8. uploads `coverage.xml` to Codecov.
 
-## Development Scripts
-
-All development helpers are exposed through the dashboard CLI:
-
-```bash
-python -m scripts.dashboard --dev test         # Run tests
-python -m scripts.dashboard --dev test-cov     # Run tests with coverage
-python -m scripts.dashboard --dev lint         # Run linting
-python -m scripts.dashboard --dev format       # Format code
-python -m scripts.dashboard --dev format-check # Check formatting
-python -m scripts.dashboard --dev mypy         # Type checking
-python -m scripts.dashboard --dev all          # Run all checks
-python -m scripts.dashboard --dev clean        # Clean cache files
-python -m scripts.dashboard --dev install      # Install dependencies
-```
-
-## Writing Tests
-
-### Unit Tests
-
-- Test individual functions and classes
-- Use mocking for external dependencies
-- Place in appropriate `test_*.py` file
-
-Example:
-
-```python
-import unittest
-from unittest.mock import patch, Mock
-from gmail_automation.config import load_configuration
-
-class TestConfig(unittest.TestCase):
-    @patch('gmail_automation.config.os.path.exists')
-    def test_load_configuration_file_not_exists(self, mock_exists):
-        mock_exists.return_value = False
-        result = load_configuration()
-        self.assertEqual(result, {})
-```
-
-### Integration Tests
-
-- Test interaction between components
-- Mock external APIs (Gmail API)
-- Mark with `@pytest.mark.integration`
-
-### Best Practices
-
-1. **Test Coverage**: Aim for high test coverage but focus on meaningful tests
-2. **Mocking**: Mock external dependencies (Gmail API, file system when appropriate)
-3. **Assertions**: Use specific assertions with clear error messages
-4. **Setup/Teardown**: Clean up test state properly
-5. **Naming**: Use descriptive test names that explain what is being tested
-
-## Configuration Files
-
-- `.flake8` - Flake8 linting configuration
-- `pyproject.toml` - Black formatting and MyPy configuration
-- `pytest.ini` - Pytest configuration
-- `.pre-commit-config.yaml` - Pre-commit hooks configuration
-- `.github/workflows/ci.yml` - GitHub Actions CI workflow
+Keep local runs aligned with CI to avoid surprises.
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **Import Errors**: Make sure you're running tests from the project root directory
-2. **Missing Dependencies**: Run `pip install -r requirements.txt`
-3. **Cache Issues**: Use `python -m scripts.dashboard --dev clean` or manually delete cache directories
-4. **Path Issues**: Tests use `conftest.py` to add `src/` to Python path
-
-### Test Failures
-
-- Run tests with `-v` flag for verbose output
-- Use `--tb=short` or `--tb=long` to control traceback detail
-- Run specific test files to isolate issues: `pytest tests/test_config.py`
-
-## Contributing
-
-Before submitting pull requests:
-
-1. Run all tests: `python -m scripts.dashboard --dev all`
-2. Ensure code coverage doesn't decrease significantly
-3. Add tests for new functionality
-4. Update this documentation if needed
+- **Missing dependencies** - Rerun `python -m scripts.setup --install-hooks` or
+  `pip install -r requirements-dev.txt` inside the virtual environment.
+- **Stale caches** - Use `python -m scripts.dashboard --dev clean` to remove
+  `__pycache__`, coverage data, and other build artifacts.
+- **CI failures** - Reproduce locally with the matching command from the
+  workflow log and re-run the all-in-one helper to ensure consistency.

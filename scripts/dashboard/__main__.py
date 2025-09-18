@@ -9,10 +9,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+from gmail_automation.logging_utils import get_logger
+
 from .analysis import load_config, import_missing_emails
 from .constants import CONFIG_JSON, DIFF_JSON, LABELS_JSON
+from .logging_setup import configure_dashboard_logging
 from .reports import write_ECAQ_report, write_diff_json
 from .utils_io import read_json, write_json
+
+
+logger = get_logger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -164,17 +170,25 @@ def run_dev(action: str) -> None:
 
 def main() -> None:
     args = parse_args()
+    log_file = configure_dashboard_logging()
+    logger.info("CLI arguments: %s", args)
+    logger.info("Dashboard log transcript will be saved to %s", log_file)
     # Default behavior: launch the dashboard only if no actionable options are provided.
     # Do NOT auto-launch when running non-interactive actions like --import-missing.
     if not any([args.report, args.launch, args.refresh, args.dev, args.import_missing]):
         args.launch = True
 
     if args.refresh:
+        logger.info("Executing gmail_automation refresh prior to dashboard actions.")
         subprocess.run([sys.executable, "-m", "gmail_automation"], check=True)
         if not args.report and not args.launch and not args.dev:
             return
 
     if args.import_missing:
+        logger.info(
+            "Importing missing emails for label '%s' via dashboard CLI.",
+            args.import_missing,
+        )
         cfg = load_config()
         if not DIFF_JSON.exists() or not LABELS_JSON.exists():
             raise FileNotFoundError(
@@ -186,6 +200,7 @@ def main() -> None:
         emails = info.get("missing_emails") or []
         if not emails:
             print(f"No missing emails found for {args.import_missing}.")
+            logger.info("No missing emails found for label '%s'.", args.import_missing)
         else:
             updated, added = import_missing_emails(
                 cfg, labels_data, args.import_missing, emails
@@ -196,30 +211,49 @@ def main() -> None:
                     f"Imported {len(added)} emails into {args.import_missing} "
                     "and updated config."
                 )
+                logger.info(
+                    "Imported %s emails into %s and saved updated configuration.",
+                    len(added),
+                    args.import_missing,
+                )
             else:
                 print(f"No new emails imported for {args.import_missing}.")
+                logger.info(
+                    "Import completed for %s but no new emails were added.",
+                    args.import_missing,
+                )
         # If no further actions requested, exit after import.
         if not args.report and not args.launch and not args.dev:
             return
 
     if args.dev:
+        logger.info("Running dashboard development helper: %s", args.dev)
         run_dev(args.dev)
         if not args.report and not args.launch:
             return
 
     if args.report:
+        logger.info("Generating dashboard reports: %s", args.report)
         if args.report in ("ECAQ", "all"):
             path = write_ECAQ_report()
             print(f"ECAQ report exported: {path}")
+            logger.info("ECAQ report exported to %s", path)
         if args.report in ("diff", "all"):
             path = write_diff_json()
             print(f"Differences JSON exported: {path}")
+            logger.info("Diff report exported to %s", path)
         if not args.launch:
             return
 
     if args.launch:
         from .app import main as launch_dashboard
 
+        logger.info(
+            "Launching dashboard UI (host=%s, port=%s, debug=%s)",
+            args.host,
+            args.port,
+            args.debug,
+        )
         launch_dashboard(host=args.host, port=args.port, debug=args.debug)
 
 

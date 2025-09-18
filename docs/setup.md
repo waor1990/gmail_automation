@@ -43,21 +43,33 @@ This document explains how to configure and run the Gmail Automation script.
    python -m pytest
    ```
 
-   For ongoing upkeep, see `python -m scripts.maintenance --help` to
-   validate secrets, manage hooks, and run checks/tests.
-1. Create `config/gmail_config-final.json` from the sample file in `config/config-sample/gmail_config.sample.json` and edit it with
-   your label rules.
+   For ongoing upkeep, see `python -m scripts.maintenance --help` to validate
+   secrets, manage hooks, and run checks/tests. Common shortcuts:
+
+   ```bash
+   python -m scripts.maintenance --validate-secrets
+   python -m scripts.maintenance --run-hooks
+   python -m scripts.maintenance --tests
+   ```
+
+1. Create `config/gmail_config-final.json` from the sample file in
+   `config/config-sample/gmail_config.sample.json` and edit it with your label
+   rules.
 1. Obtain a client secret JSON file from Google Cloud and place it in the
    `config/` directory. When you run the script for the first time it will open a
    browser window asking for permission to access your Gmail account.
 1. Run the script with:
 
    ```bash
-   python -m gmail_automation
+   python -m gmail_automation --log-level INFO
    ```
 
-OAuth credentials will be stored in `data/gmail-python-email.json` after the first
-successful run. Keep this file private.
+   Provide `--log-file logs/gmail_automation_run.log` to capture a full DEBUG
+   transcript alongside console logging. The directory is created for you if it
+   does not exist.
+
+OAuth credentials will be stored in `data/gmail-python-email.json` after the
+first successful run. Keep this file private.
 
 1. *(Optional)* Launch the configuration dashboard or export reports:
 
@@ -81,3 +93,17 @@ successful run. Keep this file private.
    Use the optional `--refresh` flag to run the Gmail automation module before
    other actions. The dashboard can export `config/ECAQ_Report.txt` and
    `config/email_differences_by_label.json` for further analysis.
+
+   Advanced helpers:
+
+   ```bash
+   python -m scripts.dashboard --import-missing Finance
+   python -m scripts.dashboard --dev all
+   python -m scripts.dashboard --host 0.0.0.0 --port 8051 --debug
+   ```
+
+   - `--import-missing` pulls missing emails for a label from the latest diff
+     report.
+   - `--dev` exposes development helpers (`install`, `lint`, `test`, etc.).
+   - `--host`, `--port`, and `--debug` override Dash runtime defaults when the
+     provided environment variables are insufficient.

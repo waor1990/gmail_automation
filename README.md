@@ -1,7 +1,5 @@
 # Gmail Automation
 
-[![CI](https://github.com/waor1990/gmail_automation/actions/workflows/python-tests.yml/badge.svg)](https://github.com/waor1990/gmail_automation/actions/workflows/python-tests.yml)
-
 This repository contains a Python script that labels and organizes Gmail messages using the Gmail API. It relies on a JSON configuration that maps specific senders or keywords to labels.
 
 ## Requirements
@@ -15,7 +13,7 @@ Use the setup helper to create the virtual environment, upgrade pip, and install
 
 ```bat
 setup.bat                  # Windows shortcut; forwards to scripts\setup.cmd
-scripts\setup.cmd         # preferred entry point; accepts the same flags
+scripts\setup.cmd          # preferred entry point; accepts the same flags
 scripts\setup.cmd --install-hooks
 ```
 
@@ -36,58 +34,14 @@ Activate the environment yourself when required:
 ```bash
 source .venv/bin/activate         # Linux/macOS
 source .venv/Scripts/activate     # Git Bash on Windows
-\.venv\Scripts\Activate.ps1      # PowerShell
-\.venv\Scripts\activate.bat      # cmd.exe
+\.venv\Scripts\Activate.ps1       # PowerShell
+\.venv\Scripts\activate.bat       # cmd.exe
 ```
 
 You can also skip activation by invoking the venv's Python directly for one-off commands, for example:
 
 ```bat
 .\.venv\Scripts\python -m pytest
-```
-
-## Testing
-
-Run the test suite with:
-
-```bash
-python -m pytest
-```
-
-## Maintenance
-
-Use the maintenance helper to validate secrets, manage hooks, run checks, and
-handle outdated packages:
-
-```bash
-# Validate no secrets are committed
-python -m scripts.maintenance --validate-secrets
-
-# Install or autoupdate pre-commit hooks
-python -m scripts.maintenance --install-hooks
-python -m scripts.maintenance --autoupdate-hooks
-
-# Run pre-commit on all files
-python -m scripts.maintenance --run-hooks
-
-# Run the test suite
-python -m scripts.maintenance --tests
-
-# Check for dependency conflicts
-python -m scripts.maintenance --check-compat
-
-# List outdated packages and choose to upgrade all/some interactively
-python -m scripts.maintenance --outdated
-
-# Non-interactive upgrades
-python -m scripts.maintenance --outdated --upgrade-all
-python -m scripts.maintenance --outdated --upgrade pandas plotly
-
-# List only (no prompts)
-python -m scripts.maintenance --outdated --no-input
-
-# Full pass: validate → hooks → run hooks → tests
-python -m scripts.maintenance --all
 ```
 
 ## Configuration
@@ -97,7 +51,17 @@ python -m scripts.maintenance --all
 3. On first run, OAuth credentials will be stored in `data/gmail-python-email.json`.
 4. The `read_status` value within `SENDER_TO_LABELS` should be a boolean. The script will also accept the strings `"true"` and `"false"` and convert them automatically.
 
-## Token Management
+### Runtime State
+
+Timestamps of the last processed email for each sender are stored in
+`data/sender_last_run.json`. When a new address is introduced in the
+`SENDER_TO_LABELS` configuration, the system initializes its entry with
+`2000-01-01T00:00:00Z` so that historical messages are considered. After a
+successful run (without `--dry-run`), these timestamps are updated to the
+current time. A legacy `data/last_run.txt` file is still read if the per-sender
+file is absent.
+
+### Token Management
 
 The Gmail API uses OAuth 2.0 tokens for authentication. When you run the script
 for the first time, a browser window will prompt you to grant access to your
@@ -109,58 +73,11 @@ refresh token. If refreshing fails (for example, if you revoke the app's
 permissions), delete `data/gmail-python-email.json` and rerun the script to perform
 the OAuth flow again. Keep this file private and out of version control.
 
-## Running
+## Usage
 
-```bash
-python -m gmail_automation --help
-```
+These tools cover day-to-day interaction with the automation.
 
-The script supports several command line options:
-
-```bash
-python -m gmail_automation --config config/gmail_config-final.json --dry-run --verbose
-```
-
-- `--config` – path to configuration file (defaults to `config/gmail_config-final.json`)
-- `--dry-run` – process emails without making changes
-- `--verbose` or `-v` – enable debug logging to the console (equivalent to `--log-level DEBUG`)
-- `--log-level` – set the console logging level (choices: DEBUG, INFO, WARNING, ERROR, CRITICAL; default: INFO)
-- `--version` – display version information
-
-**Logging Examples:**
-
-```bash
-# Standard info logging (default)
-python -m gmail_automation
-
-# Verbose debug logging
-python -m gmail_automation --verbose
-python -m gmail_automation --log-level DEBUG
-
-# Only show warnings and errors
-python -m gmail_automation --log-level WARNING
-
-# Only show errors
-python -m gmail_automation --log-level ERROR
-```
-
-Logs are written to `logs/gmail_automation_info.log` and `logs/gmail_automation_debug.log`.
-
-## Security Note
-
-Credentials and log files should not be committed to version control. Update `.gitignore` accordingly and keep sensitive files private.
-
-## Runtime State
-
-Timestamps of the last processed email for each sender are stored in
-`data/sender_last_run.json`. When a new address is introduced in the
-`SENDER_TO_LABELS` configuration, the system initializes its entry with
-`2000-01-01T00:00:00Z` so that historical messages are considered. After a
-successful run (without `--dry-run`), these timestamps are updated to the
-current time. A legacy `data/last_run.txt` file is still read if the per-sender
-file is absent.
-
-## Dashboard and Reports
+### Dashboard and Reports
 
 An interactive [Dash](https://dash.plotly.com/) dashboard is provided to review
 and edit your Gmail configuration. On launch the dashboard automatically runs
@@ -206,14 +123,110 @@ actions. The dashboard supports exporting:
 - `config/ECAQ_Report.txt` – summary of email structure and quality
 - `config/email_differences_by_label.json` – missing emails per label
 
-## Documentation
+Advanced helpers:
+
+- `--import-missing LABEL` updates the working configuration based on the most
+  recent diff report for the specified label.
+- `--dev {install,test,test-cov,lint,format,format-check,mypy,all,clean}` runs
+  the associated development utilities.
+- `--debug`, `--host`, and `--port` customize the Dash runtime beyond the
+  environment variable overrides shown above.
+
+### Running
+
+```bash
+python -m gmail_automation --help
+```
+
+The script supports several command line options:
+
+```bash
+python -m gmail_automation --config config/gmail_config-final.json --dry-run --verbose
+```
+
+- `--config` – path to configuration file (defaults to `config/gmail_config-final.json`)
+- `--dry-run` – process emails without making changes
+- `--verbose` or `-v` – enable debug logging to the console (equivalent to `--log-level DEBUG`)
+- `--log-level` – set the console logging level (choices: DEBUG, INFO, WARNING, ERROR, CRITICAL; default: INFO)
+- `--log-file` – write a full DEBUG transcript to the provided path in addition to console output
+- `--version` – display version information
+
+**Logging Examples:**
+
+```bash
+# Standard info logging (default)
+python -m gmail_automation
+
+# Verbose debug logging
+python -m gmail_automation --verbose
+python -m gmail_automation --log-level DEBUG
+
+# Only show warnings and errors
+python -m gmail_automation --log-level WARNING
+
+# Only show errors
+python -m gmail_automation --log-level ERROR
+
+# Capture console output and full debug logs to a file
+python -m gmail_automation --log-file logs/gmail_automation_run.log
+```
+
+When `--log-file` is provided the directory is created automatically and a
+DEBUG-level transcript is stored alongside the console output. Without the flag
+logs are emitted to the console only.
+
+### Security Note
+
+Credentials and log files should not be committed to version control. Update `.gitignore` accordingly and keep sensitive files private.
+
+## Maintenance
+
+Use the maintenance helper to validate secrets, manage hooks, run checks, and
+handle outdated packages:
+
+```bash
+# Validate no secrets are committed
+python -m scripts.maintenance --validate-secrets
+
+# Install or autoupdate pre-commit hooks
+python -m scripts.maintenance --install-hooks
+python -m scripts.maintenance --autoupdate-hooks
+
+# Run pre-commit on all files
+python -m scripts.maintenance --run-hooks
+
+# Run the test suite
+python -m scripts.maintenance --tests
+
+# Check for dependency conflicts
+python -m scripts.maintenance --check-compat
+
+# List outdated packages and choose to upgrade all/some interactively
+python -m scripts.maintenance --outdated
+
+# Non-interactive upgrades
+python -m scripts.maintenance --outdated --upgrade-all
+python -m scripts.maintenance --outdated --upgrade pandas plotly
+
+# List only (no prompts)
+python -m scripts.maintenance --outdated --no-input
+
+# Full pass: validate → hooks → run hooks → tests
+python -m scripts.maintenance --all
+```
+
+## Developer Resources
+
+Pointers for extending, debugging, and learning more about the project.
+
+### Documentation
 
 Additional guides are available in the [docs](docs/) directory:
 
 - [Setup Guide](docs/setup.md)
 - [Configuration Examples](docs/configuration_examples.md)
 
-## Development
+### Development
 
 Run tests and code quality checks through the dashboard entry point:
 
@@ -222,8 +235,16 @@ python -m scripts.dashboard --dev all      # lint, type-check, test
 python -m scripts.dashboard --dev format   # auto-format code
 ```
 
-## Troubleshooting
+### Troubleshooting
 
 - **Missing configuration file**: ensure `gmail_config-final.json` exists or pass its path with `--config`.
 - **Missing OAuth client secret**: download the OAuth client secrets JSON from Google Cloud and place it in the `config/` directory.
 - **Permission errors**: delete `data/gmail-python-email.json` and re-run the script to re-authorize.
+
+### Testing
+
+Run the test suite with:
+
+```bash
+python -m pytest
+```

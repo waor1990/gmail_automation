@@ -8,13 +8,15 @@ python -m scripts.<name> [options]
 
 Available commands:
 
-- `setup` – create the virtual environment
-- `maintenance` – validate secrets, hooks, run checks/tests
-- `create_issues` – open GitHub issues from files
-- `resolve_issue` – close an issue and archive its file
-- `clean_git_history` – remove sensitive files from history
-- `validate_no_secrets` – check for sensitive files before committing
-- `extract_gmail_labels` – export Gmail labels to JSON
+- `setup` - create or update the virtual environment
+- `maintenance` - validate secrets, manage hooks, run checks/tests
+- `dashboard` - launch the Dash UI, export reports, refresh data, or run dev
+  helpers (`--dev`, `--import-missing`, `--refresh`, etc.)
+- `create_issues` - open GitHub issues from files
+- `resolve_issue` - close an issue and archive its file
+- `clean_git_history` - remove sensitive files from history
+- `validate_no_secrets` - check for sensitive files before committing
+- `extract_gmail_labels` - export Gmail labels to JSON
 
 Shell and PowerShell shims forward to these modules for convenience.
 
@@ -42,3 +44,13 @@ Compatibility checks:
 
 - Verify installed packages have compatible dependencies:
   - `python -m scripts.maintenance --check-compat`
+
+Dash-specific helpers:
+
+- Import missing emails for a label from the latest diff:
+  - `python -m scripts.dashboard --import-missing Finance`
+- Change host/port or enable Dash debug mode:
+  - `python -m scripts.dashboard --host 0.0.0.0 --port 8051 --debug`
+- Run targeted developer utilities:
+  - `python -m scripts.dashboard --dev lint`
+  - `python -m scripts.dashboard --dev test-cov`

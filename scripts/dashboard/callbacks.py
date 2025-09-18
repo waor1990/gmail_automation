@@ -5,6 +5,7 @@ from __future__ import annotations
 from dash import Input, Output, State, callback_context, ctx, dcc, html, no_update
 import re
 from typing import Any, Dict, List, Tuple
+from gmail_automation.logging_utils import get_logger
 from .collisions import resolve_collisions
 from .analysis import (
     load_config,
@@ -19,6 +20,9 @@ from .utils_io import backup_file, read_json, write_json
 from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
 from .group_ops import merge_selected, split_selected
 from .theme import get_theme_style
+
+
+logger = get_logger(__name__)
 
 
 def make_empty_stl_row(defaults: Dict[str, Any] | None = None) -> Dict[str, Any]:
@@ -365,20 +369,36 @@ def register_callbacks(app):
     )
     def on_save(_n, cfg, backup_flags):
         if not cfg:
+            logger.info("Save requested with no configuration in memory.")
             return "Nothing to save."
-        if "backup" in (backup_flags or []):
+        backup_requested = "backup" in (backup_flags or [])
+        label_count = len((cfg or {}).get("SENDER_TO_LABELS", {}))
+        logger.info(
+            "Persisting dashboard configuration (backup=%s, labels=%s)",
+            backup_requested,
+            label_count,
+        )
+        if backup_requested:
             if CONFIG_JSON.exists():
                 bkp = backup_file(CONFIG_JSON)
                 write_json(cfg, CONFIG_JSON)
+                logger.info(
+                    "Configuration saved to %s with backup %s.",
+                    CONFIG_JSON,
+                    bkp,
+                )
                 return (
                     f"Backup saved: {bkp.name}\nUpdated: config/gmail_config-final.json"
                 )
-            else:
-                write_json(cfg, CONFIG_JSON)
-                return "Updated: config/gmail_config-final.json"
-        else:
             write_json(cfg, CONFIG_JSON)
-            return "Updated: config/gmail_config-final.json (no backup)"
+            logger.info(
+                "Configuration saved to %s without existing file to backup.",
+                CONFIG_JSON,
+            )
+            return "Updated: config/gmail_config-final.json"
+        write_json(cfg, CONFIG_JSON)
+        logger.info("Configuration saved without backup to %s.", CONFIG_JSON)
+        return "Updated: config/gmail_config-final.json (no backup)"
 
     @app.callback(
         Output("store-defaults", "data"),
@@ -794,6 +814,7 @@ def register_callbacks(app):
 
         REPORT_TXT.parent.mkdir(parents=True, exist_ok=True)
         REPORT_TXT.write_text(text, encoding="utf-8")
+        logger.info("ECAQ report exported via dashboard UI to %s", REPORT_TXT)
         return "Report exported: config/ECAQ_Report.txt"
 
     @app.callback(
@@ -809,6 +830,7 @@ def register_callbacks(app):
         from .utils_io import write_json
 
         write_json(diff, DIFF_JSON)
+        logger.info("Diff JSON exported via dashboard UI to %s", DIFF_JSON)
         return "Differences JSON exported: config/email_differences_by_label.json"
 
     @app.callback(

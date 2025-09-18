@@ -4,7 +4,8 @@
 - Do not commit real credential or log files.
 - Sample configuration files are stored in `config/config-sample/` directory.
 - All config files except samples and README.md are ignored by git for security.
-- Keep dependency information in `requirements.txt`.
+- Keep runtime dependencies in `requirements.txt` and development tooling in
+  `requirements-dev.txt`.
 - Add new labels or configuration entries to `gmail_config-final.json` only if necessary.
 - Keep the repository free of temporary or redundant files.
 - Keep `.github/copilot-instructions.md` in sync with `docs/copilot-guidelines.md`.

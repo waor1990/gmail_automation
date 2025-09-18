@@ -92,10 +92,12 @@
 - Provide dark/light mode toggle with saved user preference.
 - Improve tab navigation, color contrast, and focus indicators for screen readers.
 
-### 16. 🛠️ CLI: `--import-missing LABEL` Flag
+### 16. 🛠️ CLI: `--import-missing LABEL` Flag ✅
 
-- Add CLI tool to import missing emails into a specific label from the latest diff file.
-- Useful for automated or batch sync workflows.
+- Delivered via `python -m scripts.dashboard --import-missing <LABEL>`, which
+  reads from the latest diff JSON and updates the working config.
+- Keep README and setup documentation in sync when new options are added to the
+  flag.
 
 ---
 
