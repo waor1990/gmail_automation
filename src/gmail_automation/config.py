@@ -32,6 +32,76 @@ def validate_and_normalize_config(config):
                 except (ValueError, TypeError):
                     logger.warning(f"Invalid delete_after_days for {category}: {rule}")
                     rule["delete_after_days"] = float("inf")
+
+    normalized_deletions = []
+    for index, rule in enumerate(config.get("SELECTED_EMAIL_DELETIONS", [])):
+        if not isinstance(rule, dict):
+            logger.warning(
+                "Skipping invalid deletion rule at index %s: expected dict but got %s.",
+                index,
+                type(rule).__name__,
+            )
+            continue
+        normalized_rule = dict(rule)
+        name = normalized_rule.get("name")
+        if not name:
+            if normalized_rule.get("query"):
+                name = normalized_rule["query"]
+            elif normalized_rule.get("message_ids"):
+                name = ",".join(str(mid) for mid in normalized_rule["message_ids"])
+            else:
+                name = f"rule_{index}"
+        normalized_rule["name"] = str(name)
+
+        normalized_rule["defer_until_read"] = bool(
+            normalized_rule.get("defer_until_read", False)
+        )
+        normalized_rule["enabled"] = bool(normalized_rule.get("enabled", True))
+
+        message_ids = normalized_rule.get("message_ids", []) or []
+        if not isinstance(message_ids, list):
+            logger.warning(
+                "Deletion rule '%s' has non-list message_ids. Ignoring field.",
+                normalized_rule["name"],
+            )
+            message_ids = []
+        normalized_rule["message_ids"] = [str(mid) for mid in message_ids if mid]
+
+        query = normalized_rule.get("query")
+        if query is not None and query != "":
+            normalized_rule["query"] = str(query)
+        else:
+            normalized_rule["query"] = None
+
+        protected_labels = normalized_rule.get("protected_labels", []) or []
+        if not isinstance(protected_labels, list):
+            logger.warning(
+                "Deletion rule '%s' has non-list protected_labels. Ignoring field.",
+                normalized_rule["name"],
+            )
+            protected_labels = []
+        normalized_rule["protected_labels"] = [
+            str(label) for label in protected_labels if label
+        ]
+
+        if not normalized_rule["query"] and not normalized_rule["message_ids"]:
+            logger.warning(
+                "Deletion rule '%s' must define a query or message_ids; skipping.",
+                normalized_rule["name"],
+            )
+            continue
+
+        normalized_deletions.append(normalized_rule)
+
+    config["SELECTED_EMAIL_DELETIONS"] = normalized_deletions
+
+    protected_labels = config.get("PROTECTED_LABELS", []) or []
+    if not isinstance(protected_labels, list):
+        logger.warning(
+            "PROTECTED_LABELS must be a list of label names. Using empty list instead."
+        )
+        protected_labels = []
+    config["PROTECTED_LABELS"] = [str(label) for label in protected_labels if label]
     return config
 
 
