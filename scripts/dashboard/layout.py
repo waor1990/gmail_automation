@@ -59,6 +59,18 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
         ],
     )
 
+    pending_notice_style = {
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "backgroundColor": "#fff4db",
+        "color": "#7a3e00",
+        "padding": "8px 12px",
+        "borderLeft": "4px solid #ffa940",
+        "borderRadius": "4px",
+        "marginBottom": "12px",
+        "lineHeight": "1.4",
+    }
+
     return html.Div(
         id="app-root",
         style=get_theme_style("light"),
@@ -89,13 +101,10 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 children=[
                     html.H2("New Senders Pending Processing"),
                     html.Div(
-                        "Senders not yet processed by Gmail automation.",
+                        html.Span("Senders not yet processed by Gmail automation."),
                         id="pending-help",
-                        style={
-                            "fontSize": "12px",
-                            "color": "#a00",
-                            "marginBottom": "4px",
-                        },
+                        role="note",
+                        style=pending_notice_style,
                     ),
                     html.Button(
                         "Export New Senders CSV",
