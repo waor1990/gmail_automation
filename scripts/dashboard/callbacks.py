@@ -15,7 +15,13 @@ from .analysis import (
     import_missing_emails,
 )
 from .analysis_helpers import run_full_analysis
-from .transforms import config_to_table, table_to_config, rows_to_grouped
+from .transforms import (
+    config_to_table,
+    table_to_config,
+    rows_to_grouped,
+    ignored_rules_to_rows,
+    rows_to_ignored_rules,
+)
 from .utils_io import backup_file, read_json, write_json
 from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
 from .group_ops import merge_selected, split_selected
@@ -35,6 +41,23 @@ def make_empty_stl_row(defaults: Dict[str, Any] | None = None) -> Dict[str, Any]
         "email": "",
         "read_status": defaults.get("read_status", False),
         "delete_after_days": defaults.get("delete_after_days"),
+    }
+
+
+def make_empty_ignored_row() -> Dict[str, Any]:
+    """Return a blank IGNORED_EMAILS row."""
+
+    return {
+        "name": "",
+        "senders": "",
+        "domains": "",
+        "subject_contains": "",
+        "skip_analysis": True,
+        "skip_import": True,
+        "mark_as_read": False,
+        "apply_labels": "",
+        "archive": False,
+        "delete_after_days": None,
     }
 
 
@@ -353,12 +376,40 @@ def register_callbacks(app):
         Output("status", "children", allow_duplicate=True),
         Input("btn-apply-edits", "n_clicks"),
         State("tbl-stl", "data"),
+        State("store-config", "data"),
         prevent_initial_call=True,
     )
-    def on_apply_edits(_n, stl_rows):
-        tmp = table_to_config(stl_rows)
+    def on_apply_edits(_n, stl_rows, cfg):
+        tmp = table_to_config(stl_rows, cfg)
         analysis = run_full_analysis(tmp)
         return tmp, analysis, "Applied table edits to working config (not yet saved)."
+
+    @app.callback(
+        Output("tbl-ignored", "data", allow_duplicate=True),
+        Output("store-config", "data", allow_duplicate=True),
+        Output("store-analysis", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input("btn-apply-ignored", "n_clicks"),
+        State("tbl-ignored", "data"),
+        State("store-config", "data"),
+        prevent_initial_call=True,
+    )
+    def on_apply_ignored(_n, rows, cfg):
+        cfg = cfg or {}
+        try:
+            rules = rows_to_ignored_rules(rows)
+        except ValueError as exc:
+            logger.error("Invalid ignored rules: %s", exc)
+            return no_update, no_update, no_update, f"Ignored rules invalid: {exc}"
+        tmp = dict(cfg)
+        tmp["IGNORED_EMAILS"] = rules
+        analysis = run_full_analysis(tmp)
+        return (
+            ignored_rules_to_rows(tmp),
+            tmp,
+            analysis,
+            "Applied IGNORED_EMAILS edits to working config (not yet saved).",
+        )
 
     @app.callback(
         Output("status", "children", allow_duplicate=True),
@@ -421,6 +472,17 @@ def register_callbacks(app):
     def add_stl_row(_n, rows, defaults):
         rows = rows or []
         rows.append(make_empty_stl_row(defaults))
+        return rows
+
+    @app.callback(
+        Output("tbl-ignored", "data", allow_duplicate=True),
+        Input("btn-add-ignored-row", "n_clicks"),
+        State("tbl-ignored", "data"),
+        prevent_initial_call=True,
+    )
+    def add_ignored_row(_n, rows):
+        rows = rows or []
+        rows.append(make_empty_ignored_row())
         return rows
 
     @app.callback(
@@ -511,6 +573,7 @@ def register_callbacks(app):
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
+        Output("tbl-ignored", "data", allow_duplicate=True),
         Output("store-config", "data", allow_duplicate=True),
         Output("store-analysis", "data", allow_duplicate=True),
         Output("status", "children", allow_duplicate=True),
@@ -525,9 +588,11 @@ def register_callbacks(app):
                 no_update,
                 no_update,
                 no_update,
+                no_update,
                 str(exc),
             )
         stl_rows = config_to_table(cfg)
+        ignored_rows = ignored_rules_to_rows(cfg)
         analysis = run_full_analysis(cfg)
         try:
             from .reports import write_ECAQ_report, write_diff_json
@@ -538,6 +603,7 @@ def register_callbacks(app):
             pass
         return (
             stl_rows,
+            ignored_rows,
             cfg,
             analysis,
             "Reports refreshed.",

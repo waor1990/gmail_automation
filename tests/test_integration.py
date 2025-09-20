@@ -7,8 +7,9 @@ import tempfile
 import json
 import os
 from unittest.mock import patch, Mock
-from gmail_automation.cli import main
+from gmail_automation.cli import main, process_emails_for_labeling
 from gmail_automation.config import load_configuration
+from gmail_automation.ignored_rules import IgnoredRulesEngine, normalize_ignored_rules
 
 
 class TestIntegration(unittest.TestCase):
@@ -227,6 +228,79 @@ class TestEndToEndScenarios(unittest.TestCase):
                 except SystemExit:
                     # Acceptable exit
                     pass
+
+    @patch("gmail_automation.cli.save_processed_email_ids")
+    @patch("gmail_automation.cli.load_processed_email_ids", return_value=set())
+    @patch("gmail_automation.cli.modify_message")
+    @patch("gmail_automation.cli.batch_fetch_messages")
+    @patch("gmail_automation.cli.fetch_emails_to_label_optimized")
+    @patch("gmail_automation.cli.get_message_details_cached")
+    def test_ignore_rules_applied_before_labeling(
+        self,
+        mock_details,
+        mock_fetch,
+        mock_batch,
+        mock_modify,
+        _mock_load,
+        _mock_save,
+    ):
+        mock_details.return_value = (
+            "Alert",
+            "01/01/2000, 12:00 AM PST",
+            "updates@example.com",
+            True,
+        )
+        mock_fetch.return_value = [{"id": "msg1"}]
+        mock_batch.return_value = {"msg1": {"id": "msg1"}}
+
+        service = Mock()
+        existing_labels = {"Updates": "LBL_UPDATES", "Ignored": "LBL_IGNORED"}
+        config = {
+            "SENDER_TO_LABELS": {
+                "Updates": [
+                    {
+                        "emails": ["updates@example.com"],
+                        "read_status": False,
+                        "delete_after_days": None,
+                    }
+                ]
+            },
+            "IGNORED_EMAILS": normalize_ignored_rules(
+                [
+                    {
+                        "name": "Ignore updates",
+                        "senders": ["updates@example.com"],
+                        "actions": {
+                            "skip_analysis": True,
+                            "skip_import": True,
+                            "mark_as_read": True,
+                            "apply_labels": ["Ignored"],
+                            "archive": True,
+                        },
+                    }
+                ]
+            ),
+        }
+        last_run_times = {"updates@example.com": 0}
+        ignored_engine = IgnoredRulesEngine.from_config(config["IGNORED_EMAILS"])
+
+        processed = process_emails_for_labeling(
+            service,
+            "me",
+            existing_labels,
+            config,
+            last_run_times,
+            current_time=0,
+            ignored_rules=ignored_engine,
+            dry_run=False,
+        )
+
+        self.assertTrue(processed)
+        mock_modify.assert_called_once()
+        args = mock_modify.call_args[0]
+        self.assertEqual(args[3], ["LBL_IGNORED"])
+        self.assertEqual(args[4], ["INBOX"])
+        self.assertTrue(args[5])
 
 
 if __name__ == "__main__":

@@ -41,3 +41,35 @@ The automation normalizes string values such as `"true"`/`"false"` for
 `read_status` and converts `delete_after_days` to integers. Labels referenced in
 `SENDER_TO_LABELS` must already exist in Gmail; create them before running the
 script or through the dashboard.
+
+## Ignored email rules
+
+Use the optional `IGNORED_EMAILS` section to define deterministic actions that
+run before the standard labeling workflow. Each rule supports matching by sender
+or domain along with a set of actions.
+
+```json
+{
+  "IGNORED_EMAILS": [
+    {
+      "name": "Ignore alerts",
+      "senders": ["alerts@example.com"],
+      "actions": {
+        "skip_analysis": true,
+        "skip_import": true,
+        "mark_as_read": true,
+        "apply_labels": ["Ignored"],
+        "archive": true,
+        "delete_after_days": 0
+      }
+    }
+  ]
+}
+```
+
+- `skip_analysis` excludes matching addresses from dashboard comparisons.
+- `skip_import` prevents `Import missing` from adding the address back into the
+  config.
+- `mark_as_read`, `apply_labels`, `archive`, and `delete_after_days` control how
+  matching messages are handled in Gmail. Setting `delete_after_days` to `0`
+  deletes matching mail immediately after the rule runs.
