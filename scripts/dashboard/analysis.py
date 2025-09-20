@@ -273,6 +273,13 @@ def import_missing_emails(
     existing = {
         e.casefold() for grp in target_groups for e in (grp.get("emails") or [])
     }
+    # Track existing email membership per group so we can detect overlaps.
+    group_casefolds: Dict[int, Set[str]] = {}
+    for grp in target_groups:
+        group_casefolds[id(grp)] = {
+            e.casefold() for e in (grp.get("emails") or []) if isinstance(e, str)
+        }
+
     added: List[str] = []
 
     source_groups = (labels_data.get("SENDER_TO_LABELS") or {}).get(label) or []
@@ -282,29 +289,62 @@ def import_missing_emails(
 
     for src in source_groups:
         meta = {k: src.get(k) for k in ("read_status", "delete_after_days") if k in src}
+        src_emails = [e for e in (src.get("emails") or []) if e]
+        src_cf = {e.casefold() for e in src_emails}
         to_add = [
             e
-            for e in (src.get("emails") or [])
+            for e in src_emails
             if e and e.casefold() in missing_cf and e.casefold() not in existing
         ]
         if not to_add:
             continue
 
+        candidate = None
+
+        overlapping: List[Tuple[int, Dict[str, Any]]] = []
         for tgt in target_groups:
-            if tgt.get("read_status") == meta.get("read_status") and tgt.get(
-                "delete_after_days"
-            ) == meta.get("delete_after_days"):
-                tgt.setdefault("emails", []).extend(to_add)
-                existing.update(e.casefold() for e in to_add)
-                # Only count items that were explicitly requested
-                added.extend([e for e in to_add if e in emails])
-                break
+            tgt_cf = group_casefolds.get(id(tgt), set())
+            overlap = len(src_cf & tgt_cf)
+            if overlap:
+                overlapping.append((overlap, tgt))
+        if overlapping:
+            overlapping.sort(key=lambda item: item[0], reverse=True)
+            candidate = overlapping[0][1]
         else:
-            new_group = {"emails": to_add}
-            new_group.update(meta)
-            target_groups.append(new_group)
-            existing.update(e.casefold() for e in to_add)
-            # Only count items that were explicitly requested
-            added.extend([e for e in to_add if e in emails])
+            for tgt in target_groups:
+                if tgt.get("read_status") == meta.get("read_status") and tgt.get(
+                    "delete_after_days"
+                ) == meta.get("delete_after_days"):
+                    candidate = tgt
+                    break
+            if candidate is None and target_groups:
+
+                def _score(group: Dict[str, Any]) -> int:
+                    score = 0
+                    if group.get("read_status") == meta.get("read_status"):
+                        score += 2
+                    if group.get("delete_after_days") == meta.get("delete_after_days"):
+                        score += 1
+                    return score
+
+                candidate = max(target_groups, key=_score)
+
+        if candidate is None:
+            candidate = {"emails": []}
+            candidate.update(meta)
+            target_groups.append(candidate)
+
+        emails_list = candidate.setdefault("emails", [])
+        emails_list.extend(to_add)
+        existing.update(e.casefold() for e in to_add)
+        group_cf = group_casefolds.setdefault(id(candidate), set())
+        group_cf.update(e.casefold() for e in to_add)
+
+        if candidate.get("read_status") is None and "read_status" in meta:
+            candidate["read_status"] = meta["read_status"]
+        if candidate.get("delete_after_days") is None and "delete_after_days" in meta:
+            candidate["delete_after_days"] = meta["delete_after_days"]
+
+        added.extend([e for e in to_add if e in emails])
 
     return updated, added
