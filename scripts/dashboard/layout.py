@@ -376,53 +376,100 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 children=[
                     html.H2("Differences View (Source: config/gmail_labels_data.json)"),
                     html.Div(id="diff-summary", style={"marginBottom": "8px"}),
-                    dash_table.DataTable(
-                        id="tbl-diff",
-                        columns=[
-                            {"name": "label", "id": "label"},
-                            {
-                                "name": "exists_in_target",
-                                "id": "exists_in_target",
-                                "presentation": "markdown",
-                            },
-                            {
-                                "name": "total_in_source",
-                                "id": "total_in_source",
-                                "type": "numeric",
-                            },
-                            {
-                                "name": "missing_count",
-                                "id": "missing_count",
-                                "type": "numeric",
-                            },
-                            {
-                                "name": "coverage",
-                                "id": "coverage",
-                                "presentation": "markdown",
-                            },
-                            {
-                                "name": "missing_emails",
-                                "id": "missing_emails",
-                                "presentation": "markdown",
-                            },
-                            {
-                                "name": "actions",
-                                "id": "actions",
-                                "presentation": "markdown",
-                            },
+                    dcc.RadioItems(
+                        id="diff-view-toggle",
+                        options=[
+                            {"label": "Table", "value": "table"},
+                            {"label": "Grouped Tree", "value": "tree"},
                         ],
-                        data=[],
-                        page_size=15,
-                        markdown_options={"html": True},
-                        style_table={"maxHeight": "400px", "overflowY": "auto"},
-                        style_cell={
-                            "fontFamily": "monospace",
-                            "fontSize": "12px",
-                            "whiteSpace": "normal",
-                            "height": "auto",
-                        },
+                        value="table",
+                        inline=True,
+                        style={"marginBottom": "8px"},
                     ),
-                    html.Div(id="diff-projected", style={"marginTop": "8px"}),
+                    html.Div(
+                        id="diff-table-view",
+                        children=[
+                            dash_table.DataTable(
+                                id="tbl-diff",
+                                columns=[
+                                    {"name": "label", "id": "label"},
+                                    {
+                                        "name": "exists_in_target",
+                                        "id": "exists_in_target",
+                                        "presentation": "markdown",
+                                    },
+                                    {
+                                        "name": "total_in_source",
+                                        "id": "total_in_source",
+                                        "type": "numeric",
+                                    },
+                                    {
+                                        "name": "missing_count",
+                                        "id": "missing_count",
+                                        "type": "numeric",
+                                    },
+                                    {
+                                        "name": "coverage",
+                                        "id": "coverage",
+                                        "presentation": "markdown",
+                                    },
+                                    {
+                                        "name": "missing_emails",
+                                        "id": "missing_emails",
+                                        "presentation": "markdown",
+                                    },
+                                    {
+                                        "name": "actions",
+                                        "id": "actions",
+                                        "presentation": "markdown",
+                                    },
+                                ],
+                                data=[],
+                                page_size=15,
+                                markdown_options={"html": True},
+                                style_table={"maxHeight": "400px", "overflowY": "auto"},
+                                style_cell={
+                                    "fontFamily": "monospace",
+                                    "fontSize": "12px",
+                                    "whiteSpace": "normal",
+                                    "height": "auto",
+                                },
+                            ),
+                            html.Div(id="diff-projected", style={"marginTop": "8px"}),
+                        ],
+                    ),
+                    html.Div(
+                        id="diff-tree-view",
+                        style={"display": "none"},
+                        children=[
+                            html.Div(
+                                [
+                                    "Hover to inspect missing emails by label. ",
+                                    "Click a group to zoom; ",
+                                    "use the root breadcrumb to reset.",
+                                ],
+                                style={
+                                    "fontSize": "12px",
+                                    "color": "#555",
+                                    "marginBottom": "8px",
+                                },
+                            ),
+                            dcc.Graph(
+                                id="diff-tree",
+                                figure={},
+                                style={"height": "420px"},
+                                config={"displayModeBar": False},
+                            ),
+                            html.Div(
+                                id="diff-tree-empty",
+                                style={
+                                    "marginTop": "8px",
+                                    "fontSize": "12px",
+                                    "color": "#a00",
+                                },
+                            ),
+                        ],
+                    ),
                 ],
             ),
             html.Div(
