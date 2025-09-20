@@ -282,6 +282,7 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 editable=True,
                                 row_deletable=True,
                                 row_selectable="multi",
+                                filter_action="native",
                                 page_size=15,
                                 style_table={"maxHeight": "400px", "overflowY": "auto"},
                                 style_cell={
@@ -423,6 +424,23 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         },
                     ),
                     html.Div(id="diff-projected", style={"marginTop": "8px"}),
+                ],
+            ),
+            html.Div(
+                style={"marginBottom": "24px"},
+                children=[
+                    html.Label(
+                        "Filter SENDER_TO_LABELS by label",
+                        htmlFor="ddl-stl-label-filter",
+                        style={"display": "block", "fontWeight": "bold"},
+                    ),
+                    dcc.Dropdown(
+                        id="ddl-stl-label-filter",
+                        options=[],
+                        placeholder="Select a label to filter the editor...",
+                        clearable=True,
+                        style={"marginTop": "4px", "maxWidth": "400px"},
+                    ),
                 ],
             ),
             html.Div(
