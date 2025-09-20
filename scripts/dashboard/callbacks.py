@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dash import Input, Output, State, callback_context, ctx, dcc, html, no_update
+from dash import ALL, Input, Output, State, callback_context, ctx, dcc, html, no_update
 import re
 from typing import Any, Dict, List, Tuple
 from gmail_automation.logging_utils import get_logger
@@ -18,7 +18,7 @@ from .analysis_helpers import run_full_analysis
 from .transforms import config_to_table, table_to_config, rows_to_grouped
 from .utils_io import backup_file, read_json, write_json
 from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
-from .group_ops import merge_selected, split_selected
+from .group_ops import merge_selected, remove_email_from_group, split_selected
 from .theme import get_theme_style
 
 
@@ -218,14 +218,14 @@ def _prepare_diff_outputs(
 
 
 def register_callbacks(app):
-    def _render_grouped_tree(rows: List[Dict[str, str]]):
-        def _group_label(gi: int) -> str:
-            if gi == 0:
-                return "Mark Read"
-            if gi == 1:
-                return "Mark Unread"
-            return f"Group {gi}"
+    def _format_group_label(gi: int) -> str:
+        if gi == 0:
+            return "Mark Read"
+        if gi == 1:
+            return "Mark Unread"
+        return f"Group {gi}"
 
+    def _render_grouped_tree(rows: List[Dict[str, str]]):
         grouped = rows_to_grouped(rows)
         items = []
         for label in sorted(grouped):
@@ -265,7 +265,7 @@ def register_callbacks(app):
                 group_items.append(
                     html.Li(
                         [
-                            html.Span(_group_label(gi)),
+                            html.Span(_format_group_label(gi)),
                             html.Ul(email_items),
                             # Hidden span to satisfy pattern-matching Output for add
                             html.Span(
@@ -506,8 +506,47 @@ def register_callbacks(app):
     # Grouped-tree Add callback temporarily disabled due to Dash wildcard
     # constraints across multi-output callbacks. Controls are no-ops for now.
 
-    # Grouped-tree Remove callback temporarily disabled due to Dash wildcard
-    # constraints across multi-output callbacks. Controls are no-ops for now.
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("store-config", "data", allow_duplicate=True),
+        Output("store-analysis", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input(
+            {"type": "grp-remove", "label": ALL, "group": ALL, "email": ALL}, "n_clicks"
+        ),
+        State("tbl-stl", "data"),
+        prevent_initial_call=True,
+    )
+    def on_group_remove(_clicks, rows):
+        triggered = ctx.triggered_id
+        if not rows or not triggered or not isinstance(triggered, dict):
+            return no_update, no_update, no_update, no_update
+        if triggered.get("type") != "grp-remove":
+            return no_update, no_update, no_update, no_update
+
+        updated_rows, removed = remove_email_from_group(
+            rows,
+            triggered.get("label", ""),
+            triggered.get("group"),
+            triggered.get("email", ""),
+        )
+        if not removed:
+            return no_update, no_update, no_update, no_update
+
+        cfg, analysis = _recompute(updated_rows)
+
+        group_value = triggered.get("group")
+        try:
+            group_int = int(group_value) if group_value is not None else 0
+        except (TypeError, ValueError):
+            group_int = 0
+        message = "Removed {email} from {label} ({group}).".format(
+            email=triggered.get("email", ""),
+            label=triggered.get("label", ""),
+            group=_format_group_label(group_int),
+        )
+
+        return updated_rows, cfg, analysis, message
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
