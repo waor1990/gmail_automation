@@ -126,7 +126,7 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         style_table={"maxHeight": "200px", "overflowY": "auto"},
                         style_cell={"fontFamily": "monospace", "fontSize": "12px"},
                         sort_action="native",
-                        filter_action="native",
+                        filter_action="none",
                         style_data_conditional=[
                             {
                                 "if": {"filter_query": "{status} = '🔴'"},
