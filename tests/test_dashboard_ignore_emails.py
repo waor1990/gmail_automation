@@ -1,8 +1,20 @@
 from scripts.dashboard.analysis import compute_label_differences
+from gmail_automation.ignored_rules import normalize_ignored_rules
 
 
 def test_ignored_emails_excluded_from_diff():
-    cfg = {"SENDER_TO_LABELS": {}, "IGNORED_EMAILS": ["skip@example.com"]}
+    cfg = {
+        "SENDER_TO_LABELS": {},
+        "IGNORED_EMAILS": normalize_ignored_rules(
+            [
+                {
+                    "name": "Skip",
+                    "senders": ["skip@example.com"],
+                    "actions": {"skip_analysis": True, "skip_import": True},
+                }
+            ]
+        ),
+    }
     labels = {
         "SENDER_TO_LABELS": {
             "Foo": [{"emails": ["skip@example.com", "keep@example.com"]}]

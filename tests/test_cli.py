@@ -15,6 +15,7 @@ from gmail_automation.cli import (
     save_processed_email_ids,
     process_email,
 )
+from gmail_automation.ignored_rules import IgnoredRulesEngine
 
 
 class TestCLI(unittest.TestCase):
@@ -196,6 +197,7 @@ class TestProcessEmail(unittest.TestCase):
                 "Streaming",
                 True,
                 30,
+                IgnoredRulesEngine.from_config([]),
                 {"Streaming": "label_id"},
                 set(),
                 set(),

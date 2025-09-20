@@ -11,5 +11,24 @@
                 ]
             }
         ]
-    }
+    },
+    "IGNORED_EMAILS": [
+        {
+            "name": "Example ignore",
+            "senders": [
+                "ignore@example.com"
+            ],
+            "subject_contains": [],
+            "actions": {
+                "skip_analysis": true,
+                "skip_import": true,
+                "mark_as_read": true,
+                "apply_labels": [
+                    "Ignored"
+                ],
+                "archive": true,
+                "delete_after_days": 0
+            }
+        }
+    ]
 }

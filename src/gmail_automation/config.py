@@ -9,12 +9,14 @@ from zoneinfo import ZoneInfo
 from dateutil import parser
 
 from .logging_utils import get_logger
+from .ignored_rules import normalize_ignored_rules
 
 logger = get_logger(__name__)
 
 
 def validate_and_normalize_config(config):
     """Validate and normalize configuration values."""
+    config.setdefault("IGNORED_EMAILS", [])
     for category, rules in config.get("SENDER_TO_LABELS", {}).items():
         for rule in rules:
             if isinstance(rule.get("read_status"), str):
@@ -32,6 +34,12 @@ def validate_and_normalize_config(config):
                 except (ValueError, TypeError):
                     logger.warning(f"Invalid delete_after_days for {category}: {rule}")
                     rule["delete_after_days"] = float("inf")
+    try:
+        config["IGNORED_EMAILS"] = normalize_ignored_rules(
+            config.get("IGNORED_EMAILS", [])
+        )
+    except ValueError as exc:
+        raise ValueError(f"Invalid IGNORED_EMAILS configuration: {exc}") from exc
     return config
 
 
@@ -57,7 +65,11 @@ def load_configuration(config_path: str | None = None):
         )
         return {}
     logger.debug("Configuration loaded successfully.")
-    return validate_and_normalize_config(config)
+    try:
+        return validate_and_normalize_config(config)
+    except ValueError as exc:
+        logger.error("Configuration validation failed: %s", exc)
+        return {}
 
 
 def check_files_existence(client_secret_file: str | None = None):

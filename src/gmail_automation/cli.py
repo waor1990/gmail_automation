@@ -2,7 +2,7 @@ import argparse
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from dateutil import parser
 from zoneinfo import ZoneInfo
@@ -28,6 +28,7 @@ from .gmail_service import (
     modify_message,
 )
 from .logging_utils import get_logger, setup_logging
+from .ignored_rules import IgnoredRulesEngine, IgnoredRule
 
 message_details_cache: Dict[
     str, Tuple[Optional[str], Optional[str], Optional[str], Optional[bool]]
@@ -212,6 +213,159 @@ def save_processed_email_ids(file_path, email_ids):
             f.write(email_id + "\n")
 
 
+def apply_ignored_rule_actions(
+    service,
+    user_id: str,
+    msg_id: str,
+    sender: str | None,
+    subject: str | None,
+    date: str | None,
+    parsed_date: datetime | None,
+    rule: IgnoredRule,
+    existing_labels: Dict[str, str],
+    dry_run: bool,
+) -> tuple[List[str], bool]:
+    """Apply pipeline actions for a matched ignored-email rule."""
+
+    actions = rule.actions
+    executed: List[str] = []
+    deleted = False
+
+    delete_after = actions.delete_after_days
+    if delete_after is not None:
+        should_delete = False
+        if delete_after == 0:
+            should_delete = True
+        elif parsed_date is not None:
+            current_time = datetime.now(ZoneInfo("America/Los_Angeles"))
+            age_days = (current_time - parsed_date).days
+            if age_days >= delete_after:
+                should_delete = True
+            else:
+                logger.debug(
+                    (
+                        "Email %s is %s days old; below delete_after_days=%s "
+                        "for rule '%s'."
+                    ),
+                    msg_id,
+                    age_days,
+                    delete_after,
+                    rule.name,
+                )
+        else:
+            logger.warning(
+                (
+                    "Unable to parse date '%s' for message %s; "
+                    "skipping delete_after_days=%s for rule '%s'."
+                ),
+                date,
+                msg_id,
+                delete_after,
+                rule.name,
+            )
+
+        if should_delete:
+            summary = (
+                f"delete (after {delete_after} days)"
+                if delete_after > 0
+                else "delete (immediate)"
+            )
+            if dry_run:
+                executed.append(f"dry-run {summary}")
+                logger.info(
+                    "Dry run: would delete email %s from '%s' via rule '%s'",
+                    msg_id,
+                    sender,
+                    rule.name,
+                )
+                deleted = True
+            else:
+                try:
+                    service.users().messages().delete(
+                        userId=user_id, id=msg_id
+                    ).execute()
+                    executed.append(summary)
+                    deleted = True
+                except HttpError as error:
+                    if error.resp.status == 403:
+                        logger.warning(
+                            (
+                                "Insufficient permissions to delete email %s; "
+                                "rule '%s' requested delete_after_days=%s."
+                            ),
+                            msg_id,
+                            rule.name,
+                            delete_after,
+                        )
+                    else:
+                        logger.error(
+                            "Failed to delete email %s: %s",
+                            msg_id,
+                            error,
+                            exc_info=True,
+                        )
+            if deleted:
+                return executed, True
+
+    label_ids: List[str] = []
+    applied_labels: List[str] = []
+    missing_labels: List[str] = []
+    for label in actions.apply_labels:
+        label_id = existing_labels.get(label)
+        if label_id is None:
+            missing_labels.append(label)
+            continue
+        label_ids.append(label_id)
+        applied_labels.append(label)
+
+    remove_ids: List[str] = []
+    if actions.archive:
+        remove_ids.append("INBOX")
+
+    if missing_labels:
+        logger.warning(
+            "Rule '%s' requested labels %s which do not exist.",
+            rule.name,
+            ", ".join(missing_labels),
+        )
+
+    if not (label_ids or remove_ids or actions.mark_as_read):
+        return executed, False
+
+    if dry_run:
+        if applied_labels:
+            executed.append("dry-run applied labels: " + ", ".join(applied_labels))
+        if actions.archive:
+            executed.append("dry-run archived")
+        if actions.mark_as_read:
+            executed.append("dry-run marked as read")
+        logger.info(
+            "Dry run: would modify email %s for rule '%s' with actions: %s",
+            msg_id,
+            rule.name,
+            ", ".join(executed) or "none",
+        )
+        return executed, False
+
+    modify_message(
+        service,
+        user_id,
+        msg_id,
+        label_ids,
+        remove_ids,
+        actions.mark_as_read,
+    )
+
+    if applied_labels:
+        executed.append("applied labels: " + ", ".join(applied_labels))
+    if actions.archive:
+        executed.append("archived")
+    if actions.mark_as_read:
+        executed.append("marked as read")
+
+    return executed, False
+
+
 def process_email(
     service,
     user_id,
@@ -223,6 +377,7 @@ def process_email(
     label,
     mark_read,
     delete_after_days,
+    ignored_rules: IgnoredRulesEngine,
     existing_labels,
     current_run_processed_ids,
     processed_email_ids,
@@ -241,65 +396,107 @@ def process_email(
         logger.debug(f"Email ID {msg_id} already processed in this run. Skipping.")
         return False
 
-    if delete_after_days is not None:
-        logger.debug(f"Attempting to parse date: '{date}' for message ID: {msg_id}")
-        try:
-            email_date = parse_email_date(date)
-            if email_date is not None:
-                current_time = datetime.now(ZoneInfo("America/Los_Angeles"))
-                days_diff = (current_time - email_date).days
-                if days_diff >= delete_after_days:
-                    logger.info(
-                        (
-                            "Deleting email from '%s' with subject '%s' dated '%s' "
-                            "as it is older than %s days."
-                        ),
-                        sender,
-                        subject,
-                        date,
-                        delete_after_days,
-                    )
-                    if dry_run:
-                        logger.info("Dry run enabled; email not deleted.")
-                    else:
-                        try:
-                            service.users().messages().delete(
-                                userId=user_id, id=msg_id
-                            ).execute()
-                            logger.info(f"Email deleted successfully: {msg_id}")
-                        except HttpError as delete_error:
-                            if delete_error.resp.status == 403:
-                                logger.warning(
-                                    (
-                                        "Insufficient permissions to delete email %s. "
-                                        "Email was labeled but not deleted. "
-                                        "To enable deletion, re-authorize with broader "
-                                        "Gmail permissions."
-                                    ),
-                                    msg_id,
-                                )
-                            else:
-                                logger.error(
-                                    f"Failed to delete email {msg_id}: {delete_error}",
-                                    exc_info=True,
-                                )
-                    return True
-                else:
-                    logger.debug(
-                        (
-                            "Email from '%s' is only %s days old, not deleting "
-                            "(threshold: %s days)"
-                        ),
-                        sender,
-                        days_diff,
-                        delete_after_days,
-                    )
-        except Exception as e:
-            logger.error(
-                f"Error parsing date for message ID {msg_id}: {e}",
-                exc_info=True,
+    parsed_date = parse_email_date(date) if date else None
+
+    for rule in ignored_rules.iter_matches(sender, subject):
+        if not rule.actions.has_pipeline_actions():
+            logger.debug(
+                "Ignored rule '%s' matched message %s without pipeline actions.",
+                rule.name,
+                msg_id,
             )
-            return False
+            continue
+        executed_actions, _ = apply_ignored_rule_actions(
+            service,
+            user_id,
+            msg_id,
+            sender,
+            subject,
+            date,
+            parsed_date,
+            rule,
+            existing_labels,
+            dry_run,
+        )
+        skip_flags = [
+            flag
+            for flag, enabled in (
+                ("skip_analysis", rule.actions.skip_analysis),
+                ("skip_import", rule.actions.skip_import),
+            )
+            if enabled
+        ]
+        flag_suffix = f" (flags: {', '.join(skip_flags)})" if skip_flags else ""
+        summary = (
+            ", ".join(executed_actions) if executed_actions else "no pipeline actions"
+        )
+        logger.info(
+            "Ignored rule '%s'%s applied to %s: %s",
+            rule.name,
+            flag_suffix,
+            sender,
+            summary,
+        )
+        current_run_processed_ids.add(msg_id)
+        if not dry_run:
+            processed_email_ids.add(msg_id)
+        return True
+
+    if delete_after_days is not None:
+        if parsed_date is None:
+            logger.debug(
+                "Skipping delete_after_days for %s; unable to parse date '%s'",
+                msg_id,
+                date,
+            )
+        else:
+            current_time = datetime.now(ZoneInfo("America/Los_Angeles"))
+            days_diff = (current_time - parsed_date).days
+            if days_diff >= delete_after_days:
+                logger.info(
+                    (
+                        "Deleting email from '%s' with subject '%s' dated '%s' "
+                        "as it is older than %s days."
+                    ),
+                    sender,
+                    subject,
+                    date,
+                    delete_after_days,
+                )
+                if dry_run:
+                    logger.info("Dry run enabled; email not deleted.")
+                else:
+                    try:
+                        service.users().messages().delete(
+                            userId=user_id, id=msg_id
+                        ).execute()
+                        logger.info(f"Email deleted successfully: {msg_id}")
+                    except HttpError as delete_error:
+                        if delete_error.resp.status == 403:
+                            logger.warning(
+                                (
+                                    "Insufficient permissions to delete email %s. "
+                                    "Email was labeled but not deleted. "
+                                    "To enable deletion, re-authorize with broader "
+                                    "Gmail permissions."
+                                ),
+                                msg_id,
+                            )
+                        else:
+                            logger.error(
+                                f"Failed to delete email {msg_id}: {delete_error}",
+                                exc_info=True,
+                            )
+                return True
+            logger.debug(
+                (
+                    "Email from '%s' is only %s days old, not deleting "
+                    "(threshold: %s days)"
+                ),
+                sender,
+                days_diff,
+                delete_after_days,
+            )
 
     current_labels = (
         service.users()
@@ -345,6 +542,7 @@ def process_emails_by_criteria(
     label,
     mark_read,
     delete_after_days,
+    ignored_rules: IgnoredRulesEngine,
     existing_labels,
     current_run_processed_ids,
     processed_email_ids,
@@ -402,6 +600,7 @@ def process_emails_by_criteria(
             label,
             mark_read,
             delete_after_days,
+            ignored_rules,
             existing_labels,
             current_run_processed_ids,
             processed_email_ids,
@@ -432,6 +631,7 @@ def process_emails_for_labeling(
     config,
     last_run_times: Dict[str, float],
     current_time: float,
+    ignored_rules: IgnoredRulesEngine,
     dry_run: bool = False,
 ):
     """Process emails for all configured senders and apply labels.
@@ -485,6 +685,7 @@ def process_emails_for_labeling(
                     sender_category,
                     mark_read,
                     delete_after_days,
+                    ignored_rules,
                     existing_labels,
                     current_run_processed_ids,
                     processed_email_ids,
@@ -536,6 +737,7 @@ def main(argv=None):
         last_run_times = get_sender_last_run_times(senders)
 
         existing_labels = get_existing_labels_cached(service)
+        ignored_rules = IgnoredRulesEngine.from_config(config.get("IGNORED_EMAILS", []))
 
         emails_processed = process_emails_for_labeling(
             service,
@@ -544,6 +746,7 @@ def main(argv=None):
             config,
             last_run_times,
             current_time,
+            ignored_rules,
             dry_run=args.dry_run,
         )
 
