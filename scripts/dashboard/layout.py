@@ -69,6 +69,11 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 storage_type="local",
                 data={"read_status": False, "delete_after_days": None},
             ),
+            dcc.Store(
+                id="store-grouped-expanded",
+                storage_type="memory",
+                data={"labels": []},
+            ),
             html.H1("Gmail Email Configuration Dashboard"),
             control_row,
             defaults_panel,
