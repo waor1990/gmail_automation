@@ -59,6 +59,17 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
         ],
     )
 
+    ignored_emails = cfg.get("IGNORED_EMAILS") or []
+    normalized_ignored = sorted(
+        {
+            str(email).strip().casefold()
+            for email in ignored_emails
+            if str(email).strip()
+        },
+        key=str.casefold,
+    )
+    ignored_rows = [{"email": email} for email in normalized_ignored]
+
     return html.Div(
         id="app-root",
         style=get_theme_style("light"),
@@ -423,6 +434,60 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         },
                     ),
                     html.Div(id="diff-projected", style={"marginTop": "8px"}),
+                ],
+            ),
+            html.Div(
+                style=section_style,
+                children=[
+                    html.H2("Ignored Emails"),
+                    html.P(
+                        (
+                            "Emails listed here will be excluded when comparing "
+                            "Gmail labels to the working configuration."
+                        ),
+                        style={"fontSize": "14px", "maxWidth": "800px"},
+                    ),
+                    html.Div(
+                        style={
+                            "display": "flex",
+                            "gap": "8px",
+                            "flexWrap": "wrap",
+                            "alignItems": "center",
+                            "marginBottom": "8px",
+                        },
+                        children=[
+                            dcc.Input(
+                                id="txt-ignored-email",
+                                type="email",
+                                placeholder="email@example.com",
+                                style={"width": "260px"},
+                            ),
+                            html.Button("Add Email", id="btn-add-ignored", n_clicks=0),
+                            html.Button(
+                                "Remove Selected",
+                                id="btn-remove-ignored",
+                                n_clicks=0,
+                                title="Remove selected emails from the ignored list",
+                            ),
+                        ],
+                    ),
+                    html.Div(
+                        id="ignored-status",
+                        style={"fontSize": "12px", "color": "#555"},
+                    ),
+                    dash_table.DataTable(
+                        id="tbl-ignored-emails",
+                        columns=[{"name": "Email", "id": "email"}],
+                        data=ignored_rows,
+                        row_selectable="multi",
+                        page_size=10,
+                        style_table={"maxHeight": "240px", "overflowY": "auto"},
+                        style_cell={
+                            "fontFamily": "monospace",
+                            "fontSize": "12px",
+                            "textAlign": "left",
+                        },
+                    ),
                 ],
             ),
             html.Div(
