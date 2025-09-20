@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from dash import Input, Output, State, callback_context, ctx, dcc, html, no_update
+import json
 import re
 from typing import Any, Dict, List, Tuple
+
+from dash import Input, Output, State, callback_context, ctx, dcc, html, no_update
 from gmail_automation.logging_utils import get_logger
 from .collisions import resolve_collisions
 from .analysis import (
@@ -74,6 +76,43 @@ def _group_changes_by_label(changes: List[str]) -> Dict[str, List[str]]:
         label = m.group(1) if m else "Unknown"
         groups.setdefault(label, []).append(c)
     return groups
+
+
+def _label_filter_options(rows: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    """Build dropdown options for the SENDER_TO_LABELS label filter."""
+
+    labels: set[str] = set()
+    for row in rows or []:
+        raw_label = row.get("label")
+        if isinstance(raw_label, str):
+            cleaned = raw_label.strip()
+        elif raw_label is None:
+            cleaned = ""
+        else:
+            cleaned = str(raw_label).strip()
+        if cleaned:
+            labels.add(cleaned)
+    return [
+        {"label": label, "value": label} for label in sorted(labels, key=str.casefold)
+    ]
+
+
+def _sanitize_label_filter_value(
+    options: List[Dict[str, str]], current_value: str | None
+) -> str | None:
+    """Return the current value if still valid, otherwise ``None``."""
+
+    valid = {opt["value"] for opt in options}
+    return current_value if current_value in valid else None
+
+
+def _build_label_filter_query(selected_label: str | None) -> str:
+    """Return a filter query string for the selected label."""
+
+    if not selected_label:
+        return ""
+    serialized = json.dumps(str(selected_label))
+    return f"{{label}} = {serialized}"
 
 
 def _prepare_diff_outputs(
@@ -487,6 +526,25 @@ def register_callbacks(app):
         if mode == "grouped":
             return {"display": "none"}, {"display": "block"}
         return {"display": "block"}, {"display": "none"}
+
+    @app.callback(
+        Output("ddl-stl-label-filter", "options"),
+        Output("ddl-stl-label-filter", "value"),
+        Input("tbl-stl", "data"),
+        State("ddl-stl-label-filter", "value"),
+    )
+    def update_label_filter_dropdown(rows, current_value):
+        options = _label_filter_options(rows or [])
+        value = _sanitize_label_filter_value(options, current_value)
+        return options, value
+
+    @app.callback(
+        Output("tbl-stl", "filter_query"),
+        Output("tbl-stl", "selected_rows"),
+        Input("ddl-stl-label-filter", "value"),
+    )
+    def on_label_filter_change(selected_label):
+        return _build_label_filter_query(selected_label), []
 
     @app.callback(
         Output("store-theme", "data"),
