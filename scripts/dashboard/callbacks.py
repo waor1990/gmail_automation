@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from dash import Input, Output, State, callback_context, ctx, dcc, html, no_update
+import plotly.graph_objects as go
 import re
 from typing import Any, Dict, List, Tuple
 from gmail_automation.logging_utils import get_logger
@@ -23,6 +25,9 @@ from .theme import get_theme_style
 
 
 logger = get_logger(__name__)
+
+MIN_TREEMAP_VALUE = 0.1
+MAX_EMAILS_IN_TOOLTIP = 30
 
 
 def make_empty_stl_row(defaults: Dict[str, Any] | None = None) -> Dict[str, Any]:
@@ -74,6 +79,182 @@ def _group_changes_by_label(changes: List[str]) -> Dict[str, List[str]]:
         label = m.group(1) if m else "Unknown"
         groups.setdefault(label, []).append(c)
     return groups
+
+
+def _prepare_diff_tree_nodes(diff: Dict[str, Any] | None) -> List[Dict[str, Any]]:
+    """Transform diff data into nodes for the grouped tree treemap."""
+
+    if not diff:
+        return []
+
+    missing = diff.get("missing_emails_by_label") or {}
+    if not missing:
+        return []
+
+    root_label = "All Labels"
+    comparison = diff.get("comparison_summary") or {}
+    total_missing = comparison.get("total_missing_emails", 0)
+
+    nodes: List[Dict[str, Any]] = [
+        {
+            "label": root_label,
+            "parent": "",
+            "value": MIN_TREEMAP_VALUE,
+            "missing_count": total_missing,
+            "tooltip": (
+                f"<b>{root_label}</b><br>Total missing emails: {total_missing}<br>"
+                "Use the grouped tree to explore gaps by label."
+            ),
+            "text": f"{root_label}<br>{total_missing} missing",
+            "type": "root",
+        }
+    ]
+
+    status_map: Dict[str, Dict[str, Any]] = OrderedDict()
+
+    def status_key(info: Dict[str, Any]) -> str:
+        return (
+            "Existing Labels"
+            if info.get("label_exists_in_target")
+            else "Missing Labels"
+        )
+
+    for label, info in sorted(missing.items(), key=lambda kv: kv[0].casefold()):
+        key = status_key(info)
+        entry = status_map.setdefault(
+            key,
+            {"items": [], "missing_total": 0, "value_total": 0.0},
+        )
+        missing_emails = info.get("missing_emails") or []
+        missing_count = len(missing_emails)
+        node_value = float(missing_count) if missing_count else MIN_TREEMAP_VALUE
+        entry["items"].append(
+            {
+                "label": label,
+                "missing_emails": missing_emails,
+                "missing_count": missing_count,
+                "total_in_source": info.get("total_emails_in_source", 0),
+                "exists": info.get("label_exists_in_target", False),
+                "value": node_value,
+            }
+        )
+        entry["missing_total"] += missing_count
+        entry["value_total"] += node_value
+
+    status_order = {"Existing Labels": 0, "Missing Labels": 1}
+    total_value = 0.0
+
+    for _, status, entry in sorted(
+        ((status_order.get(k, 99), k, v) for k, v in status_map.items()),
+        key=lambda item: (item[0], item[1]),
+    ):
+        status_value = entry["value_total"] or MIN_TREEMAP_VALUE
+        status_missing = entry["missing_total"]
+        nodes.append(
+            {
+                "label": status,
+                "parent": root_label,
+                "value": status_value,
+                "missing_count": status_missing,
+                "tooltip": (
+                    f"<b>{status}</b><br>{len(entry['items'])} labels\n"
+                    f"Missing emails: {status_missing}"
+                ),
+                "text": f"{status}<br>{status_missing} missing",
+                "type": "status",
+            }
+        )
+        total_value += status_value
+
+        for item in entry["items"]:
+            missing_emails = item["missing_emails"]
+            missing_count = item["missing_count"]
+            exists = item["exists"]
+            preview = missing_emails[:MAX_EMAILS_IN_TOOLTIP]
+            tooltip_lines = [
+                f"<b>{item['label']}</b>",
+                f"Missing emails: {missing_count}",
+            ]
+            if preview:
+                tooltip_lines.append("Emails:")
+                tooltip_lines.extend(preview)
+                remaining = missing_count - len(preview)
+                if remaining > 0:
+                    tooltip_lines.append(f"… plus {remaining} more")
+            else:
+                tooltip_lines.append("No missing emails.")
+            if not exists:
+                tooltip_lines.append("Label missing from config.")
+            tooltip = "<br>".join(tooltip_lines)
+            nodes.append(
+                {
+                    "label": item["label"],
+                    "parent": status,
+                    "value": item["value"],
+                    "missing_count": missing_count,
+                    "tooltip": tooltip,
+                    "text": (
+                        f"{item['label']}<br>{missing_count} missing"
+                        if missing_count
+                        else f"{item['label']}<br>no missing"
+                    ),
+                    "type": "label",
+                }
+            )
+
+    nodes[0]["value"] = total_value or MIN_TREEMAP_VALUE
+    nodes[0]["text"] = (
+        f"{root_label}<br>{total_missing} missing"
+        if total_missing
+        else f"{root_label}<br>no missing"
+    )
+
+    return nodes
+
+
+def _build_diff_tree_figure(diff: Dict[str, Any] | None) -> go.Figure:
+    """Construct a Plotly treemap figure for grouped diff data."""
+
+    nodes = _prepare_diff_tree_nodes(diff)
+    if not nodes:
+        fig = go.Figure()
+        fig.update_layout(margin=dict(t=40, l=0, r=0, b=0))
+        return fig
+
+    labels = [node["label"] for node in nodes]
+    parents = [node["parent"] for node in nodes]
+    values = [node["value"] for node in nodes]
+    texts = [node["text"] for node in nodes]
+    customdata = [[node["tooltip"]] for node in nodes]
+
+    color_map = {
+        "Existing Labels": "#1976d2",
+        "Missing Labels": "#d32f2f",
+    }
+    colors = []
+    for node in nodes:
+        if node["type"] == "root":
+            colors.append("#78909c")
+        elif node["type"] == "status":
+            colors.append(color_map.get(node["label"], "#90a4ae"))
+        else:
+            colors.append(color_map.get(node["parent"], "#90caf9"))
+
+    fig = go.Figure(
+        go.Treemap(
+            labels=labels,
+            parents=parents,
+            values=values,
+            text=texts,
+            textinfo="text",
+            customdata=customdata,
+            hovertemplate="%{customdata[0]}<extra></extra>",
+            branchvalues="total",
+            marker=dict(colors=colors),
+        )
+    )
+    fig.update_layout(margin=dict(t=32, l=0, r=0, b=0))
+    return fig
 
 
 def _prepare_diff_outputs(
@@ -489,6 +670,16 @@ def register_callbacks(app):
         return {"display": "block"}, {"display": "none"}
 
     @app.callback(
+        Output("diff-table-view", "style"),
+        Output("diff-tree-view", "style"),
+        Input("diff-view-toggle", "value"),
+    )
+    def toggle_diff_view(mode):
+        if mode == "tree":
+            return {"display": "none"}, {"display": "block"}
+        return {"display": "block"}, {"display": "none"}
+
+    @app.callback(
         Output("store-theme", "data"),
         Output("app-root", "style"),
         Output("btn-toggle-theme", "children"),
@@ -713,6 +904,17 @@ def register_callbacks(app):
         analysis = run_full_analysis(cfg)
         summary, rows, diff, proj_div = _prepare_diff_outputs(cfg, analysis)
         return summary, rows, diff, proj_div, "Differences computed."
+
+    @app.callback(
+        Output("diff-tree", "figure"),
+        Output("diff-tree-empty", "children"),
+        Input("store-diff", "data"),
+    )
+    def on_diff_tree(diff):
+        figure = _build_diff_tree_figure(diff)
+        has_data = bool(diff and (diff.get("missing_emails_by_label") or {}))
+        message = "" if has_data else "No difference data to display."
+        return figure, message
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
