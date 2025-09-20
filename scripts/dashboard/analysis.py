@@ -17,7 +17,13 @@ logger = get_logger(__name__)
 def load_config() -> Dict[str, Any]:
     logger.info("Loading dashboard configuration from %s", CONFIG_JSON)
     if not CONFIG_JSON.exists():
-        raise FileNotFoundError("Missing config/gmail_config-final.json")
+        raise FileNotFoundError(
+            (
+                f"Missing configuration file: {CONFIG_JSON}. "
+                "Set GMAIL_AUTOMATION_CONFIG_JSON or "
+                "GMAIL_AUTOMATION_CONFIG_DIR to override the location."
+            )
+        )
     data: Dict[str, Any] = read_json(CONFIG_JSON)
     logger.debug(
         "Configuration contains %s labels", len(data.get("SENDER_TO_LABELS", {}))

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 from dash import Dash
+from werkzeug import serving
 from gmail_automation.logging_utils import get_logger
 
 from .layout import make_layout
@@ -21,30 +22,33 @@ def _prepare_initial_data():
         "Loaded dashboard configuration with %s labels.",
         len(cfg.get("SENDER_TO_LABELS", {})),
     )
-    # Execute reports automatically on load
-    try:
-        write_ECAQ_report()
-    except Exception:
-        pass
-    try:
-        write_diff_json()
-    except Exception:
-        pass
 
     stl_rows = config_to_table(cfg)
     analysis = run_full_analysis(cfg)
     diff = analysis["diff"]
     pending = find_unprocessed_senders(cfg)
     logger.info("Initial analysis complete. Pending senders: %s", len(pending))
+
+    # Execute reports automatically on load
+    try:
+        write_ECAQ_report(cfg, analysis)
+    except Exception:
+        pass
+    try:
+        write_diff_json(cfg, analysis)
+    except Exception:
+        pass
+
     return cfg, stl_rows, analysis, diff, pending
 
 
 def main(host: str | None = None, port: int | None = None, debug: bool | None = None):
     configure_dashboard_logging()
+    serving._log_add_style = False
     logger.info("Configuring dashboard application.")
     cfg, stl_rows, analysis, diff, pending = _prepare_initial_data()
     # Allow callbacks that reference components created dynamically
-    app = Dash(__name__, suppress_callback_exceptions=True)
+    app = Dash(__name__, suppress_callback_exceptions=True, add_log_handler=False)
     app.title = "Gmail Config Dashboard"
     app.layout = make_layout(stl_rows, analysis, diff, cfg, pending)
     register_callbacks(app)

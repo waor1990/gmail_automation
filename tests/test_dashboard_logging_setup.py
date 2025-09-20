@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import re
 from pathlib import Path
 
 
@@ -18,6 +19,11 @@ def test_configure_dashboard_logging_creates_transcript(tmp_path):
     assert log_file.exists()
 
     content = log_file.read_text(encoding="utf-8")
+    match = re.search(
+        r"Dashboard session started at (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3})",
+        content,
+    )
+    assert match is not None
     assert "Dashboard session started" in content
     assert "Saving dashboard logs to" in content
     assert "--------------------" in content  # hyphen delimiter is recorded

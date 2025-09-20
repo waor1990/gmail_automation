@@ -8,8 +8,9 @@ from .analysis import load_config
 from .analysis_helpers import run_full_analysis
 
 
-def generate_report_text(cfg: dict) -> str:
-    analysis = run_full_analysis(cfg)
+def generate_report_text(cfg: dict, analysis: dict | None = None) -> str:
+    if analysis is None:
+        analysis = run_full_analysis(cfg)
     sort_issues = analysis["sorting"]
     cd = analysis["case_dups"]
     proj_changes = analysis["projected_changes"]
@@ -77,19 +78,22 @@ def generate_report_text(cfg: dict) -> str:
     return "\n".join(lines)
 
 
-def write_ECAQ_report():
-    cfg = load_config()
-    text = generate_report_text(cfg)
+def write_ECAQ_report(cfg: dict | None = None, analysis: dict | None = None):
+    if cfg is None:
+        cfg = load_config()
+    text = generate_report_text(cfg, analysis)
     REPORT_TXT.parent.mkdir(parents=True, exist_ok=True)
     REPORT_TXT.write_text(text, encoding="utf-8")
     return REPORT_TXT
 
 
-def write_diff_json():
-    cfg = load_config()
+def write_diff_json(cfg: dict | None = None, analysis: dict | None = None):
     if not LABELS_JSON.exists():
         raise FileNotFoundError("Missing config/gmail_labels_data.json")
-    analysis = run_full_analysis(cfg)
+    if cfg is None:
+        cfg = load_config()
+    if analysis is None:
+        analysis = run_full_analysis(cfg)
     diff = analysis["diff"]
     proj_changes = analysis["projected_changes"]
     proj_diff = analysis["projected_diff"]

@@ -520,12 +520,12 @@ def register_callbacks(app):
     def on_refresh(_n):
         try:
             cfg = load_config()
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             return (
                 no_update,
                 no_update,
                 no_update,
-                "Missing config/gmail_config-final.json",
+                str(exc),
             )
         stl_rows = config_to_table(cfg)
         analysis = run_full_analysis(cfg)

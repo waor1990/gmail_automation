@@ -35,13 +35,15 @@ def configure_dashboard_logging(log_dir: Path | None = None) -> Path:
 
     target_dir = Path(log_dir) if log_dir is not None else LOGS_DIR
     target_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = target_dir / f"dashboard_{timestamp}.log"
+    now = datetime.now()
+    file_timestamp = now.strftime("%Y%m%d_%H%M%S")
+    log_file = target_dir / f"dashboard_{file_timestamp}.log"
+    formatted_timestamp = now.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
 
     setup_logging(level="INFO", log_file=log_file)
     logger = get_logger("scripts.dashboard")
     logger.info("-" * 40)
-    logger.info("Dashboard session started at %s", timestamp)
+    logger.info("Dashboard session started at %s", formatted_timestamp)
     logger.info("Saving dashboard logs to %s", log_file)
     _DASHBOARD_LOG_FILE = log_file
     return log_file
