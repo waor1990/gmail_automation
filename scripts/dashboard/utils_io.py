@@ -5,6 +5,8 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, cast
 
+from .constants import CONFIG_BACKUPS_DIR
+
 
 def read_json(p: Path) -> Dict[str, Any]:
     with p.open("r", encoding="utf-8") as f:
@@ -19,10 +21,11 @@ def write_json(obj: dict, p: Path) -> None:
 
 def backup_file(p: Path) -> Path:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    bkp = p.with_suffix(p.suffix + f".backup_{ts}")
-    bkp.parent.mkdir(parents=True, exist_ok=True)
-    bkp.write_bytes(p.read_bytes())
-    return bkp
+    backup_name = f"{p.name}.backup_{ts}"
+    target = CONFIG_BACKUPS_DIR / backup_name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(p.read_bytes())
+    return target
 
 
 def validate_import_file(contents: str, filename: str) -> Tuple[bool, List[str]]:

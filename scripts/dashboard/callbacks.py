@@ -20,7 +20,7 @@ from .analysis_helpers import run_full_analysis
 from .transforms import config_to_table, table_to_config, rows_to_grouped
 from .grouped_tree import render_grouped_tree, toggle_expanded_label
 from .utils_io import backup_file, read_json, write_json
-from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
+from .constants import CONFIG_DIR, CONFIG_JSON, LABELS_JSON, LOGS_DIR
 from .group_ops import merge_selected, remove_email_from_group, split_selected
 from .theme import get_theme_style
 
@@ -473,6 +473,10 @@ def register_callbacks(app):
             backup_requested,
             label_count,
         )
+        try:
+            display_config_path = CONFIG_JSON.relative_to(CONFIG_DIR.parent).as_posix()
+        except ValueError:
+            display_config_path = CONFIG_JSON.as_posix()
         if backup_requested:
             if CONFIG_JSON.exists():
                 bkp = backup_file(CONFIG_JSON)
@@ -482,18 +486,23 @@ def register_callbacks(app):
                     CONFIG_JSON,
                     bkp,
                 )
+                try:
+                    display_backup_path = bkp.relative_to(CONFIG_DIR.parent).as_posix()
+                except ValueError:
+                    display_backup_path = bkp.as_posix()
                 return (
-                    f"Backup saved: {bkp.name}\nUpdated: config/gmail_config-final.json"
+                    f"Backup saved: {display_backup_path}\n"
+                    f"Updated: {display_config_path}"
                 )
             write_json(cfg, CONFIG_JSON)
             logger.info(
                 "Configuration saved to %s without existing file to backup.",
                 CONFIG_JSON,
             )
-            return "Updated: config/gmail_config-final.json"
+            return f"Updated: {display_config_path}"
         write_json(cfg, CONFIG_JSON)
         logger.info("Configuration saved without backup to %s.", CONFIG_JSON)
-        return "Updated: config/gmail_config-final.json (no backup)"
+        return f"Updated: {display_config_path} (no backup)"
 
     @app.callback(
         Output("store-defaults", "data"),
