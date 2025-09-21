@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dash import Input, Output, State, callback_context, ctx, dcc, html, no_update
+from dash import ALL, Input, Output, State, callback_context, ctx, html, no_update
+from dash.exceptions import PreventUpdate
 import re
 from typing import Any, Dict, List, Tuple
 from gmail_automation.logging_utils import get_logger
@@ -16,6 +17,7 @@ from .analysis import (
 )
 from .analysis_helpers import run_full_analysis
 from .transforms import config_to_table, table_to_config, rows_to_grouped
+from .grouped_tree import render_grouped_tree, toggle_expanded_label
 from .utils_io import backup_file, read_json, write_json
 from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
 from .group_ops import merge_selected, split_selected
@@ -218,78 +220,6 @@ def _prepare_diff_outputs(
 
 
 def register_callbacks(app):
-    def _render_grouped_tree(rows: List[Dict[str, str]]):
-        def _group_label(gi: int) -> str:
-            if gi == 0:
-                return "Mark Read"
-            if gi == 1:
-                return "Mark Unread"
-            return f"Group {gi}"
-
-        grouped = rows_to_grouped(rows)
-        items = []
-        for label in sorted(grouped):
-            group_items = []
-            for gi in sorted(grouped[label]):
-                emails = grouped[label][gi]
-                email_items = [
-                    html.Li(
-                        [
-                            html.Span(email),
-                            # Hidden span to satisfy pattern-matching Output for remove
-                            html.Span(
-                                "",
-                                id={
-                                    "type": "grp-dummy",
-                                    "label": label,
-                                    "group": gi,
-                                    "email": email,
-                                },
-                                style={"display": "none"},
-                            ),
-                            html.Button(
-                                "Remove",
-                                id={
-                                    "type": "grp-remove",
-                                    "label": label,
-                                    "group": gi,
-                                    "email": email,
-                                },
-                                n_clicks=0,
-                                style={"marginLeft": "4px"},
-                            ),
-                        ]
-                    )
-                    for email in emails
-                ]
-                group_items.append(
-                    html.Li(
-                        [
-                            html.Span(_group_label(gi)),
-                            html.Ul(email_items),
-                            # Hidden span to satisfy pattern-matching Output for add
-                            html.Span(
-                                "",
-                                id={"type": "grp-dummy", "label": label, "group": gi},
-                                style={"display": "none"},
-                            ),
-                            dcc.Input(
-                                id={"type": "grp-input", "label": label, "group": gi},
-                                placeholder="new email",
-                                style={"marginRight": "4px", "fontSize": "12px"},
-                            ),
-                            html.Button(
-                                "Add",
-                                id={"type": "grp-add", "label": label, "group": gi},
-                                n_clicks=0,
-                                style={"fontSize": "12px"},
-                            ),
-                        ]
-                    )
-                )
-            items.append(html.Li([html.Strong(label), html.Ul(group_items)]))
-        return html.Ul(items)
-
     def _recompute(rows):
         cfg = table_to_config(rows)
         analysis = run_full_analysis(cfg)
@@ -474,9 +404,30 @@ def register_callbacks(app):
     @app.callback(
         Output("stl-grouped", "children"),
         Input("tbl-stl", "data"),
+        Input("store-grouped-expanded", "data"),
     )
-    def render_grouped(rows):
-        return _render_grouped_tree(rows or [])
+    def render_grouped(rows, expanded_store):
+        grouped = rows_to_grouped(rows or [])
+        expanded = (expanded_store or {}).get("labels", [])
+        return render_grouped_tree(grouped, expanded)
+
+    @app.callback(
+        Output("store-grouped-expanded", "data"),
+        Input({"type": "grp-label-toggle", "label": ALL}, "n_clicks"),
+        State("store-grouped-expanded", "data"),
+        State("tbl-stl", "data"),
+        prevent_initial_call=True,
+    )
+    def on_toggle_grouped_label(_clicks, expanded_store, rows):
+        triggered = ctx.triggered_id
+        if not triggered or not isinstance(triggered, dict):
+            raise PreventUpdate
+
+        label = triggered.get("label")
+        grouped = rows_to_grouped(rows or [])
+        expanded = (expanded_store or {}).get("labels", [])
+        updated = toggle_expanded_label(label, expanded, grouped.keys())
+        return {"labels": updated}
 
     @app.callback(
         Output("flat-view", "style"),
