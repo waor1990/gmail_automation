@@ -5,7 +5,8 @@ from __future__ import annotations
 from dash import ALL, Input, Output, State, callback_context, ctx, html, no_update
 from dash.exceptions import PreventUpdate
 import re
-from typing import Any, Dict, List, Tuple
+from copy import deepcopy
+from typing import Any, Dict, Iterable, List, Tuple
 from gmail_automation.logging_utils import get_logger
 from .collisions import resolve_collisions
 from .analysis import (
@@ -25,6 +26,8 @@ from .theme import get_theme_style
 
 
 logger = get_logger(__name__)
+
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def make_empty_stl_row(defaults: Dict[str, Any] | None = None) -> Dict[str, Any]:
@@ -76,6 +79,90 @@ def _group_changes_by_label(changes: List[str]) -> Dict[str, List[str]]:
         label = m.group(1) if m else "Unknown"
         groups.setdefault(label, []).append(c)
     return groups
+
+
+def _clean_email_input(value: Any) -> str:
+    """Return a trimmed string representation for email inputs."""
+
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _normalize_ignored_emails(emails: Iterable[str] | None) -> List[str]:
+    """Normalize and de-duplicate ignored email entries."""
+
+    unique: Dict[str, str] = {}
+    if emails is None:
+        return []
+    for email in emails:
+        cleaned = _clean_email_input(email)
+        if not cleaned:
+            continue
+        key = cleaned.casefold()
+        if key not in unique:
+            unique[key] = key
+    return sorted(unique.values(), key=str.casefold)
+
+
+def _format_ignored_rows(emails: Iterable[str] | None) -> List[Dict[str, str]]:
+    """Convert ignored email addresses into DataTable rows."""
+
+    normalized = _normalize_ignored_emails(emails)
+    return [{"email": email} for email in normalized]
+
+
+def _add_ignored_email(
+    cfg: Dict[str, Any] | None, email: str | None
+) -> Tuple[Dict[str, Any], List[str], str]:
+    """Add an email address to the ignored list with validation."""
+
+    trimmed = _clean_email_input(email)
+    if not trimmed:
+        raise ValueError("Enter an email address to add.")
+    if not EMAIL_PATTERN.fullmatch(trimmed):
+        raise ValueError("Enter a valid email address.")
+
+    existing = _normalize_ignored_emails((cfg or {}).get("IGNORED_EMAILS"))
+    key = trimmed.casefold()
+    if key in set(existing):
+        raise ValueError(f"{trimmed} is already ignored.")
+
+    updated = deepcopy(cfg or {})
+    updated.setdefault("SENDER_TO_LABELS", updated.get("SENDER_TO_LABELS") or {})
+    final = _normalize_ignored_emails([*existing, trimmed])
+    updated["IGNORED_EMAILS"] = final
+    return updated, final, key
+
+
+def _remove_ignored_emails(
+    cfg: Dict[str, Any] | None, emails_to_remove: Iterable[str] | None
+) -> Tuple[Dict[str, Any], List[str], List[str]]:
+    """Remove selected emails from the ignored list."""
+
+    selected: set[str] = set()
+    if emails_to_remove:
+        for email in emails_to_remove:
+            cleaned = _clean_email_input(email)
+            if cleaned:
+                selected.add(cleaned.casefold())
+    if not selected:
+        raise ValueError("Select one or more emails to remove.")
+
+    existing = _normalize_ignored_emails((cfg or {}).get("IGNORED_EMAILS"))
+    if not existing:
+        raise ValueError("No ignored emails to remove.")
+
+    removed = [email for email in existing if email.casefold() in selected]
+    if not removed:
+        raise ValueError("Selected email(s) were not found.")
+
+    remaining = [email for email in existing if email.casefold() not in selected]
+
+    updated = deepcopy(cfg or {})
+    updated.setdefault("SENDER_TO_LABELS", updated.get("SENDER_TO_LABELS") or {})
+    updated["IGNORED_EMAILS"] = remaining
+    return updated, remaining, removed
 
 
 def _prepare_diff_outputs(
@@ -296,6 +383,77 @@ def register_callbacks(app):
         tmp = table_to_config(stl_rows)
         analysis = run_full_analysis(tmp)
         return tmp, analysis, "Applied table edits to working config (not yet saved)."
+
+    @app.callback(
+        Output("tbl-ignored-emails", "data", allow_duplicate=True),
+        Output("tbl-ignored-emails", "selected_rows", allow_duplicate=True),
+        Output("store-config", "data", allow_duplicate=True),
+        Output("store-analysis", "data", allow_duplicate=True),
+        Output("ignored-status", "children", allow_duplicate=True),
+        Output("txt-ignored-email", "value"),
+        Input("btn-add-ignored", "n_clicks"),
+        State("txt-ignored-email", "value"),
+        State("store-config", "data"),
+        prevent_initial_call=True,
+    )
+    def on_add_ignored(_n, email_value, cfg):
+        try:
+            updated_cfg, emails, added = _add_ignored_email(cfg, email_value)
+        except ValueError as exc:
+            return (
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                html.Span(str(exc), style={"color": "#c62828"}),
+                no_update,
+            )
+
+        analysis = run_full_analysis(updated_cfg)
+        rows = _format_ignored_rows(emails)
+        message = html.Span(
+            f"Added {added} to ignored emails.", style={"color": "#2e7d32"}
+        )
+        return rows, [], updated_cfg, analysis, message, ""
+
+    @app.callback(
+        Output("tbl-ignored-emails", "data", allow_duplicate=True),
+        Output("tbl-ignored-emails", "selected_rows", allow_duplicate=True),
+        Output("store-config", "data", allow_duplicate=True),
+        Output("store-analysis", "data", allow_duplicate=True),
+        Output("ignored-status", "children", allow_duplicate=True),
+        Input("btn-remove-ignored", "n_clicks"),
+        State("tbl-ignored-emails", "selected_rows"),
+        State("tbl-ignored-emails", "data"),
+        State("store-config", "data"),
+        prevent_initial_call=True,
+    )
+    def on_remove_ignored(_n, selected_rows, rows, cfg):
+        selected_emails: List[str] = []
+        if selected_rows and rows:
+            for idx in selected_rows:
+                if 0 <= idx < len(rows):
+                    email = rows[idx].get("email")
+                    if email:
+                        selected_emails.append(email)
+        try:
+            updated_cfg, emails, removed = _remove_ignored_emails(cfg, selected_emails)
+        except ValueError as exc:
+            return (
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                html.Span(str(exc), style={"color": "#c62828"}),
+            )
+
+        analysis = run_full_analysis(updated_cfg)
+        rows_out = _format_ignored_rows(emails)
+        label = "Removed {count} ignored email(s): {items}.".format(
+            count=len(removed), items=", ".join(removed)
+        )
+        message = html.Span(label, style={"color": "#2e7d32"})
+        return rows_out, [], updated_cfg, analysis, message
 
     @app.callback(
         Output("status", "children", allow_duplicate=True),
@@ -794,6 +952,16 @@ def register_callbacks(app):
         analysis = run_full_analysis(updated)
         msg = "; ".join(changes) if changes else "No changes made."
         return stl_rows, updated, analysis, msg
+
+    @app.callback(
+        Output("tbl-ignored-emails", "data", allow_duplicate=True),
+        Input("store-config", "data"),
+        prevent_initial_call="initial_duplicate",
+    )
+    def on_config_change_ignored(cfg):
+        if not cfg:
+            return []
+        return _format_ignored_rows(cfg.get("IGNORED_EMAILS"))
 
     @app.callback(
         Output("status", "children", allow_duplicate=True),
