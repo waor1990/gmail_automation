@@ -19,6 +19,62 @@ def test_import_missing_emails_existing_label():
     assert added == ["B@example.com"]
 
 
+def test_import_missing_preserves_existing_metadata():
+    cfg = {
+        "SENDER_TO_LABELS": {
+            "Foo": [
+                {
+                    "emails": ["existing@example.com"],
+                    "read_status": True,
+                    "delete_after_days": 14,
+                }
+            ]
+        }
+    }
+    labels = {
+        "SENDER_TO_LABELS": {
+            "Foo": [
+                {
+                    "emails": ["existing@example.com", "new@example.com"],
+                    "read_status": False,
+                    "delete_after_days": 30,
+                }
+            ]
+        }
+    }
+
+    updated, added = import_missing_emails(cfg, labels, "Foo", ["new@example.com"])
+
+    group = updated["SENDER_TO_LABELS"]["Foo"][0]
+    assert group["read_status"] is True
+    assert group["delete_after_days"] == 14
+    assert "new@example.com" in group["emails"]
+    assert added == ["new@example.com"]
+
+
+def test_import_missing_applies_defaults_when_missing_metadata():
+    cfg = {"SENDER_TO_LABELS": {"Foo": [{"emails": ["existing@example.com"]}]}}
+    labels = {
+        "SENDER_TO_LABELS": {
+            "Foo": [
+                {
+                    "emails": ["existing@example.com", "new@example.com"],
+                    "read_status": False,
+                    "delete_after_days": 45,
+                }
+            ]
+        }
+    }
+
+    updated, added = import_missing_emails(cfg, labels, "Foo", ["new@example.com"])
+
+    group = updated["SENDER_TO_LABELS"]["Foo"][0]
+    assert group["read_status"] is False
+    assert group["delete_after_days"] == 45
+    assert "new@example.com" in group["emails"]
+    assert added == ["new@example.com"]
+
+
 def test_import_missing_emails_creates_label_and_avoids_dups():
     cfg = {"SENDER_TO_LABELS": {}}
     labels = {
