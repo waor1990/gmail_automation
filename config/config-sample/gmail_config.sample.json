@@ -1,4 +1,4 @@
-{
+﻿{
     "EMAIL_USER": "you@example.com",
     "EMAIL_PASS": "app-specific-password",
     "SENDER_TO_LABELS": {
@@ -29,6 +29,20 @@
                 "archive": true,
                 "delete_after_days": 0
             }
+        }
+    ],
+    "PROTECTED_LABELS": [
+        "Important"
+    ],
+    "SELECTED_EMAIL_DELETIONS": [
+        {
+            "name": "Delete marketing emails once read",
+            "query": "from:marketing@example.com",
+            "defer_until_read": true,
+            "enabled": true,
+            "protected_labels": [
+                "Keep"
+            ]
         }
     ]
 }

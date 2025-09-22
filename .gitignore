@@ -26,6 +26,7 @@ __pycache__/
 data/last_run.txt
 data/processed_email_ids.txt
 data/sender_last_run.json
+data/deferred_deletions.json
 
 # Binary executables
 tools/jq.exe
