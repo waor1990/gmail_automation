@@ -2,6 +2,8 @@ from scripts.dashboard.transforms import (
     config_to_table,
     table_to_config,
     rows_to_grouped,
+    ignored_rules_to_rows,
+    rows_to_ignored_rules,
 )
 
 
@@ -61,7 +63,8 @@ def test_table_to_config_sanitizes_types():
                     "emails": ["b@example.com"],
                 },
             ]
-        }
+        },
+        "IGNORED_EMAILS": [],
     }
 
 
@@ -77,3 +80,27 @@ def test_rows_to_grouped_groups_by_label_and_index():
         "L1": {0: ["a@example.com", "b@example.com"], 1: ["c@example.com"]},
         "L2": {0: ["d@example.com"]},
     }
+
+
+def test_ignored_rules_round_trip():
+    cfg = {
+        "IGNORED_EMAILS": [
+            {
+                "name": "Legacy",
+                "senders": ["skip@example.com"],
+                "domains": [],
+                "subject_contains": [],
+                "actions": {
+                    "skip_analysis": True,
+                    "skip_import": True,
+                    "mark_as_read": False,
+                    "apply_labels": [],
+                    "archive": False,
+                    "delete_after_days": None,
+                },
+            }
+        ]
+    }
+    rows = ignored_rules_to_rows(cfg)
+    assert rows[0]["name"] == "Legacy"
+    assert rows_to_ignored_rules(rows) == cfg["IGNORED_EMAILS"]

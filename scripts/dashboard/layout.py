@@ -3,6 +3,7 @@
 from dash import dcc, dash_table, html
 
 from .theme import get_theme_style
+from .transforms import ignored_rules_to_rows, rows_to_grouped
 
 
 def make_layout(stl_rows, analysis, diff, cfg, pending):
@@ -68,6 +69,10 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 id="store-defaults",
                 storage_type="local",
                 data={"read_status": False, "delete_after_days": None},
+            ),
+            dcc.Store(
+                id="store-grouped",
+                data=rows_to_grouped(stl_rows),
             ),
             html.H1("Gmail Email Configuration Dashboard"),
             control_row,
@@ -369,6 +374,71 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         id="grouped-view",
                         style={"display": "none"},
                         children=[html.Div(id="stl-grouped")],
+                    ),
+                ],
+            ),
+            html.Div(
+                style=section_style,
+                children=[
+                    html.H2("Ignored Email Rules"),
+                    html.P(
+                        (
+                            "Rules processed in order before labeling. "
+                            "Use them to skip analysis/import and perform actions "
+                            "like marking as read or deleting."
+                        ),
+                        style={"fontSize": "14px", "maxWidth": "800px"},
+                    ),
+                    dash_table.DataTable(
+                        id="tbl-ignored",
+                        columns=[
+                            {"name": "name", "id": "name"},
+                            {"name": "senders", "id": "senders"},
+                            {"name": "domains", "id": "domains"},
+                            {"name": "subject_contains", "id": "subject_contains"},
+                            {"name": "skip_analysis", "id": "skip_analysis"},
+                            {"name": "skip_import", "id": "skip_import"},
+                            {"name": "mark_as_read", "id": "mark_as_read"},
+                            {"name": "apply_labels", "id": "apply_labels"},
+                            {"name": "archive", "id": "archive"},
+                            {
+                                "name": "delete_after_days",
+                                "id": "delete_after_days",
+                                "type": "numeric",
+                            },
+                        ],
+                        data=ignored_rules_to_rows(cfg),
+                        editable=True,
+                        row_deletable=True,
+                        page_size=10,
+                        style_table={"maxHeight": "300px", "overflowY": "auto"},
+                        style_cell={
+                            "fontFamily": "monospace",
+                            "fontSize": "12px",
+                            "whiteSpace": "normal",
+                        },
+                    ),
+                    html.Div(
+                        style={"display": "flex", "gap": "8px", "marginTop": "8px"},
+                        children=[
+                            html.Button(
+                                "Add ignored rule",
+                                id="btn-add-ignored-row",
+                                n_clicks=0,
+                                title="Append an empty ignored-email rule row",
+                            ),
+                            html.Button(
+                                "Apply IGNORED_EMAILS edits",
+                                id="btn-apply-ignored",
+                                n_clicks=0,
+                                style={"background": "#e8f0ff"},
+                                title=(
+                                    "Sync ignored-email table changes "
+                                    "to the working config. "
+                                    "Use Save Config to persist to disk."
+                                ),
+                            ),
+                        ],
                     ),
                 ],
             ),
