@@ -132,7 +132,9 @@ class TestIntegration(unittest.TestCase):
                             with patch("json.load", return_value=config_data):
                                 result = load_configuration()
 
-                                self.assertEqual(result, config_data)
+                                expected = dict(config_data)
+                                expected.setdefault("IGNORED_EMAILS", [])
+                                self.assertEqual(result, expected)
 
     @patch("gmail_automation.cli.logger")
     def test_error_handling_integration(self, mock_logging):

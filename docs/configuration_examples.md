@@ -73,3 +73,49 @@ or domain along with a set of actions.
 - `mark_as_read`, `apply_labels`, `archive`, and `delete_after_days` control how
   matching messages are handled in Gmail. Setting `delete_after_days` to `0`
   deletes matching mail immediately after the rule runs.
+
+## Protected labels
+
+The optional `PROTECTED_LABELS` array lists label names that should never be
+deleted by automation workflows. Use it to guard critical folders such as
+"Receipts" or "Family" even if they appear in selected deletion requests.
+
+```json
+{
+  "PROTECTED_LABELS": ["Receipts", "Family"]
+}
+```
+
+If a message carries any protected label, the deletion workflow skips it and
+logs the reason.
+
+## Selected email deletions
+
+The `SELECTED_EMAIL_DELETIONS` list records one-off messages to purge. Each
+entry references a Gmail message ID and optional metadata:
+
+```json
+{
+  "SELECTED_EMAIL_DELETIONS": [
+    {
+      "id": "1858df1a2c4c0e35",
+      "label": "Old Promotions",
+      "require_read": true,
+      "reason": "cleanup",
+      "actor": "automation",
+      "rule": "Ignore"
+    }
+  ]
+}
+```
+
+- `id` is the Gmail message ID (from the URL or API).
+- `label` optionally requires the message to carry a specific label before
+  deletion, ensuring you target the right thread.
+- `require_read` delays deletion until the message loses the `UNREAD` label.
+- `reason` and `actor` appear in logs for traceability.
+- `rule` links the entry to an `IGNORED_EMAILS` rule; matching actions (such as
+  applying labels or marking as read) run before deletion.
+
+Run the CLI with `--delete-selected --confirm` to process these entries. Use
+`--dry-run` to preview the actions without deleting messages.

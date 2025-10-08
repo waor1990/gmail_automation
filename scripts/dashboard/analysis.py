@@ -7,7 +7,7 @@ from gmail_automation.config import (
     get_sender_last_run_times,
 )
 from gmail_automation.logging_utils import get_logger
-from gmail_automation.ignored_rules import IgnoredRulesEngine
+from gmail_automation.ignored_rules import IgnoredRulesEngine, normalize_ignored_rules
 
 from .utils_io import read_json
 from .constants import CONFIG_JSON
@@ -30,7 +30,13 @@ def load_config() -> Dict[str, Any]:
         "Configuration contains %s labels", len(data.get("SENDER_TO_LABELS", {}))
     )
     data.setdefault("SENDER_TO_LABELS", {})
-    data.setdefault("IGNORED_EMAILS", [])
+    try:
+        data["IGNORED_EMAILS"] = normalize_ignored_rules(
+            data.get("IGNORED_EMAILS") or []
+        )
+    except (TypeError, ValueError) as exc:
+        logger.error("Failed to normalize IGNORED_EMAILS: %s", exc)
+        data["IGNORED_EMAILS"] = []
     return data
 
 

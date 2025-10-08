@@ -17,6 +17,7 @@ def _reload_constants():
 
 def test_config_json_env_override(monkeypatch, tmp_path):
     custom_path = (tmp_path / "custom.json").resolve()
+    monkeypatch.delenv("GMAIL_AUTOMATION_CONFIG_DIR", raising=False)
     monkeypatch.setenv("GMAIL_AUTOMATION_CONFIG_JSON", str(custom_path))
 
     reloaded = _reload_constants()
@@ -31,6 +32,8 @@ def test_config_json_env_override(monkeypatch, tmp_path):
 
 def test_config_dir_env_override(monkeypatch, tmp_path):
     custom_dir = (tmp_path / "config" / "nested").resolve()
+    monkeypatch.delenv("GMAIL_AUTOMATION_CONFIG_JSON", raising=False)
+    monkeypatch.delenv("GMAIL_AUTOMATION_CONFIG_DIR", raising=False)
     monkeypatch.setenv("GMAIL_AUTOMATION_CONFIG_DIR", str(custom_dir))
 
     reloaded = _reload_constants()
@@ -46,6 +49,8 @@ def test_config_dir_env_override(monkeypatch, tmp_path):
 
 def test_dashboard_root_env_override(monkeypatch, tmp_path):
     custom_root = (tmp_path / "alt_root").resolve()
+    monkeypatch.delenv("GMAIL_AUTOMATION_CONFIG_JSON", raising=False)
+    monkeypatch.delenv("GMAIL_AUTOMATION_CONFIG_DIR", raising=False)
     monkeypatch.setenv("GMAIL_AUTOMATION_DASHBOARD_ROOT", str(custom_root))
 
     reloaded = _reload_constants()

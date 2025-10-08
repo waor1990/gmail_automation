@@ -2,7 +2,18 @@
 
 from __future__ import annotations
 
-from dash import Input, Output, State, callback_context, ctx, dcc, html, no_update
+from dash import (
+    MATCH,
+    Input,
+    Output,
+    State,
+    callback_context,
+    ctx,
+    dcc,
+    html,
+    no_update,
+)
+from dash.exceptions import PreventUpdate
 import re
 from typing import Any, Dict, List, Tuple
 from gmail_automation.logging_utils import get_logger
@@ -59,6 +70,109 @@ def make_empty_ignored_row() -> Dict[str, Any]:
         "archive": False,
         "delete_after_days": None,
     }
+
+
+def _normalize_group_index(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _add_email_to_rows(
+    rows: List[Dict[str, Any]] | None,
+    label: str,
+    group_index: Any,
+    email: str,
+    defaults: Dict[str, Any] | None,
+) -> List[Dict[str, Any]]:
+    label = (label or "").strip()
+    email = (email or "").strip()
+    if not label or not email:
+        raise ValueError("label and email are required")
+
+    normalized_group = _normalize_group_index(group_index)
+    current_rows = list(rows or [])
+
+    for row in current_rows:
+        if (
+            row.get("label") == label
+            and _normalize_group_index(row.get("group_index")) == normalized_group
+            and row.get("email") == email
+        ):
+            raise ValueError("email already exists in this group")
+
+    read_status = None
+    delete_after_days = None
+    for row in current_rows:
+        if (
+            row.get("label") == label
+            and _normalize_group_index(row.get("group_index")) == normalized_group
+        ):
+            if read_status is None:
+                read_status = row.get("read_status")
+            if delete_after_days is None:
+                delete_after_days = row.get("delete_after_days")
+            if read_status is not None and delete_after_days is not None:
+                break
+
+    defaults = defaults or {}
+    if read_status is None:
+        read_status = defaults.get("read_status")
+    if delete_after_days is None:
+        delete_after_days = defaults.get("delete_after_days")
+
+    current_rows.append(
+        {
+            "label": label,
+            "group_index": normalized_group,
+            "email": email,
+            "read_status": read_status,
+            "delete_after_days": delete_after_days,
+        }
+    )
+    return current_rows
+
+
+def _remove_email_from_rows(
+    rows: List[Dict[str, Any]] | None,
+    label: str,
+    group_index: Any,
+    email: str,
+) -> List[Dict[str, Any]]:
+    normalized_group = _normalize_group_index(group_index)
+    removed = False
+    remaining: List[Dict[str, Any]] = []
+    for row in rows or []:
+        if (
+            row.get("label") == label
+            and _normalize_group_index(row.get("group_index")) == normalized_group
+            and row.get("email") == email
+        ):
+            removed = True
+            continue
+        remaining.append(row)
+    if not removed:
+        raise ValueError("email not found in group")
+    return remaining
+
+
+def _add_ignored_email(rows: List[Dict[str, Any]] | None) -> List[Dict[str, Any]]:
+    updated = list(rows or [])
+    updated.append(make_empty_ignored_row())
+    return updated
+
+
+def _remove_ignored_email(
+    rows: List[Dict[str, Any]] | None, index: int
+) -> List[Dict[str, Any]]:
+    if rows is None:
+        raise ValueError("no ignored-email rows to remove")
+    if index < 0 or index >= len(rows):
+        raise ValueError("ignored-email index out of range")
+    updated = list(rows)
+    updated.pop(index)
+    return updated
 
 
 def _render_coverage(total: int, missing: int) -> str:
@@ -241,7 +355,9 @@ def _prepare_diff_outputs(
 
 
 def register_callbacks(app):
-    def _render_grouped_tree(rows: List[Dict[str, str]]):
+    def _render_grouped_tree(
+        data: List[Dict[str, Any]] | Dict[str, Dict[Any, List[str]]],
+    ):
         def _group_label(gi: int) -> str:
             if gi == 0:
                 return "Mark Read"
@@ -249,12 +365,25 @@ def register_callbacks(app):
                 return "Mark Unread"
             return f"Group {gi}"
 
-        grouped = rows_to_grouped(rows)
+        if isinstance(data, list):
+            grouped = rows_to_grouped(data)
+        else:
+            grouped = {}
+            for label, groups in (data or {}).items():
+                normalized: Dict[int, List[str]] = {}
+                if isinstance(groups, dict):
+                    for key, emails in groups.items():
+                        normalized[_normalize_group_index(key)] = [
+                            str(email) for email in emails or []
+                        ]
+                grouped[label] = normalized
+
         items = []
         for label in sorted(grouped):
             group_items = []
-            for gi in sorted(grouped[label]):
-                emails = grouped[label][gi]
+            label_groups = grouped.get(label, {}) or {}
+            for gi in sorted(label_groups, key=int):
+                emails = label_groups.get(gi, [])
                 email_items = [
                     html.Li(
                         [
@@ -317,6 +446,94 @@ def register_callbacks(app):
         cfg = table_to_config(rows)
         analysis = run_full_analysis(cfg)
         return cfg, analysis
+
+    @app.callback(
+        Output("store-grouped", "data", allow_duplicate=True),
+        Input("tbl-stl", "data"),
+        prevent_initial_call=False,
+    )
+    def sync_grouped_store(rows):
+        return rows_to_grouped(rows or [])
+
+    @app.callback(
+        Output("stl-grouped", "children"),
+        Input("store-grouped", "data"),
+    )
+    def refresh_grouped_view(grouped):
+        return _render_grouped_tree(grouped or {})
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("store-grouped", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input({"type": "grp-add", "label": MATCH, "group": MATCH}, "n_clicks"),
+        State({"type": "grp-input", "label": MATCH, "group": MATCH}, "value"),
+        State("tbl-stl", "data"),
+        State("store-defaults", "data"),
+        prevent_initial_call=True,
+    )
+    def on_group_add(n_clicks, value, rows, defaults):
+        if not n_clicks:
+            raise PreventUpdate
+        triggered = ctx.triggered_id or {}
+        if not isinstance(triggered, dict):
+            raise PreventUpdate
+        label = triggered.get("label", "")
+        group_index = triggered.get("group")
+        email = (value or "").strip()
+        if not email:
+            return no_update, no_update, "Enter an email before adding."
+        try:
+            updated_rows = _add_email_to_rows(rows, label, group_index, email, defaults)
+        except ValueError as exc:
+            logger.warning(
+                "Unable to add %s to %s group %s: %s", email, label, group_index, exc
+            )
+            return no_update, no_update, f"Unable to add email: {exc}"
+        grouped = rows_to_grouped(updated_rows)
+        return (
+            updated_rows,
+            grouped,
+            f"Added {email} to {label} (group {group_index}).",
+        )
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("store-grouped", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input(
+            {"type": "grp-remove", "label": MATCH, "group": MATCH, "email": MATCH},
+            "n_clicks",
+        ),
+        State("tbl-stl", "data"),
+        prevent_initial_call=True,
+    )
+    def on_group_remove(n_clicks, rows):
+        if not n_clicks:
+            raise PreventUpdate
+        triggered = ctx.triggered_id or {}
+        if not isinstance(triggered, dict):
+            raise PreventUpdate
+        label = triggered.get("label", "")
+        group_index = triggered.get("group")
+        email = triggered.get("email", "")
+        try:
+            updated_rows = _remove_email_from_rows(rows, label, group_index, email)
+        except ValueError as exc:
+            logger.warning(
+                "Unable to remove %s from %s group %s: %s",
+                email,
+                label,
+                group_index,
+                exc,
+            )
+            return no_update, no_update, f"Unable to remove email: {exc}"
+        grouped = rows_to_grouped(updated_rows)
+        return (
+            updated_rows,
+            grouped,
+            f"Removed {email} from {label} (group {group_index}).",
+        )
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
@@ -481,9 +698,7 @@ def register_callbacks(app):
         prevent_initial_call=True,
     )
     def add_ignored_row(_n, rows):
-        rows = rows or []
-        rows.append(make_empty_ignored_row())
-        return rows
+        return _add_ignored_email(rows)
 
     @app.callback(
         Output("tbl-stl", "hidden_columns", allow_duplicate=True),

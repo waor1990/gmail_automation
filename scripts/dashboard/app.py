@@ -48,7 +48,12 @@ def main(host: str | None = None, port: int | None = None, debug: bool | None = 
     logger.info("Configuring dashboard application.")
     cfg, stl_rows, analysis, diff, pending = _prepare_initial_data()
     # Allow callbacks that reference components created dynamically
-    app = Dash(__name__, suppress_callback_exceptions=True, add_log_handler=False)
+    app = Dash(
+        __name__,
+        suppress_callback_exceptions=True,
+        add_log_handler=False,
+        prevent_initial_callbacks="initial_duplicate",
+    )
     app.title = "Gmail Config Dashboard"
     app.layout = make_layout(stl_rows, analysis, diff, cfg, pending)
     register_callbacks(app)

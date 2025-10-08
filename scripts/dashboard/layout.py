@@ -3,7 +3,7 @@
 from dash import dcc, dash_table, html
 
 from .theme import get_theme_style
-from .transforms import ignored_rules_to_rows
+from .transforms import ignored_rules_to_rows, rows_to_grouped
 
 
 def make_layout(stl_rows, analysis, diff, cfg, pending):
@@ -69,6 +69,10 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 id="store-defaults",
                 storage_type="local",
                 data={"read_status": False, "delete_after_days": None},
+            ),
+            dcc.Store(
+                id="store-grouped",
+                data=rows_to_grouped(stl_rows),
             ),
             html.H1("Gmail Email Configuration Dashboard"),
             control_row,
