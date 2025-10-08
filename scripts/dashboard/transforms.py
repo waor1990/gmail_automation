@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+from gmail_automation.ignored_rules import normalize_ignored_rules
+
 
 def _to_clean_email(value: Any) -> str:
     """
@@ -42,6 +44,19 @@ def _to_nonneg_int(value: Any, default: int | None = 0) -> int | None:
         return default
     # all other types (None, floats, objects) fall back to default
     return default
+
+
+def _split_multi_field(value: Any) -> List[str]:
+    """Split comma-separated strings or lists into clean tokens."""
+
+    if value is None:
+        return []
+    if isinstance(value, list):
+        values = value
+    else:
+        values = str(value).split(",")
+    cleaned = [str(v).strip() for v in values]
+    return [c for c in cleaned if c]
 
 
 def config_to_table(cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -93,7 +108,58 @@ def config_to_table(cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
     return stl_rows
 
 
-def table_to_config(stl_rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+def ignored_rules_to_rows(cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Return Dash table rows for IGNORED_EMAILS rules."""
+
+    rows: List[Dict[str, Any]] = []
+    for index, rule in enumerate(cfg.get("IGNORED_EMAILS") or []):
+        actions = rule.get("actions", {})
+        rows.append(
+            {
+                "name": rule.get("name", f"Rule {index + 1}"),
+                "senders": ", ".join(rule.get("senders", [])),
+                "domains": ", ".join(rule.get("domains", [])),
+                "subject_contains": ", ".join(rule.get("subject_contains", [])),
+                "skip_analysis": bool(actions.get("skip_analysis", False)),
+                "skip_import": bool(actions.get("skip_import", False)),
+                "mark_as_read": bool(actions.get("mark_as_read", False)),
+                "apply_labels": ", ".join(actions.get("apply_labels", [])),
+                "archive": bool(actions.get("archive", False)),
+                "delete_after_days": actions.get("delete_after_days"),
+            }
+        )
+    return rows
+
+
+def rows_to_ignored_rules(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Normalise table rows into IGNORED_EMAILS config entries."""
+
+    raw_rules: List[Dict[str, Any]] = []
+    for row in rows or []:
+        raw_rules.append(
+            {
+                "name": row.get("name"),
+                "senders": _split_multi_field(row.get("senders")),
+                "domains": _split_multi_field(row.get("domains")),
+                "subject_contains": _split_multi_field(row.get("subject_contains")),
+                "actions": {
+                    "skip_analysis": _to_bool(row.get("skip_analysis"), default=False),
+                    "skip_import": _to_bool(row.get("skip_import"), default=False),
+                    "mark_as_read": _to_bool(row.get("mark_as_read"), default=False),
+                    "apply_labels": _split_multi_field(row.get("apply_labels")),
+                    "archive": _to_bool(row.get("archive"), default=False),
+                    "delete_after_days": _to_nonneg_int(
+                        row.get("delete_after_days"), default=None
+                    ),
+                },
+            }
+        )
+    return normalize_ignored_rules(raw_rules)
+
+
+def table_to_config(
+    stl_rows: List[Dict[str, Any]], cfg: Dict[str, Any] | None = None
+) -> Dict[str, Any]:
     """
     Rebuild config from edited table.
     Output structure:
@@ -166,7 +232,10 @@ def table_to_config(stl_rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         if out_groups:
             stl_out[label] = out_groups
 
-    return {"SENDER_TO_LABELS": stl_out}
+    result = dict(cfg or {})
+    result["SENDER_TO_LABELS"] = stl_out
+    result.setdefault("IGNORED_EMAILS", [])
+    return result
 
 
 def rows_to_grouped(stl_rows: List[Dict[str, Any]]) -> Dict[str, Dict[int, List[str]]]:
