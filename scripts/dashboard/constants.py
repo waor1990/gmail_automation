@@ -28,6 +28,8 @@ else:
     CONFIG_DIR = ROOT / "config"
     CONFIG_JSON = CONFIG_DIR / "gmail_config-final.json"
 
+CONFIG_BACKUPS_DIR = CONFIG_DIR / "config-backups"
+
 LOGS_DIR = ROOT / "logs"
 LABELS_JSON = CONFIG_DIR / "gmail_labels_data.json"
 REPORT_TXT = CONFIG_DIR / "ECAQ_Report.txt"
