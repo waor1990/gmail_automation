@@ -3,6 +3,7 @@
 from dash import dcc, dash_table, html
 
 from .theme import get_theme_style
+from .transforms import ignored_rules_to_rows, rows_to_grouped
 
 
 def make_layout(stl_rows, analysis, diff, cfg, pending):
@@ -59,17 +60,6 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
         ],
     )
 
-    ignored_emails = cfg.get("IGNORED_EMAILS") or []
-    normalized_ignored = sorted(
-        {
-            str(email).strip().casefold()
-            for email in ignored_emails
-            if str(email).strip()
-        },
-        key=str.casefold,
-    )
-    ignored_rows = [{"email": email} for email in normalized_ignored]
-
     return html.Div(
         id="app-root",
         style=get_theme_style("light"),
@@ -81,9 +71,8 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 data={"read_status": False, "delete_after_days": None},
             ),
             dcc.Store(
-                id="store-grouped-expanded",
-                storage_type="memory",
-                data={"labels": []},
+                id="store-grouped",
+                data=rows_to_grouped(stl_rows),
             ),
             html.H1("Gmail Email Configuration Dashboard"),
             control_row,
@@ -390,6 +379,71 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
             html.Div(
                 style=section_style,
                 children=[
+                    html.H2("Ignored Email Rules"),
+                    html.P(
+                        (
+                            "Rules processed in order before labeling. "
+                            "Use them to skip analysis/import and perform actions "
+                            "like marking as read or deleting."
+                        ),
+                        style={"fontSize": "14px", "maxWidth": "800px"},
+                    ),
+                    dash_table.DataTable(
+                        id="tbl-ignored",
+                        columns=[
+                            {"name": "name", "id": "name"},
+                            {"name": "senders", "id": "senders"},
+                            {"name": "domains", "id": "domains"},
+                            {"name": "subject_contains", "id": "subject_contains"},
+                            {"name": "skip_analysis", "id": "skip_analysis"},
+                            {"name": "skip_import", "id": "skip_import"},
+                            {"name": "mark_as_read", "id": "mark_as_read"},
+                            {"name": "apply_labels", "id": "apply_labels"},
+                            {"name": "archive", "id": "archive"},
+                            {
+                                "name": "delete_after_days",
+                                "id": "delete_after_days",
+                                "type": "numeric",
+                            },
+                        ],
+                        data=ignored_rules_to_rows(cfg),
+                        editable=True,
+                        row_deletable=True,
+                        page_size=10,
+                        style_table={"maxHeight": "300px", "overflowY": "auto"},
+                        style_cell={
+                            "fontFamily": "monospace",
+                            "fontSize": "12px",
+                            "whiteSpace": "normal",
+                        },
+                    ),
+                    html.Div(
+                        style={"display": "flex", "gap": "8px", "marginTop": "8px"},
+                        children=[
+                            html.Button(
+                                "Add ignored rule",
+                                id="btn-add-ignored-row",
+                                n_clicks=0,
+                                title="Append an empty ignored-email rule row",
+                            ),
+                            html.Button(
+                                "Apply IGNORED_EMAILS edits",
+                                id="btn-apply-ignored",
+                                n_clicks=0,
+                                style={"background": "#e8f0ff"},
+                                title=(
+                                    "Sync ignored-email table changes "
+                                    "to the working config. "
+                                    "Use Save Config to persist to disk."
+                                ),
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                style=section_style,
+                children=[
                     html.H2("Differences View (Source: config/gmail_labels_data.json)"),
                     html.Div(id="diff-summary", style={"marginBottom": "8px"}),
                     dash_table.DataTable(
@@ -439,60 +493,6 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         },
                     ),
                     html.Div(id="diff-projected", style={"marginTop": "8px"}),
-                ],
-            ),
-            html.Div(
-                style=section_style,
-                children=[
-                    html.H2("Ignored Emails"),
-                    html.P(
-                        (
-                            "Emails listed here will be excluded when comparing "
-                            "Gmail labels to the working configuration."
-                        ),
-                        style={"fontSize": "14px", "maxWidth": "800px"},
-                    ),
-                    html.Div(
-                        style={
-                            "display": "flex",
-                            "gap": "8px",
-                            "flexWrap": "wrap",
-                            "alignItems": "center",
-                            "marginBottom": "8px",
-                        },
-                        children=[
-                            dcc.Input(
-                                id="txt-ignored-email",
-                                type="email",
-                                placeholder="email@example.com",
-                                style={"width": "260px"},
-                            ),
-                            html.Button("Add Email", id="btn-add-ignored", n_clicks=0),
-                            html.Button(
-                                "Remove Selected",
-                                id="btn-remove-ignored",
-                                n_clicks=0,
-                                title="Remove selected emails from the ignored list",
-                            ),
-                        ],
-                    ),
-                    html.Div(
-                        id="ignored-status",
-                        style={"fontSize": "12px", "color": "#555"},
-                    ),
-                    dash_table.DataTable(
-                        id="tbl-ignored-emails",
-                        columns=[{"name": "Email", "id": "email"}],
-                        data=ignored_rows,
-                        row_selectable="multi",
-                        page_size=10,
-                        style_table={"maxHeight": "240px", "overflowY": "auto"},
-                        style_cell={
-                            "fontFamily": "monospace",
-                            "fontSize": "12px",
-                            "textAlign": "left",
-                        },
-                    ),
                 ],
             ),
             html.Div(

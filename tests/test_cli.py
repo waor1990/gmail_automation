@@ -1,8 +1,7 @@
-"""Unit tests for the CLI module."""
+"""
+Unit tests for the CLI module
+"""
 
-import json
-import os
-import tempfile
 import unittest
 import warnings
 from unittest.mock import patch, MagicMock
@@ -15,9 +14,9 @@ from gmail_automation.cli import (
     load_processed_email_ids,
     save_processed_email_ids,
     process_email,
-    process_selected_email_deletions,
-    process_deferred_selected_deletions,
+    delete_selected_emails,
 )
+from gmail_automation.ignored_rules import IgnoredRulesEngine, normalize_ignored_rules
 
 
 class TestCLI(unittest.TestCase):
@@ -133,39 +132,43 @@ class TestCLI(unittest.TestCase):
             {"subject": "Test Subject", "sender": "test@example.com"},
         )
 
-    @patch("gmail_automation.cli.os.path.exists")
-    def test_load_processed_email_ids_file_exists(self, mock_exists):
+    def test_load_processed_email_ids_file_exists(self):
         """Test loading processed email IDs when file exists"""
-        mock_exists.return_value = True
         test_ids = ["id1", "id2", "id3"]
 
-        with patch("builtins.open", create=True) as mock_file:
-            mock_file.return_value.__enter__.return_value.read.return_value = "\n".join(
-                test_ids
-            )
-
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.read_text", return_value="\n".join(test_ids)),
+        ):
             result = load_processed_email_ids("test_path")
-            self.assertEqual(result, set(test_ids))
 
-    @patch("gmail_automation.cli.os.path.exists")
-    def test_load_processed_email_ids_file_not_exists(self, mock_exists):
+        self.assertEqual(result, set(test_ids))
+
+    def test_load_processed_email_ids_file_not_exists(self):
         """Test loading processed email IDs when file doesn't exist"""
-        mock_exists.return_value = False
 
-        result = load_processed_email_ids("test_path")
+        with patch("pathlib.Path.exists", return_value=False):
+            result = load_processed_email_ids("test_path")
+
         self.assertEqual(result, set())
 
     def test_save_processed_email_ids(self):
         """Test saving processed email IDs"""
         test_ids = {"id1", "id2", "id3"}
 
-        with patch("builtins.open", create=True) as mock_file:
-            mock_write = mock_file.return_value.__enter__.return_value.write
+        mock_handle = MagicMock()
+        mock_context = MagicMock()
+        mock_context.__enter__.return_value = mock_handle
 
+        with (
+            patch("pathlib.Path.open", return_value=mock_context) as mock_open,
+            patch("pathlib.Path.mkdir") as mock_mkdir,
+        ):
             save_processed_email_ids("test_path", test_ids)
 
-            # Verify that write was called for each ID
-            self.assertEqual(mock_write.call_count, len(test_ids))
+        mock_mkdir.assert_called_once()
+        mock_open.assert_called_once()
+        self.assertEqual(mock_handle.write.call_count, len(test_ids))
 
 
 class TestProcessEmail(unittest.TestCase):
@@ -199,6 +202,7 @@ class TestProcessEmail(unittest.TestCase):
                 "Streaming",
                 True,
                 30,
+                IgnoredRulesEngine.from_config([]),
                 {"Streaming": "label_id"},
                 set(),
                 set(),
@@ -223,210 +227,149 @@ class TestProcessEmail(unittest.TestCase):
         )
 
 
-class TestSelectedEmailDeletions(unittest.TestCase):
-    """Tests for selected email deletion workflows."""
-
-    def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp_dir.cleanup)
-        self.data_dir = self.temp_dir.name
-        self.existing_labels = {"INBOX": "INBOX", "Important": "Label_Important"}
-
-    @staticmethod
-    def _message(unread=True, labels=None):
-        label_ids = (
-            labels if labels is not None else ["INBOX"] + (["UNREAD"] if unread else [])
-        )
-        return {
-            "id": "msg1",
-            "payload": {
-                "headers": [
-                    {"name": "From", "value": "sender@example.com"},
-                    {"name": "Subject", "value": "Test Subject"},
-                    {"name": "Date", "value": "Wed, 01 Jan 2023 12:00:00 +0000"},
-                ]
-            },
-            "labelIds": label_ids,
-        }
-
-    def _service_with_messages(self, *message_payloads):
+class TestSelectedDeletions(unittest.TestCase):
+    def _make_service(self, message_data):
         service = MagicMock()
         users = service.users.return_value
-        messages_resource = users.messages.return_value
-        messages_resource.get.return_value.execute = MagicMock(
-            side_effect=list(message_payloads)
-        )
-        messages_resource.delete.return_value.execute.return_value = None
-        return service
+        messages = users.messages.return_value
+        get_call = MagicMock()
+        get_call.execute.return_value = message_data
+        messages.get.return_value = get_call
+        delete_call = MagicMock()
+        delete_call.execute.return_value = None
+        messages.delete.return_value = delete_call
+        return service, messages
 
-    def test_instant_delete_selected_emails(self):
-        service = self._service_with_messages(self._message(unread=False))
-        config = {
-            "SELECTED_EMAIL_DELETIONS": [
-                {
-                    "name": "Immediate",
-                    "message_ids": ["msg1"],
-                    "defer_until_read": False,
-                }
-            ],
-            "PROTECTED_LABELS": [],
-        }
+    def test_delete_selected_requires_confirm(self):
+        message = {"labelIds": [], "payload": {"headers": []}}
+        service, messages = self._make_service(message)
+        engine = IgnoredRulesEngine.from_config([])
+        config = {"SELECTED_EMAIL_DELETIONS": [{"id": "msg1"}], "PROTECTED_LABELS": []}
 
-        result = process_selected_email_deletions(
+        deleted = delete_selected_emails(
             service,
             "me",
-            self.existing_labels,
+            {},
             config,
-            self.data_dir,
-            lambda *_args, **_kwargs: True,
+            engine,
             dry_run=False,
-            actor="tester",
+            confirm=False,
         )
 
-        self.assertTrue(result)
-        service.users().messages().delete.assert_called_once_with(
-            userId="me", id="msg1"
-        )
+        self.assertFalse(deleted)
+        messages.delete.assert_not_called()
 
-    def test_deferred_deletion_processed_after_read(self):
-        unread_message = self._message(unread=True)
-        read_message = self._message(unread=False)
-        service = self._service_with_messages(unread_message, read_message)
-        config = {
-            "SELECTED_EMAIL_DELETIONS": [
-                {"name": "Deferred", "message_ids": ["msg1"], "defer_until_read": True}
-            ],
-            "PROTECTED_LABELS": [],
-        }
+    def test_delete_selected_dry_run(self):
+        message = {"labelIds": [], "payload": {"headers": []}}
+        service, messages = self._make_service(message)
+        engine = IgnoredRulesEngine.from_config([])
+        config = {"SELECTED_EMAIL_DELETIONS": [{"id": "msg1"}]}
 
-        result_defer = process_selected_email_deletions(
+        deleted = delete_selected_emails(
             service,
             "me",
-            self.existing_labels,
+            {},
             config,
-            self.data_dir,
-            lambda *_args, **_kwargs: True,
-            dry_run=False,
-            actor="tester",
+            engine,
+            dry_run=True,
+            confirm=False,
         )
-        self.assertTrue(result_defer)
 
-        deferred_path = os.path.join(self.data_dir, "deferred_deletions.json")
-        self.assertTrue(os.path.exists(deferred_path))
-        with open(deferred_path, "r", encoding="utf-8") as handle:
-            deferred_state = json.load(handle)
-        self.assertIn("msg1", deferred_state)
+        self.assertTrue(deleted)
+        messages.delete.assert_not_called()
 
-        result_delete = process_deferred_selected_deletions(
+    def test_delete_selected_respects_protected_label(self):
+        message = {"labelIds": ["Label_Important"], "payload": {"headers": []}}
+        service, messages = self._make_service(message)
+        engine = IgnoredRulesEngine.from_config([])
+        config = {
+            "SELECTED_EMAIL_DELETIONS": [{"id": "msg1"}],
+            "PROTECTED_LABELS": ["Important"],
+        }
+        existing_labels = {"Important": "Label_Important"}
+
+        deleted = delete_selected_emails(
             service,
             "me",
-            self.existing_labels,
+            existing_labels,
             config,
-            self.data_dir,
-            lambda *_args, **_kwargs: True,
+            engine,
             dry_run=False,
-            actor="tester",
-        )
-        self.assertTrue(result_delete)
-        service.users().messages().delete.assert_called_once_with(
-            userId="me", id="msg1"
-        )
-        with open(deferred_path, "r", encoding="utf-8") as handle:
-            remaining_state = json.load(handle)
-        self.assertNotIn("msg1", remaining_state)
-
-    def test_confirmation_required_for_deletion(self):
-        service = self._service_with_messages(self._message(unread=False))
-        config = {
-            "SELECTED_EMAIL_DELETIONS": [
-                {
-                    "name": "Needs confirmation",
-                    "message_ids": ["msg1"],
-                    "defer_until_read": False,
-                }
-            ],
-            "PROTECTED_LABELS": [],
-        }
-
-        with patch("gmail_automation.cli.logger") as mock_logger:
-            result = process_selected_email_deletions(
-                service,
-                "me",
-                self.existing_labels,
-                config,
-                self.data_dir,
-                lambda *_args, **_kwargs: False,
-                dry_run=False,
-                actor="tester",
-            )
-
-        self.assertFalse(result)
-        service.users().messages().delete.assert_not_called()
-        mock_logger.info.assert_any_call(
-            "Deletion not confirmed for message %s under rule '%s'.",
-            "msg1",
-            "Needs confirmation",
+            confirm=True,
         )
 
-    def test_dry_run_deletion_logs_without_action(self):
-        service = self._service_with_messages(self._message(unread=False))
-        config = {
-            "SELECTED_EMAIL_DELETIONS": [
-                {"name": "Dry run", "message_ids": ["msg1"], "defer_until_read": False}
-            ],
-            "PROTECTED_LABELS": [],
-        }
+        self.assertFalse(deleted)
+        messages.delete.assert_not_called()
 
-        with patch("gmail_automation.cli.logger") as mock_logger:
-            result = process_selected_email_deletions(
-                service,
-                "me",
-                self.existing_labels,
-                config,
-                self.data_dir,
-                lambda *_args, **_kwargs: True,
-                dry_run=True,
-                actor="tester",
-            )
+    def test_delete_selected_skips_unread_when_required(self):
+        message = {"labelIds": ["UNREAD"], "payload": {"headers": []}}
+        service, messages = self._make_service(message)
+        engine = IgnoredRulesEngine.from_config([])
+        config = {"SELECTED_EMAIL_DELETIONS": [{"id": "msg1", "require_read": True}]}
 
-        self.assertTrue(result)
-        service.users().messages().delete.assert_not_called()
-        dry_run_logs = [
-            call for call in mock_logger.info.call_args_list if "Dry run" in str(call)
+        deleted = delete_selected_emails(
+            service,
+            "me",
+            {},
+            config,
+            engine,
+            dry_run=False,
+            confirm=True,
+        )
+
+        self.assertFalse(deleted)
+        messages.delete.assert_not_called()
+
+    def test_delete_selected_with_rule_and_confirm(self):
+        headers = [
+            {"name": "Subject", "value": "Ignore me"},
+            {"name": "From", "value": "skip@example.com"},
+            {"name": "Date", "value": "Wed, 01 Jan 2020 12:00:00 +0000"},
         ]
-        self.assertTrue(dry_run_logs)
-
-    def test_protected_labels_prevent_deletion(self):
-        protected_labels = ["Important"]
-        service = self._service_with_messages(
-            self._message(unread=False, labels=["INBOX", "Label_Important"])
+        message = {"labelIds": [], "payload": {"headers": headers}}
+        service, messages = self._make_service(message)
+        engine = IgnoredRulesEngine.from_config(
+            normalize_ignored_rules(
+                [
+                    {
+                        "name": "Ignore",
+                        "senders": ["skip@example.com"],
+                        "actions": {
+                            "skip_analysis": True,
+                            "skip_import": True,
+                            "mark_as_read": True,
+                            "apply_labels": ["Ignored"],
+                        },
+                    }
+                ]
+            )
         )
         config = {
             "SELECTED_EMAIL_DELETIONS": [
                 {
-                    "name": "Protected",
-                    "message_ids": ["msg1"],
-                    "defer_until_read": False,
+                    "id": "msg1",
+                    "rule": "Ignore",
+                    "reason": "cleanup",
+                    "actor": "tester",
                 }
-            ],
-            "PROTECTED_LABELS": protected_labels,
+            ]
         }
+        existing_labels = {"Ignored": "LBL_IGNORED"}
 
-        result = process_selected_email_deletions(
-            service,
-            "me",
-            self.existing_labels,
-            config,
-            self.data_dir,
-            lambda *_args, **_kwargs: True,
-            dry_run=False,
-            actor="tester",
-        )
+        with patch("gmail_automation.cli.modify_message") as mock_modify:
+            deleted = delete_selected_emails(
+                service,
+                "me",
+                existing_labels,
+                config,
+                engine,
+                dry_run=False,
+                confirm=True,
+            )
 
-        self.assertFalse(result)
-        service.users().messages().delete.assert_not_called()
-        deferred_path = os.path.join(self.data_dir, "deferred_deletions.json")
-        self.assertFalse(os.path.exists(deferred_path))
+        self.assertTrue(deleted)
+        mock_modify.assert_called_once()
+        messages.delete.assert_called_once()
 
 
 if __name__ == "__main__":

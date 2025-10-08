@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
-from dash import ALL, Input, Output, State, callback_context, ctx, html, no_update
+from dash import (
+    MATCH,
+    Input,
+    Output,
+    State,
+    callback_context,
+    ctx,
+    dcc,
+    html,
+    no_update,
+)
 from dash.exceptions import PreventUpdate
 import re
-from copy import deepcopy
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, List, Tuple
 from gmail_automation.logging_utils import get_logger
 from .collisions import resolve_collisions
 from .analysis import (
@@ -17,17 +26,20 @@ from .analysis import (
     import_missing_emails,
 )
 from .analysis_helpers import run_full_analysis
-from .transforms import config_to_table, table_to_config, rows_to_grouped
-from .grouped_tree import render_grouped_tree, toggle_expanded_label
+from .transforms import (
+    config_to_table,
+    table_to_config,
+    rows_to_grouped,
+    ignored_rules_to_rows,
+    rows_to_ignored_rules,
+)
 from .utils_io import backup_file, read_json, write_json
-from .constants import CONFIG_DIR, CONFIG_JSON, LABELS_JSON, LOGS_DIR
-from .group_ops import merge_selected, remove_email_from_group, split_selected
+from .constants import CONFIG_JSON, LABELS_JSON, LOGS_DIR
+from .group_ops import merge_selected, split_selected
 from .theme import get_theme_style
 
 
 logger = get_logger(__name__)
-
-EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def make_empty_stl_row(defaults: Dict[str, Any] | None = None) -> Dict[str, Any]:
@@ -41,6 +53,126 @@ def make_empty_stl_row(defaults: Dict[str, Any] | None = None) -> Dict[str, Any]
         "read_status": defaults.get("read_status", False),
         "delete_after_days": defaults.get("delete_after_days"),
     }
+
+
+def make_empty_ignored_row() -> Dict[str, Any]:
+    """Return a blank IGNORED_EMAILS row."""
+
+    return {
+        "name": "",
+        "senders": "",
+        "domains": "",
+        "subject_contains": "",
+        "skip_analysis": True,
+        "skip_import": True,
+        "mark_as_read": False,
+        "apply_labels": "",
+        "archive": False,
+        "delete_after_days": None,
+    }
+
+
+def _normalize_group_index(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _add_email_to_rows(
+    rows: List[Dict[str, Any]] | None,
+    label: str,
+    group_index: Any,
+    email: str,
+    defaults: Dict[str, Any] | None,
+) -> List[Dict[str, Any]]:
+    label = (label or "").strip()
+    email = (email or "").strip()
+    if not label or not email:
+        raise ValueError("label and email are required")
+
+    normalized_group = _normalize_group_index(group_index)
+    current_rows = list(rows or [])
+
+    for row in current_rows:
+        if (
+            row.get("label") == label
+            and _normalize_group_index(row.get("group_index")) == normalized_group
+            and row.get("email") == email
+        ):
+            raise ValueError("email already exists in this group")
+
+    read_status = None
+    delete_after_days = None
+    for row in current_rows:
+        if (
+            row.get("label") == label
+            and _normalize_group_index(row.get("group_index")) == normalized_group
+        ):
+            if read_status is None:
+                read_status = row.get("read_status")
+            if delete_after_days is None:
+                delete_after_days = row.get("delete_after_days")
+            if read_status is not None and delete_after_days is not None:
+                break
+
+    defaults = defaults or {}
+    if read_status is None:
+        read_status = defaults.get("read_status")
+    if delete_after_days is None:
+        delete_after_days = defaults.get("delete_after_days")
+
+    current_rows.append(
+        {
+            "label": label,
+            "group_index": normalized_group,
+            "email": email,
+            "read_status": read_status,
+            "delete_after_days": delete_after_days,
+        }
+    )
+    return current_rows
+
+
+def _remove_email_from_rows(
+    rows: List[Dict[str, Any]] | None,
+    label: str,
+    group_index: Any,
+    email: str,
+) -> List[Dict[str, Any]]:
+    normalized_group = _normalize_group_index(group_index)
+    removed = False
+    remaining: List[Dict[str, Any]] = []
+    for row in rows or []:
+        if (
+            row.get("label") == label
+            and _normalize_group_index(row.get("group_index")) == normalized_group
+            and row.get("email") == email
+        ):
+            removed = True
+            continue
+        remaining.append(row)
+    if not removed:
+        raise ValueError("email not found in group")
+    return remaining
+
+
+def _add_ignored_email(rows: List[Dict[str, Any]] | None) -> List[Dict[str, Any]]:
+    updated = list(rows or [])
+    updated.append(make_empty_ignored_row())
+    return updated
+
+
+def _remove_ignored_email(
+    rows: List[Dict[str, Any]] | None, index: int
+) -> List[Dict[str, Any]]:
+    if rows is None:
+        raise ValueError("no ignored-email rows to remove")
+    if index < 0 or index >= len(rows):
+        raise ValueError("ignored-email index out of range")
+    updated = list(rows)
+    updated.pop(index)
+    return updated
 
 
 def _render_coverage(total: int, missing: int) -> str:
@@ -79,90 +211,6 @@ def _group_changes_by_label(changes: List[str]) -> Dict[str, List[str]]:
         label = m.group(1) if m else "Unknown"
         groups.setdefault(label, []).append(c)
     return groups
-
-
-def _clean_email_input(value: Any) -> str:
-    """Return a trimmed string representation for email inputs."""
-
-    if value is None:
-        return ""
-    return str(value).strip()
-
-
-def _normalize_ignored_emails(emails: Iterable[str] | None) -> List[str]:
-    """Normalize and de-duplicate ignored email entries."""
-
-    unique: Dict[str, str] = {}
-    if emails is None:
-        return []
-    for email in emails:
-        cleaned = _clean_email_input(email)
-        if not cleaned:
-            continue
-        key = cleaned.casefold()
-        if key not in unique:
-            unique[key] = key
-    return sorted(unique.values(), key=str.casefold)
-
-
-def _format_ignored_rows(emails: Iterable[str] | None) -> List[Dict[str, str]]:
-    """Convert ignored email addresses into DataTable rows."""
-
-    normalized = _normalize_ignored_emails(emails)
-    return [{"email": email} for email in normalized]
-
-
-def _add_ignored_email(
-    cfg: Dict[str, Any] | None, email: str | None
-) -> Tuple[Dict[str, Any], List[str], str]:
-    """Add an email address to the ignored list with validation."""
-
-    trimmed = _clean_email_input(email)
-    if not trimmed:
-        raise ValueError("Enter an email address to add.")
-    if not EMAIL_PATTERN.fullmatch(trimmed):
-        raise ValueError("Enter a valid email address.")
-
-    existing = _normalize_ignored_emails((cfg or {}).get("IGNORED_EMAILS"))
-    key = trimmed.casefold()
-    if key in set(existing):
-        raise ValueError(f"{trimmed} is already ignored.")
-
-    updated = deepcopy(cfg or {})
-    updated.setdefault("SENDER_TO_LABELS", updated.get("SENDER_TO_LABELS") or {})
-    final = _normalize_ignored_emails([*existing, trimmed])
-    updated["IGNORED_EMAILS"] = final
-    return updated, final, key
-
-
-def _remove_ignored_emails(
-    cfg: Dict[str, Any] | None, emails_to_remove: Iterable[str] | None
-) -> Tuple[Dict[str, Any], List[str], List[str]]:
-    """Remove selected emails from the ignored list."""
-
-    selected: set[str] = set()
-    if emails_to_remove:
-        for email in emails_to_remove:
-            cleaned = _clean_email_input(email)
-            if cleaned:
-                selected.add(cleaned.casefold())
-    if not selected:
-        raise ValueError("Select one or more emails to remove.")
-
-    existing = _normalize_ignored_emails((cfg or {}).get("IGNORED_EMAILS"))
-    if not existing:
-        raise ValueError("No ignored emails to remove.")
-
-    removed = [email for email in existing if email.casefold() in selected]
-    if not removed:
-        raise ValueError("Selected email(s) were not found.")
-
-    remaining = [email for email in existing if email.casefold() not in selected]
-
-    updated = deepcopy(cfg or {})
-    updated.setdefault("SENDER_TO_LABELS", updated.get("SENDER_TO_LABELS") or {})
-    updated["IGNORED_EMAILS"] = remaining
-    return updated, remaining, removed
 
 
 def _prepare_diff_outputs(
@@ -307,17 +355,185 @@ def _prepare_diff_outputs(
 
 
 def register_callbacks(app):
-    def _format_group_label(gi: int) -> str:
-        if gi == 0:
-            return "Mark Read"
-        if gi == 1:
-            return "Mark Unread"
-        return f"Group {gi}"
+    def _render_grouped_tree(
+        data: List[Dict[str, Any]] | Dict[str, Dict[Any, List[str]]],
+    ):
+        def _group_label(gi: int) -> str:
+            if gi == 0:
+                return "Mark Read"
+            if gi == 1:
+                return "Mark Unread"
+            return f"Group {gi}"
+
+        if isinstance(data, list):
+            grouped = rows_to_grouped(data)
+        else:
+            grouped = {}
+            for label, groups in (data or {}).items():
+                normalized: Dict[int, List[str]] = {}
+                if isinstance(groups, dict):
+                    for key, emails in groups.items():
+                        normalized[_normalize_group_index(key)] = [
+                            str(email) for email in emails or []
+                        ]
+                grouped[label] = normalized
+
+        items = []
+        for label in sorted(grouped):
+            group_items = []
+            label_groups = grouped.get(label, {}) or {}
+            for gi in sorted(label_groups, key=int):
+                emails = label_groups.get(gi, [])
+                email_items = [
+                    html.Li(
+                        [
+                            html.Span(email),
+                            # Hidden span to satisfy pattern-matching Output for remove
+                            html.Span(
+                                "",
+                                id={
+                                    "type": "grp-dummy",
+                                    "label": label,
+                                    "group": gi,
+                                    "email": email,
+                                },
+                                style={"display": "none"},
+                            ),
+                            html.Button(
+                                "Remove",
+                                id={
+                                    "type": "grp-remove",
+                                    "label": label,
+                                    "group": gi,
+                                    "email": email,
+                                },
+                                n_clicks=0,
+                                style={"marginLeft": "4px"},
+                            ),
+                        ]
+                    )
+                    for email in emails
+                ]
+                group_items.append(
+                    html.Li(
+                        [
+                            html.Span(_group_label(gi)),
+                            html.Ul(email_items),
+                            # Hidden span to satisfy pattern-matching Output for add
+                            html.Span(
+                                "",
+                                id={"type": "grp-dummy", "label": label, "group": gi},
+                                style={"display": "none"},
+                            ),
+                            dcc.Input(
+                                id={"type": "grp-input", "label": label, "group": gi},
+                                placeholder="new email",
+                                style={"marginRight": "4px", "fontSize": "12px"},
+                            ),
+                            html.Button(
+                                "Add",
+                                id={"type": "grp-add", "label": label, "group": gi},
+                                n_clicks=0,
+                                style={"fontSize": "12px"},
+                            ),
+                        ]
+                    )
+                )
+            items.append(html.Li([html.Strong(label), html.Ul(group_items)]))
+        return html.Ul(items)
 
     def _recompute(rows):
         cfg = table_to_config(rows)
         analysis = run_full_analysis(cfg)
         return cfg, analysis
+
+    @app.callback(
+        Output("store-grouped", "data", allow_duplicate=True),
+        Input("tbl-stl", "data"),
+        prevent_initial_call=False,
+    )
+    def sync_grouped_store(rows):
+        return rows_to_grouped(rows or [])
+
+    @app.callback(
+        Output("stl-grouped", "children"),
+        Input("store-grouped", "data"),
+    )
+    def refresh_grouped_view(grouped):
+        return _render_grouped_tree(grouped or {})
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("store-grouped", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input({"type": "grp-add", "label": MATCH, "group": MATCH}, "n_clicks"),
+        State({"type": "grp-input", "label": MATCH, "group": MATCH}, "value"),
+        State("tbl-stl", "data"),
+        State("store-defaults", "data"),
+        prevent_initial_call=True,
+    )
+    def on_group_add(n_clicks, value, rows, defaults):
+        if not n_clicks:
+            raise PreventUpdate
+        triggered = ctx.triggered_id or {}
+        if not isinstance(triggered, dict):
+            raise PreventUpdate
+        label = triggered.get("label", "")
+        group_index = triggered.get("group")
+        email = (value or "").strip()
+        if not email:
+            return no_update, no_update, "Enter an email before adding."
+        try:
+            updated_rows = _add_email_to_rows(rows, label, group_index, email, defaults)
+        except ValueError as exc:
+            logger.warning(
+                "Unable to add %s to %s group %s: %s", email, label, group_index, exc
+            )
+            return no_update, no_update, f"Unable to add email: {exc}"
+        grouped = rows_to_grouped(updated_rows)
+        return (
+            updated_rows,
+            grouped,
+            f"Added {email} to {label} (group {group_index}).",
+        )
+
+    @app.callback(
+        Output("tbl-stl", "data", allow_duplicate=True),
+        Output("store-grouped", "data", allow_duplicate=True),
+        Output("status", "children", allow_duplicate=True),
+        Input(
+            {"type": "grp-remove", "label": MATCH, "group": MATCH, "email": MATCH},
+            "n_clicks",
+        ),
+        State("tbl-stl", "data"),
+        prevent_initial_call=True,
+    )
+    def on_group_remove(n_clicks, rows):
+        if not n_clicks:
+            raise PreventUpdate
+        triggered = ctx.triggered_id or {}
+        if not isinstance(triggered, dict):
+            raise PreventUpdate
+        label = triggered.get("label", "")
+        group_index = triggered.get("group")
+        email = triggered.get("email", "")
+        try:
+            updated_rows = _remove_email_from_rows(rows, label, group_index, email)
+        except ValueError as exc:
+            logger.warning(
+                "Unable to remove %s from %s group %s: %s",
+                email,
+                label,
+                group_index,
+                exc,
+            )
+            return no_update, no_update, f"Unable to remove email: {exc}"
+        grouped = rows_to_grouped(updated_rows)
+        return (
+            updated_rows,
+            grouped,
+            f"Removed {email} from {label} (group {group_index}).",
+        )
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
@@ -377,83 +593,40 @@ def register_callbacks(app):
         Output("status", "children", allow_duplicate=True),
         Input("btn-apply-edits", "n_clicks"),
         State("tbl-stl", "data"),
+        State("store-config", "data"),
         prevent_initial_call=True,
     )
-    def on_apply_edits(_n, stl_rows):
-        tmp = table_to_config(stl_rows)
+    def on_apply_edits(_n, stl_rows, cfg):
+        tmp = table_to_config(stl_rows, cfg)
         analysis = run_full_analysis(tmp)
         return tmp, analysis, "Applied table edits to working config (not yet saved)."
 
     @app.callback(
-        Output("tbl-ignored-emails", "data", allow_duplicate=True),
-        Output("tbl-ignored-emails", "selected_rows", allow_duplicate=True),
+        Output("tbl-ignored", "data", allow_duplicate=True),
         Output("store-config", "data", allow_duplicate=True),
         Output("store-analysis", "data", allow_duplicate=True),
-        Output("ignored-status", "children", allow_duplicate=True),
-        Output("txt-ignored-email", "value"),
-        Input("btn-add-ignored", "n_clicks"),
-        State("txt-ignored-email", "value"),
+        Output("status", "children", allow_duplicate=True),
+        Input("btn-apply-ignored", "n_clicks"),
+        State("tbl-ignored", "data"),
         State("store-config", "data"),
         prevent_initial_call=True,
     )
-    def on_add_ignored(_n, email_value, cfg):
+    def on_apply_ignored(_n, rows, cfg):
+        cfg = cfg or {}
         try:
-            updated_cfg, emails, added = _add_ignored_email(cfg, email_value)
+            rules = rows_to_ignored_rules(rows)
         except ValueError as exc:
-            return (
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                html.Span(str(exc), style={"color": "#c62828"}),
-                no_update,
-            )
-
-        analysis = run_full_analysis(updated_cfg)
-        rows = _format_ignored_rows(emails)
-        message = html.Span(
-            f"Added {added} to ignored emails.", style={"color": "#2e7d32"}
+            logger.error("Invalid ignored rules: %s", exc)
+            return no_update, no_update, no_update, f"Ignored rules invalid: {exc}"
+        tmp = dict(cfg)
+        tmp["IGNORED_EMAILS"] = rules
+        analysis = run_full_analysis(tmp)
+        return (
+            ignored_rules_to_rows(tmp),
+            tmp,
+            analysis,
+            "Applied IGNORED_EMAILS edits to working config (not yet saved).",
         )
-        return rows, [], updated_cfg, analysis, message, ""
-
-    @app.callback(
-        Output("tbl-ignored-emails", "data", allow_duplicate=True),
-        Output("tbl-ignored-emails", "selected_rows", allow_duplicate=True),
-        Output("store-config", "data", allow_duplicate=True),
-        Output("store-analysis", "data", allow_duplicate=True),
-        Output("ignored-status", "children", allow_duplicate=True),
-        Input("btn-remove-ignored", "n_clicks"),
-        State("tbl-ignored-emails", "selected_rows"),
-        State("tbl-ignored-emails", "data"),
-        State("store-config", "data"),
-        prevent_initial_call=True,
-    )
-    def on_remove_ignored(_n, selected_rows, rows, cfg):
-        selected_emails: List[str] = []
-        if selected_rows and rows:
-            for idx in selected_rows:
-                if 0 <= idx < len(rows):
-                    email = rows[idx].get("email")
-                    if email:
-                        selected_emails.append(email)
-        try:
-            updated_cfg, emails, removed = _remove_ignored_emails(cfg, selected_emails)
-        except ValueError as exc:
-            return (
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                html.Span(str(exc), style={"color": "#c62828"}),
-            )
-
-        analysis = run_full_analysis(updated_cfg)
-        rows_out = _format_ignored_rows(emails)
-        label = "Removed {count} ignored email(s): {items}.".format(
-            count=len(removed), items=", ".join(removed)
-        )
-        message = html.Span(label, style={"color": "#2e7d32"})
-        return rows_out, [], updated_cfg, analysis, message
 
     @app.callback(
         Output("status", "children", allow_duplicate=True),
@@ -473,10 +646,6 @@ def register_callbacks(app):
             backup_requested,
             label_count,
         )
-        try:
-            display_config_path = CONFIG_JSON.relative_to(CONFIG_DIR.parent).as_posix()
-        except ValueError:
-            display_config_path = CONFIG_JSON.as_posix()
         if backup_requested:
             if CONFIG_JSON.exists():
                 bkp = backup_file(CONFIG_JSON)
@@ -486,23 +655,18 @@ def register_callbacks(app):
                     CONFIG_JSON,
                     bkp,
                 )
-                try:
-                    display_backup_path = bkp.relative_to(CONFIG_DIR.parent).as_posix()
-                except ValueError:
-                    display_backup_path = bkp.as_posix()
                 return (
-                    f"Backup saved: {display_backup_path}\n"
-                    f"Updated: {display_config_path}"
+                    f"Backup saved: {bkp.name}\nUpdated: config/gmail_config-final.json"
                 )
             write_json(cfg, CONFIG_JSON)
             logger.info(
                 "Configuration saved to %s without existing file to backup.",
                 CONFIG_JSON,
             )
-            return f"Updated: {display_config_path}"
+            return "Updated: config/gmail_config-final.json"
         write_json(cfg, CONFIG_JSON)
         logger.info("Configuration saved without backup to %s.", CONFIG_JSON)
-        return f"Updated: {display_config_path} (no backup)"
+        return "Updated: config/gmail_config-final.json (no backup)"
 
     @app.callback(
         Output("store-defaults", "data"),
@@ -526,6 +690,15 @@ def register_callbacks(app):
         rows = rows or []
         rows.append(make_empty_stl_row(defaults))
         return rows
+
+    @app.callback(
+        Output("tbl-ignored", "data", allow_duplicate=True),
+        Input("btn-add-ignored-row", "n_clicks"),
+        State("tbl-ignored", "data"),
+        prevent_initial_call=True,
+    )
+    def add_ignored_row(_n, rows):
+        return _add_ignored_email(rows)
 
     @app.callback(
         Output("tbl-stl", "hidden_columns", allow_duplicate=True),
@@ -578,30 +751,9 @@ def register_callbacks(app):
     @app.callback(
         Output("stl-grouped", "children"),
         Input("tbl-stl", "data"),
-        Input("store-grouped-expanded", "data"),
     )
-    def render_grouped(rows, expanded_store):
-        grouped = rows_to_grouped(rows or [])
-        expanded = (expanded_store or {}).get("labels", [])
-        return render_grouped_tree(grouped, expanded)
-
-    @app.callback(
-        Output("store-grouped-expanded", "data"),
-        Input({"type": "grp-label-toggle", "label": ALL}, "n_clicks"),
-        State("store-grouped-expanded", "data"),
-        State("tbl-stl", "data"),
-        prevent_initial_call=True,
-    )
-    def on_toggle_grouped_label(_clicks, expanded_store, rows):
-        triggered = ctx.triggered_id
-        if not triggered or not isinstance(triggered, dict):
-            raise PreventUpdate
-
-        label = triggered.get("label")
-        grouped = rows_to_grouped(rows or [])
-        expanded = (expanded_store or {}).get("labels", [])
-        updated = toggle_expanded_label(label, expanded, grouped.keys())
-        return {"labels": updated}
+    def render_grouped(rows):
+        return _render_grouped_tree(rows or [])
 
     @app.callback(
         Output("flat-view", "style"),
@@ -631,50 +783,12 @@ def register_callbacks(app):
     # Grouped-tree Add callback temporarily disabled due to Dash wildcard
     # constraints across multi-output callbacks. Controls are no-ops for now.
 
-    @app.callback(
-        Output("tbl-stl", "data", allow_duplicate=True),
-        Output("store-config", "data", allow_duplicate=True),
-        Output("store-analysis", "data", allow_duplicate=True),
-        Output("status", "children", allow_duplicate=True),
-        Input(
-            {"type": "grp-remove", "label": ALL, "group": ALL, "email": ALL}, "n_clicks"
-        ),
-        State("tbl-stl", "data"),
-        prevent_initial_call=True,
-    )
-    def on_group_remove(_clicks, rows):
-        triggered = ctx.triggered_id
-        if not rows or not triggered or not isinstance(triggered, dict):
-            return no_update, no_update, no_update, no_update
-        if triggered.get("type") != "grp-remove":
-            return no_update, no_update, no_update, no_update
-
-        updated_rows, removed = remove_email_from_group(
-            rows,
-            triggered.get("label", ""),
-            triggered.get("group"),
-            triggered.get("email", ""),
-        )
-        if not removed:
-            return no_update, no_update, no_update, no_update
-
-        cfg, analysis = _recompute(updated_rows)
-
-        group_value = triggered.get("group")
-        try:
-            group_int = int(group_value) if group_value is not None else 0
-        except (TypeError, ValueError):
-            group_int = 0
-        message = "Removed {email} from {label} ({group}).".format(
-            email=triggered.get("email", ""),
-            label=triggered.get("label", ""),
-            group=_format_group_label(group_int),
-        )
-
-        return updated_rows, cfg, analysis, message
+    # Grouped-tree Remove callback temporarily disabled due to Dash wildcard
+    # constraints across multi-output callbacks. Controls are no-ops for now.
 
     @app.callback(
         Output("tbl-stl", "data", allow_duplicate=True),
+        Output("tbl-ignored", "data", allow_duplicate=True),
         Output("store-config", "data", allow_duplicate=True),
         Output("store-analysis", "data", allow_duplicate=True),
         Output("status", "children", allow_duplicate=True),
@@ -689,9 +803,11 @@ def register_callbacks(app):
                 no_update,
                 no_update,
                 no_update,
+                no_update,
                 str(exc),
             )
         stl_rows = config_to_table(cfg)
+        ignored_rows = ignored_rules_to_rows(cfg)
         analysis = run_full_analysis(cfg)
         try:
             from .reports import write_ECAQ_report, write_diff_json
@@ -702,6 +818,7 @@ def register_callbacks(app):
             pass
         return (
             stl_rows,
+            ignored_rows,
             cfg,
             analysis,
             "Reports refreshed.",
@@ -961,16 +1078,6 @@ def register_callbacks(app):
         analysis = run_full_analysis(updated)
         msg = "; ".join(changes) if changes else "No changes made."
         return stl_rows, updated, analysis, msg
-
-    @app.callback(
-        Output("tbl-ignored-emails", "data", allow_duplicate=True),
-        Input("store-config", "data"),
-        prevent_initial_call="initial_duplicate",
-    )
-    def on_config_change_ignored(cfg):
-        if not cfg:
-            return []
-        return _format_ignored_rows(cfg.get("IGNORED_EMAILS"))
 
     @app.callback(
         Output("status", "children", allow_duplicate=True),

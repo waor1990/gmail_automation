@@ -1,4 +1,4 @@
-{
+﻿{
     "EMAIL_USER": "you@example.com",
     "EMAIL_PASS": "app-specific-password",
     "SENDER_TO_LABELS": {
@@ -12,18 +12,36 @@
             }
         ]
     },
+    "IGNORED_EMAILS": [
+        {
+            "name": "Example ignore",
+            "senders": [
+                "ignore@example.com"
+            ],
+            "subject_contains": [],
+            "actions": {
+                "skip_analysis": true,
+                "skip_import": true,
+                "mark_as_read": true,
+                "apply_labels": [
+                    "Ignored"
+                ],
+                "archive": true,
+                "delete_after_days": 0
+            }
+        }
+    ],
     "PROTECTED_LABELS": [
-        "Important"
+        "Receipts",
+        "Family"
     ],
     "SELECTED_EMAIL_DELETIONS": [
         {
-            "name": "Delete marketing emails once read",
-            "query": "from:marketing@example.com",
-            "defer_until_read": true,
-            "enabled": true,
-            "protected_labels": [
-                "Keep"
-            ]
+            "id": "replace-with-message-id",
+            "label": "Old Promotions",
+            "require_read": true,
+            "reason": "cleanup",
+            "actor": "automation"
         }
     ]
 }
