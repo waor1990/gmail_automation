@@ -3,6 +3,7 @@
 from dash import dcc, dash_table, html
 
 from .theme import get_theme_style
+from .transforms import ignored_rules_to_rows, rows_to_grouped
 
 
 def make_layout(stl_rows, analysis, diff, cfg, pending):
@@ -59,6 +60,18 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
         ],
     )
 
+    pending_notice_style = {
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "backgroundColor": "#fff4db",
+        "color": "#7a3e00",
+        "padding": "8px 12px",
+        "borderLeft": "4px solid #ffa940",
+        "borderRadius": "4px",
+        "marginBottom": "12px",
+        "lineHeight": "1.4",
+    }
+
     return html.Div(
         id="app-root",
         style=get_theme_style("light"),
@@ -68,6 +81,10 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 id="store-defaults",
                 storage_type="local",
                 data={"read_status": False, "delete_after_days": None},
+            ),
+            dcc.Store(
+                id="store-grouped",
+                data=rows_to_grouped(stl_rows),
             ),
             html.H1("Gmail Email Configuration Dashboard"),
             control_row,
@@ -89,13 +106,10 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                 children=[
                     html.H2("New Senders Pending Processing"),
                     html.Div(
-                        "Senders not yet processed by Gmail automation.",
+                        html.Span("Senders not yet processed by Gmail automation."),
                         id="pending-help",
-                        style={
-                            "fontSize": "12px",
-                            "color": "#a00",
-                            "marginBottom": "4px",
-                        },
+                        role="note",
+                        style=pending_notice_style,
                     ),
                     html.Button(
                         "Export New Senders CSV",
@@ -282,6 +296,7 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                                 editable=True,
                                 row_deletable=True,
                                 row_selectable="multi",
+                                filter_action="native",
                                 page_size=15,
                                 style_table={"maxHeight": "400px", "overflowY": "auto"},
                                 style_cell={
@@ -374,6 +389,71 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
             html.Div(
                 style=section_style,
                 children=[
+                    html.H2("Ignored Email Rules"),
+                    html.P(
+                        (
+                            "Rules processed in order before labeling. "
+                            "Use them to skip analysis/import and perform actions "
+                            "like marking as read or deleting."
+                        ),
+                        style={"fontSize": "14px", "maxWidth": "800px"},
+                    ),
+                    dash_table.DataTable(
+                        id="tbl-ignored",
+                        columns=[
+                            {"name": "name", "id": "name"},
+                            {"name": "senders", "id": "senders"},
+                            {"name": "domains", "id": "domains"},
+                            {"name": "subject_contains", "id": "subject_contains"},
+                            {"name": "skip_analysis", "id": "skip_analysis"},
+                            {"name": "skip_import", "id": "skip_import"},
+                            {"name": "mark_as_read", "id": "mark_as_read"},
+                            {"name": "apply_labels", "id": "apply_labels"},
+                            {"name": "archive", "id": "archive"},
+                            {
+                                "name": "delete_after_days",
+                                "id": "delete_after_days",
+                                "type": "numeric",
+                            },
+                        ],
+                        data=ignored_rules_to_rows(cfg),
+                        editable=True,
+                        row_deletable=True,
+                        page_size=10,
+                        style_table={"maxHeight": "300px", "overflowY": "auto"},
+                        style_cell={
+                            "fontFamily": "monospace",
+                            "fontSize": "12px",
+                            "whiteSpace": "normal",
+                        },
+                    ),
+                    html.Div(
+                        style={"display": "flex", "gap": "8px", "marginTop": "8px"},
+                        children=[
+                            html.Button(
+                                "Add ignored rule",
+                                id="btn-add-ignored-row",
+                                n_clicks=0,
+                                title="Append an empty ignored-email rule row",
+                            ),
+                            html.Button(
+                                "Apply IGNORED_EMAILS edits",
+                                id="btn-apply-ignored",
+                                n_clicks=0,
+                                style={"background": "#e8f0ff"},
+                                title=(
+                                    "Sync ignored-email table changes "
+                                    "to the working config. "
+                                    "Use Save Config to persist to disk."
+                                ),
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                style=section_style,
+                children=[
                     html.H2("Differences View (Source: config/gmail_labels_data.json)"),
                     html.Div(id="diff-summary", style={"marginBottom": "8px"}),
                     dash_table.DataTable(
@@ -423,6 +503,23 @@ def make_layout(stl_rows, analysis, diff, cfg, pending):
                         },
                     ),
                     html.Div(id="diff-projected", style={"marginTop": "8px"}),
+                ],
+            ),
+            html.Div(
+                style={"marginBottom": "24px"},
+                children=[
+                    html.Label(
+                        "Filter SENDER_TO_LABELS by label",
+                        htmlFor="ddl-stl-label-filter",
+                        style={"display": "block", "fontWeight": "bold"},
+                    ),
+                    dcc.Dropdown(
+                        id="ddl-stl-label-filter",
+                        options=[],
+                        placeholder="Select a label to filter the editor...",
+                        clearable=True,
+                        style={"marginTop": "4px", "maxWidth": "400px"},
+                    ),
                 ],
             ),
             html.Div(
