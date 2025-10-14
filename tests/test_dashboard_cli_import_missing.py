@@ -4,6 +4,7 @@ import scripts.dashboard.analysis as dash_analysis
 import scripts.dashboard.constants as dash_constants
 import scripts.dashboard.__main__ as dash_main
 from scripts.dashboard import logging_setup
+from typing import Any
 
 
 def test_cli_import_missing(monkeypatch, tmp_path):
@@ -16,7 +17,7 @@ def test_cli_import_missing(monkeypatch, tmp_path):
     labels_path = config_dir / "gmail_labels_data.json"
     diff_path = config_dir / "email_differences_by_label.json"
 
-    cfg = {
+    cfg: dict[str, Any] = {
         "SENDER_TO_LABELS": {
             "Foo": [{"emails": ["a@example.com"], "read_status": True}]
         }
