@@ -7,6 +7,7 @@ from gmail_automation.config import (
     get_sender_last_run_times,
 )
 from gmail_automation.logging_utils import get_logger
+from gmail_automation.ignored_rules import IgnoredRulesEngine, normalize_ignored_rules
 
 from .utils_io import read_json
 from .constants import CONFIG_JSON
@@ -29,7 +30,13 @@ def load_config() -> Dict[str, Any]:
         "Configuration contains %s labels", len(data.get("SENDER_TO_LABELS", {}))
     )
     data.setdefault("SENDER_TO_LABELS", {})
-    data.setdefault("IGNORED_EMAILS", [])
+    try:
+        data["IGNORED_EMAILS"] = normalize_ignored_rules(
+            data.get("IGNORED_EMAILS") or []
+        )
+    except (TypeError, ValueError) as exc:
+        logger.error("Failed to normalize IGNORED_EMAILS: %s", exc)
+        data["IGNORED_EMAILS"] = []
     return data
 
 
@@ -223,18 +230,22 @@ def compute_label_differences(cfg: dict, labels_data: dict) -> dict:
     }
 
     total_missing = 0
-    ignored = {e.casefold() for e in cfg.get("IGNORED_EMAILS", [])}
+    ignored_engine = IgnoredRulesEngine.from_config(cfg.get("IGNORED_EMAILS", []))
     for label_name, entries in (labels_data.get("SENDER_TO_LABELS") or {}).items():
         label_emails_fold: Dict[str, str] = {}
         for entry in entries or []:
             for e in entry.get("emails") or []:
                 cf = e.casefold()
-                if cf in ignored:
+                if ignored_engine.should_skip_analysis(e):
                     continue
                 label_emails_fold.setdefault(cf, e)
 
-        missing_folds = sorted(set(label_emails_fold) - cfg_emails - ignored)
-        missing = [label_emails_fold[m] for m in missing_folds]
+        missing_folds = sorted(set(label_emails_fold) - cfg_emails)
+        missing = [
+            label_emails_fold[m]
+            for m in missing_folds
+            if not ignored_engine.should_skip_analysis(label_emails_fold[m])
+        ]
         exists_in_target = label_name in (cfg.get("SENDER_TO_LABELS") or {})
         if missing or not exists_in_target:
             output["missing_emails_by_label"][label_name] = {
@@ -269,10 +280,18 @@ def import_missing_emails(
     updated = json.loads(json.dumps(cfg))
     stl = updated.setdefault("SENDER_TO_LABELS", {})
     target_groups = stl.setdefault(label, [])
+    ignored_engine = IgnoredRulesEngine.from_config(cfg.get("IGNORED_EMAILS", []))
 
     existing = {
         e.casefold() for grp in target_groups for e in (grp.get("emails") or [])
     }
+    # Track existing email membership per group so we can detect overlaps.
+    group_casefolds: Dict[int, Set[str]] = {}
+    for grp in target_groups:
+        group_casefolds[id(grp)] = {
+            e.casefold() for e in (grp.get("emails") or []) if isinstance(e, str)
+        }
+
     added: List[str] = []
 
     source_groups = (labels_data.get("SENDER_TO_LABELS") or {}).get(label) or []
@@ -282,29 +301,65 @@ def import_missing_emails(
 
     for src in source_groups:
         meta = {k: src.get(k) for k in ("read_status", "delete_after_days") if k in src}
+        src_emails = [e for e in (src.get("emails") or []) if e]
+        src_cf = {e.casefold() for e in src_emails}
         to_add = [
             e
             for e in (src.get("emails") or [])
-            if e and e.casefold() in missing_cf and e.casefold() not in existing
+            if e
+            and e.casefold() in missing_cf
+            and e.casefold() not in existing
+            and not ignored_engine.should_skip_import(e)
         ]
         if not to_add:
             continue
 
+        candidate = None
+
+        overlapping: List[Tuple[int, Dict[str, Any]]] = []
         for tgt in target_groups:
-            if tgt.get("read_status") == meta.get("read_status") and tgt.get(
-                "delete_after_days"
-            ) == meta.get("delete_after_days"):
-                tgt.setdefault("emails", []).extend(to_add)
-                existing.update(e.casefold() for e in to_add)
-                # Only count items that were explicitly requested
-                added.extend([e for e in to_add if e in emails])
-                break
+            tgt_cf = group_casefolds.get(id(tgt), set())
+            overlap = len(src_cf & tgt_cf)
+            if overlap:
+                overlapping.append((overlap, tgt))
+        if overlapping:
+            overlapping.sort(key=lambda item: item[0], reverse=True)
+            candidate = overlapping[0][1]
         else:
-            new_group = {"emails": to_add}
-            new_group.update(meta)
-            target_groups.append(new_group)
-            existing.update(e.casefold() for e in to_add)
-            # Only count items that were explicitly requested
-            added.extend([e for e in to_add if e in emails])
+            for tgt in target_groups:
+                if tgt.get("read_status") == meta.get("read_status") and tgt.get(
+                    "delete_after_days"
+                ) == meta.get("delete_after_days"):
+                    candidate = tgt
+                    break
+            if candidate is None and target_groups:
+
+                def _score(group: Dict[str, Any]) -> int:
+                    score = 0
+                    if group.get("read_status") == meta.get("read_status"):
+                        score += 2
+                    if group.get("delete_after_days") == meta.get("delete_after_days"):
+                        score += 1
+                    return score
+
+                candidate = max(target_groups, key=_score)
+
+        if candidate is None:
+            candidate = {"emails": []}
+            candidate.update(meta)
+            target_groups.append(candidate)
+
+        emails_list = candidate.setdefault("emails", [])
+        emails_list.extend(to_add)
+        existing.update(e.casefold() for e in to_add)
+        group_cf = group_casefolds.setdefault(id(candidate), set())
+        group_cf.update(e.casefold() for e in to_add)
+
+        if candidate.get("read_status") is None and "read_status" in meta:
+            candidate["read_status"] = meta["read_status"]
+        if candidate.get("delete_after_days") is None and "delete_after_days" in meta:
+            candidate["delete_after_days"] = meta["delete_after_days"]
+
+        added.extend([e for e in to_add if e in emails])
 
     return updated, added
