@@ -987,6 +987,16 @@ def register_callbacks(app):
         return {"display": "block"}, {"display": "none"}
 
     @app.callback(
+        Output("diff-table-view", "style"),
+        Output("diff-tree-view", "style"),
+        Input("diff-view-toggle", "value"),
+    )
+    def toggle_diff_view(mode):
+        if mode == "tree":
+            return {"display": "none"}, {"display": "block"}
+        return {"display": "block"}, {"display": "none"}
+
+    @app.callback(
         Output("ddl-stl-label-filter", "options"),
         Output("ddl-stl-label-filter", "value"),
         Input("tbl-stl", "data"),
