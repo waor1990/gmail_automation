@@ -215,6 +215,13 @@ python -m scripts.maintenance --outdated --no-input
 python -m scripts.maintenance --all
 ```
 
+### Maintenance Commands
+
+```bash
+# Non-interactive rebase & squash with verification
+python -m scripts.maintenance_helper rebase-squash
+```
+
 ## Developer Resources
 
 Pointers for extending, debugging, and learning more about the project.
@@ -225,6 +232,17 @@ Additional guides are available in the [docs](docs/) directory:
 
 - [Setup Guide](docs/setup.md)
 - [Configuration Examples](docs/configuration_examples.md)
+- [Rebase & Squash Helper](docs/REBASE_SQUASH.md)
+
+### Rebase & Squash
+
+Use `python -m scripts.maintenance_helper rebase-squash` to rebase your feature
+branch onto `main`, collapse all commits into one, and run local verification
+automatically:
+
+```bash
+python -m scripts.maintenance_helper rebase-squash --dry-run
+```
 
 ### Development
 
